@@ -1,0 +1,75 @@
+package com.uxplima.uxmlib.config;
+
+import java.util.Locale;
+
+import org.bukkit.Color;
+import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
+
+import org.spongepowered.configurate.serialize.ScalarSerializer;
+import org.spongepowered.configurate.serialize.SerializationException;
+import org.spongepowered.configurate.serialize.TypeSerializerCollection;
+
+/**
+ * Configurate scalar serializers for the common Bukkit value types, so config can map a string straight
+ * onto a {@link Material}, {@link NamespacedKey}, or {@link Color} (and the reverse) without per-field
+ * parsing. Apply them with {@link HoconConfig#load(java.nio.file.Path, TypeSerializerCollection)} using
+ * {@link #bukkit()}.
+ */
+public final class ConfigCodecs {
+
+    private ConfigCodecs() {}
+
+    /** The default serializers plus uxmlib's Bukkit-type scalars (Material, NamespacedKey, Color). */
+    public static TypeSerializerCollection bukkit() {
+        return TypeSerializerCollection.defaults()
+                .childBuilder()
+                .register(Material.class, materialSerializer())
+                .register(NamespacedKey.class, namespacedKeySerializer())
+                .register(Color.class, colorSerializer())
+                .build();
+    }
+
+    private static ScalarSerializer<Material> materialSerializer() {
+        return ScalarSerializer.of(
+                Material.class, (type, material) -> material.name(), (type, raw) -> parseMaterial(raw.toString()));
+    }
+
+    private static Material parseMaterial(String raw) throws SerializationException {
+        Material material = Material.matchMaterial(raw);
+        if (material == null) {
+            throw new SerializationException("unknown material: " + raw);
+        }
+        return material;
+    }
+
+    private static ScalarSerializer<NamespacedKey> namespacedKeySerializer() {
+        return ScalarSerializer.of(
+                NamespacedKey.class, (type, key) -> key.asString(), (type, raw) -> parseKey(raw.toString()));
+    }
+
+    private static NamespacedKey parseKey(String raw) throws SerializationException {
+        NamespacedKey key = NamespacedKey.fromString(raw.toLowerCase(Locale.ROOT));
+        if (key == null) {
+            throw new SerializationException("invalid namespaced key: " + raw);
+        }
+        return key;
+    }
+
+    private static ScalarSerializer<Color> colorSerializer() {
+        // Stored as a #RRGGBB hex string.
+        return ScalarSerializer.of(
+                Color.class,
+                (type, color) -> String.format(Locale.ROOT, "#%06X", color.asRGB()),
+                (type, raw) -> parseColor(raw.toString()));
+    }
+
+    private static Color parseColor(String raw) throws SerializationException {
+        String hex = raw.startsWith("#") ? raw.substring(1) : raw;
+        try {
+            return Color.fromRGB(Integer.parseInt(hex, 16));
+        } catch (NumberFormatException | IllegalArgumentException failure) {
+            throw new SerializationException("invalid colour: " + raw, failure);
+        }
+    }
+}

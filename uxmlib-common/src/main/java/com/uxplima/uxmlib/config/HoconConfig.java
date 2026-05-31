@@ -1,8 +1,12 @@
 package com.uxplima.uxmlib.config;
 
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.spongepowered.configurate.CommentedConfigurationNode;
@@ -10,6 +14,7 @@ import org.spongepowered.configurate.ConfigurateException;
 import org.spongepowered.configurate.ConfigurationNode;
 import org.spongepowered.configurate.hocon.HoconConfigurationLoader;
 import org.spongepowered.configurate.serialize.SerializationException;
+import org.spongepowered.configurate.serialize.TypeSerializerCollection;
 
 /**
  * A HOCON-backed configuration. The file is parsed once on {@link #load(Path)} and held in an
@@ -25,6 +30,8 @@ public final class HoconConfig {
 
     private final HoconConfigurationLoader loader;
     private final AtomicReference<CommentedConfigurationNode> root;
+    private final List<ConfigProperty<?>> properties = new CopyOnWriteArrayList<>();
+    private final List<Runnable> reloadListeners = new CopyOnWriteArrayList<>();
 
     private HoconConfig(HoconConfigurationLoader loader, CommentedConfigurationNode root) {
         this.loader = loader;
@@ -39,18 +46,76 @@ public final class HoconConfig {
         return new HoconConfig(loader, read(loader));
     }
 
-    /** Re-read the file and swap the in-memory tree atomically. */
-    public void reload() {
-        root.set(read(loader));
+    /**
+     * Load {@code file} with extra type serializers (see {@link ConfigCodecs#bukkit()}), so subtree and
+     * scalar reads can map onto the registered Bukkit value types.
+     */
+    public static HoconConfig load(Path file, TypeSerializerCollection serializers) {
+        Objects.requireNonNull(file, "file");
+        Objects.requireNonNull(serializers, "serializers");
+        HoconConfigurationLoader loader = HoconConfigurationLoader.builder()
+                .path(file)
+                .defaultOptions(options -> options.serializers(serializers))
+                .build();
+        return new HoconConfig(loader, read(loader));
     }
 
-    /** Write the current in-memory tree back to the file. */
-    public void save() {
+    /**
+     * Re-read the file and swap the in-memory tree atomically, then refresh every bound
+     * {@link ConfigProperty} (firing change listeners) and run every {@link #onReload} listener.
+     */
+    public void reload() {
+        root.set(read(loader));
+        for (ConfigProperty<?> property : properties) {
+            property.refresh();
+        }
+        for (Runnable listener : reloadListeners) {
+            listener.run();
+        }
+    }
+
+    /** Run {@code listener} after each {@link #reload()}. */
+    public void onReload(Runnable listener) {
+        reloadListeners.add(Objects.requireNonNull(listener, "listener"));
+    }
+
+    /** Write the current in-memory tree back to the file. Synchronized so saves never overlap. */
+    public synchronized void save() {
         try {
-            loader.save(root.get());
+            loader.save(currentRoot());
         } catch (ConfigurateException failure) {
             throw new ConfigException("failed to save config", failure);
         }
+    }
+
+    /** Save off the calling thread on {@code executor}; the returned future completes when the write ends. */
+    public CompletableFuture<Void> saveAsync(Executor executor) {
+        Objects.requireNonNull(executor, "executor");
+        return CompletableFuture.runAsync(this::save, executor);
+    }
+
+    /** A bound int property at {@code path}, refreshed on reload. */
+    public ConfigProperty<Integer> intProperty(String path, int fallback) {
+        Objects.requireNonNull(path, "path");
+        return register(new ConfigProperty<>(() -> getInt(path, fallback)));
+    }
+
+    /** A bound boolean property at {@code path}, refreshed on reload. */
+    public ConfigProperty<Boolean> boolProperty(String path, boolean fallback) {
+        Objects.requireNonNull(path, "path");
+        return register(new ConfigProperty<>(() -> getBoolean(path, fallback)));
+    }
+
+    /** A bound string property at {@code path}, refreshed on reload. */
+    public ConfigProperty<String> stringProperty(String path, String fallback) {
+        Objects.requireNonNull(path, "path");
+        Objects.requireNonNull(fallback, "fallback");
+        return register(new ConfigProperty<>(() -> getString(path, fallback)));
+    }
+
+    private <T> ConfigProperty<T> register(ConfigProperty<T> property) {
+        properties.add(property);
+        return property;
     }
 
     /** The boolean at {@code path}, or {@code fallback} when absent. */
