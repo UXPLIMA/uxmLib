@@ -14,7 +14,7 @@ dependencies {
     compileOnly(libs.paper.api)
     compileOnly(libs.bundles.adventure) // Paper ships Adventure at runtime
     api(libs.configurate.hocon)
-    api(libs.geantyref) // pulled in by Configurate, surfaced so consumers also get the fixed version
+    api(libs.geantyref) // pulled in by Configurate; surfaced so consumers also get the fixed version
 
     // The Bukkit-facing seams (Scheduler, Text) need Paper + Adventure on the test runtime,
     // since the production set declares them compileOnly.
