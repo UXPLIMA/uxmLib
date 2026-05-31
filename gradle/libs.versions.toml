@@ -31,8 +31,9 @@ shadow       = "9.4.1"
 
 [libraries]
 paper-api         = { module = "io.papermc.paper:paper-api",            version.ref = "paper" }
-adventure-api     = { module = "net.kyori:adventure-api",               version.ref = "adventure" }
-adventure-mini    = { module = "net.kyori:adventure-text-minimessage",  version.ref = "adventure" }
+adventure-api     = { module = "net.kyori:adventure-api",                     version.ref = "adventure" }
+adventure-mini    = { module = "net.kyori:adventure-text-minimessage",        version.ref = "adventure" }
+adventure-plain   = { module = "net.kyori:adventure-text-serializer-plain",   version.ref = "adventure" }
 configurate-hocon = { module = "org.spongepowered:configurate-hocon",   version.ref = "configurate" }
 hikari            = { module = "com.zaxxer:HikariCP",                   version.ref = "hikari" }
 caffeine          = { module = "com.github.ben-manes.caffeine:caffeine", version.ref = "caffeine" }
