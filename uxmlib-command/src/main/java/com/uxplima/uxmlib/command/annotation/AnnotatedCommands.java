@@ -44,6 +44,19 @@ public final class AnnotatedCommands {
     public static void register(JavaPlugin plugin, Object handler) {
         Objects.requireNonNull(plugin, "plugin");
         Objects.requireNonNull(handler, "handler");
+        Command command = handler.getClass().getAnnotation(Command.class);
+        if (command == null) {
+            throw new CommandParseException(handler.getClass().getName() + " is not annotated with @Command");
+        }
+        CommandRegistrar.register(plugin, buildNode(handler), command.description(), List.of(command.aliases()));
+    }
+
+    /**
+     * Build the Brigadier tree for an annotated {@code handler} without registering it. Exposed so the
+     * tree shape can be inspected and tested without a live plugin; {@link #register} delegates here.
+     */
+    public static LiteralCommandNode<CommandSourceStack> buildNode(Object handler) {
+        Objects.requireNonNull(handler, "handler");
         Class<?> type = handler.getClass();
         Command command = type.getAnnotation(Command.class);
         if (command == null) {
@@ -62,9 +75,7 @@ public final class AnnotatedCommands {
         for (Method method : branches) {
             attachBranch(root, handler, method);
         }
-
-        LiteralCommandNode<CommandSourceStack> node = root.build();
-        CommandRegistrar.register(plugin, node, command.description(), List.of(command.aliases()));
+        return root.build();
     }
 
     private static List<Method> orderedSubcommands(Class<?> type) {

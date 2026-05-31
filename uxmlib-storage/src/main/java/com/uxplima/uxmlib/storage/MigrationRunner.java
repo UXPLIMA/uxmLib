@@ -103,11 +103,17 @@ public final class MigrationRunner {
     }
 
     private static List<String> splitStatements(String sql) {
+        // Split on ';' by scanning rather than String.split / Pattern.split, both of which ErrorProne
+        // flags for surprising trailing-empty behaviour. Blank statements are dropped.
         List<String> statements = new ArrayList<>();
-        for (String part : sql.split(";")) {
-            String trimmed = part.strip();
-            if (!trimmed.isEmpty()) {
-                statements.add(trimmed);
+        int start = 0;
+        for (int i = 0; i <= sql.length(); i++) {
+            if (i == sql.length() || sql.charAt(i) == ';') {
+                String trimmed = sql.substring(start, i).strip();
+                if (!trimmed.isEmpty()) {
+                    statements.add(trimmed);
+                }
+                start = i + 1;
             }
         }
         return statements;

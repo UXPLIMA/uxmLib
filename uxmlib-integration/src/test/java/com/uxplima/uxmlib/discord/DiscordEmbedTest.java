@@ -15,8 +15,9 @@ class DiscordEmbedTest {
 
     @Test
     void includesColourWhenSet() {
+        // 0xFF8800 == 16746496 decimal — Discord embed colours are the decimal RGB integer.
         String body = DiscordWebhook.embedBody(DiscordEmbed.colored("T", "D", 0xFF8800));
-        assertThat(body).isEqualTo("{\"embeds\":[{\"title\":\"T\",\"description\":\"D\",\"color\":16745472}]}");
+        assertThat(body).isEqualTo("{\"embeds\":[{\"title\":\"T\",\"description\":\"D\",\"color\":16746496}]}");
     }
 
     @Test
