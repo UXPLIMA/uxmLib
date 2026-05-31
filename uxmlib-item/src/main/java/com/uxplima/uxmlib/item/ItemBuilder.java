@@ -141,6 +141,65 @@ public final class ItemBuilder {
         return editMeta(meta -> applySkull((SkullMeta) meta, skull));
     }
 
+    /** Add a potion effect (only meaningful on a potion item); a no-op on items without potion meta. */
+    public ItemBuilder potionEffect(PotionEffect effect) {
+        Objects.requireNonNull(effect, "effect");
+        return editTypedMeta(PotionMeta.class, meta -> meta.addCustomEffect(effect, true));
+    }
+
+    /** Set the potion's display colour; a no-op on items without potion meta. */
+    public ItemBuilder potionColor(Color color) {
+        Objects.requireNonNull(color, "color");
+        return editTypedMeta(PotionMeta.class, meta -> meta.setColor(color));
+    }
+
+    /** Add a firework effect; a no-op on items without firework meta. */
+    public ItemBuilder fireworkEffect(FireworkEffect effect) {
+        Objects.requireNonNull(effect, "effect");
+        return editTypedMeta(FireworkMeta.class, meta -> meta.addEffect(effect));
+    }
+
+    /** Set the firework flight power (0–127); a no-op on items without firework meta. */
+    public ItemBuilder fireworkPower(int power) {
+        if (power < 0 || power > 127) {
+            throw new IllegalArgumentException("power must be 0..127");
+        }
+        return editTypedMeta(FireworkMeta.class, meta -> meta.setPower(power));
+    }
+
+    /** Dye leather armour; a no-op on items without leather-armour meta. */
+    public ItemBuilder leatherColor(Color color) {
+        Objects.requireNonNull(color, "color");
+        return editTypedMeta(LeatherArmorMeta.class, meta -> meta.setColor(color));
+    }
+
+    /** Set a written book's title; a no-op on items without book meta. */
+    public ItemBuilder bookTitle(Component title) {
+        Objects.requireNonNull(title, "title");
+        return editTypedMeta(BookMeta.class, meta -> meta.title(title));
+    }
+
+    /** Set a written book's author; a no-op on items without book meta. */
+    public ItemBuilder bookAuthor(Component author) {
+        Objects.requireNonNull(author, "author");
+        return editTypedMeta(BookMeta.class, meta -> meta.author(author));
+    }
+
+    /** Append pages to a written book; a no-op on items without book meta. */
+    public ItemBuilder bookPages(Component... pages) {
+        Objects.requireNonNull(pages, "pages");
+        return editTypedMeta(BookMeta.class, meta -> meta.addPages(pages));
+    }
+
+    /** Add a stored enchantment (for an enchanted book); a no-op on items without that meta. */
+    public ItemBuilder storedEnchant(Enchantment enchantment, int level) {
+        Objects.requireNonNull(enchantment, "enchantment");
+        if (level < 1) {
+            throw new IllegalArgumentException("level must be >= 1");
+        }
+        return editTypedMeta(EnchantmentStorageMeta.class, meta -> meta.addStoredEnchant(enchantment, level, true));
+    }
+
     /** Mutate the raw {@link ItemMeta} directly; the result is written back to the stack. */
     public ItemBuilder editMeta(Consumer<ItemMeta> editor) {
         Objects.requireNonNull(editor, "editor");
@@ -148,6 +207,17 @@ public final class ItemBuilder {
         editor.accept(meta);
         stack.setItemMeta(meta);
         return this;
+    }
+
+    /** Mutate the meta only if it is of {@code metaType}; otherwise this is a no-op. */
+    public <M extends ItemMeta> ItemBuilder editTypedMeta(Class<M> metaType, Consumer<M> editor) {
+        Objects.requireNonNull(metaType, "metaType");
+        Objects.requireNonNull(editor, "editor");
+        return editMeta(meta -> {
+            if (metaType.isInstance(meta)) {
+                editor.accept(metaType.cast(meta));
+            }
+        });
     }
 
     /** Mutate the item's {@link PersistentDataContainer}; the result is written back to the stack. */
