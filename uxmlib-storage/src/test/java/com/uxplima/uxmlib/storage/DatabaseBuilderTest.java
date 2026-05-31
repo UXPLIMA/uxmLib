@@ -1,0 +1,39 @@
+package com.uxplima.uxmlib.storage;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import java.sql.Connection;
+import java.sql.SQLException;
+
+import org.junit.jupiter.api.Test;
+
+class DatabaseBuilderTest {
+
+    @Test
+    void opensAnInMemorySqliteDatabase() throws SQLException {
+        try (Database db = Database.builder().sqliteInMemory().build()) {
+            assertThat(db.isClosed()).isFalse();
+            try (Connection conn = db.connection()) {
+                assertThat(conn.isValid(1)).isTrue();
+            }
+        }
+    }
+
+    @Test
+    void closingShutsThePoolDown() {
+        Database db = Database.builder().sqliteInMemory().build();
+        db.close();
+        assertThat(db.isClosed()).isTrue();
+    }
+
+    @Test
+    void failsWhenNoBackendIsConfigured() {
+        assertThatThrownBy(() -> Database.builder().build()).isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void rejectsInvalidPoolSize() {
+        assertThatThrownBy(() -> Database.builder().maxPoolSize(0)).isInstanceOf(IllegalArgumentException.class);
+    }
+}
