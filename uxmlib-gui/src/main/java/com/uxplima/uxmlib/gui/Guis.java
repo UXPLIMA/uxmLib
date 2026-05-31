@@ -39,6 +39,11 @@ public final class Guis {
         return new PaginatedBuilder();
     }
 
+    /** A builder for a non-chest {@link SimpleGui} of the given {@link GuiType} (hopper, dispenser, …). */
+    public static TypedBuilder typed(GuiType type) {
+        return new TypedBuilder(type);
+    }
+
     /** Shared builder state with a self-returning fluent API. */
     abstract static class Builder<B extends Builder<B>> {
         Component title = Component.empty();
@@ -72,6 +77,27 @@ public final class Guis {
         /** Build the menu. */
         public SimpleGui build() {
             return new SimpleGui(title, rows);
+        }
+    }
+
+    /** Builder for a non-chest {@link SimpleGui} sized by its {@link GuiType}; rows do not apply. */
+    public static final class TypedBuilder {
+        private final GuiType type;
+        private Component title = Component.empty();
+
+        private TypedBuilder(GuiType type) {
+            this.type = Objects.requireNonNull(type, "type");
+        }
+
+        /** Set the menu title. */
+        public TypedBuilder title(Component title) {
+            this.title = Objects.requireNonNull(title, "title");
+            return this;
+        }
+
+        /** Build the menu. */
+        public SimpleGui build() {
+            return new SimpleGui(title, type);
         }
     }
 

@@ -15,6 +15,10 @@ import org.spongepowered.configurate.serialize.TypeSerializerCollection;
  * onto a {@link Material}, {@link NamespacedKey}, or {@link Color} (and the reverse) without per-field
  * parsing. Apply them with {@link HoconConfig#load(java.nio.file.Path, TypeSerializerCollection)} using
  * {@link #bukkit()}.
+ *
+ * <p>{@link ScalarSerializer#of} takes a serialize function {@code (value, typeTest) -> serializedForm}
+ * and a deserialize function {@code raw -> value}; the type-test predicate is unused here because every
+ * value renders to a single string.
  */
 public final class ConfigCodecs {
 
@@ -32,7 +36,7 @@ public final class ConfigCodecs {
 
     private static ScalarSerializer<Material> materialSerializer() {
         return ScalarSerializer.of(
-                Material.class, (type, material) -> material.name(), (type, raw) -> parseMaterial(raw.toString()));
+                Material.class, (material, typeTest) -> material.name(), raw -> parseMaterial(raw.toString()));
     }
 
     private static Material parseMaterial(String raw) throws SerializationException {
@@ -45,7 +49,7 @@ public final class ConfigCodecs {
 
     private static ScalarSerializer<NamespacedKey> namespacedKeySerializer() {
         return ScalarSerializer.of(
-                NamespacedKey.class, (type, key) -> key.asString(), (type, raw) -> parseKey(raw.toString()));
+                NamespacedKey.class, (key, typeTest) -> key.asString(), raw -> parseKey(raw.toString()));
     }
 
     private static NamespacedKey parseKey(String raw) throws SerializationException {
@@ -60,16 +64,18 @@ public final class ConfigCodecs {
         // Stored as a #RRGGBB hex string.
         return ScalarSerializer.of(
                 Color.class,
-                (type, color) -> String.format(Locale.ROOT, "#%06X", color.asRGB()),
-                (type, raw) -> parseColor(raw.toString()));
+                (color, typeTest) -> String.format(Locale.ROOT, "#%06X", color.asRGB()),
+                raw -> parseColor(raw.toString()));
     }
 
     private static Color parseColor(String raw) throws SerializationException {
         String hex = raw.startsWith("#") ? raw.substring(1) : raw;
         try {
+            // NumberFormatException is a subclass of IllegalArgumentException, so one catch covers both
+            // bad hex and an out-of-range RGB value.
             return Color.fromRGB(Integer.parseInt(hex, 16));
-        } catch (NumberFormatException | IllegalArgumentException failure) {
-            throw new SerializationException("invalid colour: " + raw, failure);
+        } catch (IllegalArgumentException failure) {
+            throw new SerializationException("invalid colour: " + raw);
         }
     }
 }

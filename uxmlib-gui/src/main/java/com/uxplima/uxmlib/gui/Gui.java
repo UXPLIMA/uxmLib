@@ -40,11 +40,17 @@ public interface Gui extends InventoryHolder {
     /** Run when the menu closes. */
     void onClose(java.util.function.Consumer<InventoryCloseEvent> handler);
 
+    /** Run when the menu opens. */
+    void onOpen(java.util.function.Consumer<org.bukkit.event.inventory.InventoryOpenEvent> handler);
+
     /** Routes a click to the clicked slot's action. Called by {@link GuiListener}; not for direct use. */
     void handleClick(InventoryClickEvent event);
 
     /** Runs the close handler. Called by {@link GuiListener}; not for direct use. */
     void handleClose(InventoryCloseEvent event);
+
+    /** Runs the open handler. Called by {@link GuiListener}; not for direct use. */
+    void handleOpen(org.bukkit.event.inventory.InventoryOpenEvent event);
 
     /** The backing inventory. */
     @Override

@@ -9,6 +9,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.entity.HumanEntity;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
+import org.bukkit.event.inventory.InventoryOpenEvent;
 import org.bukkit.inventory.Inventory;
 
 import net.kyori.adventure.text.Component;
@@ -24,9 +25,11 @@ abstract class AbstractGui implements Gui {
 
     private final Component title;
     private final int size;
+    private final @Nullable GuiType type;
     private final Map<Integer, GuiItem> items = new HashMap<>();
     private @Nullable Inventory inventory;
     private @Nullable Consumer<InventoryCloseEvent> closeHandler;
+    private @Nullable Consumer<InventoryOpenEvent> openHandler;
 
     AbstractGui(Component title, int rows) {
         this.title = Objects.requireNonNull(title, "title");
@@ -34,6 +37,13 @@ abstract class AbstractGui implements Gui {
             throw new IllegalArgumentException("rows must be 1..6");
         }
         this.size = rows * 9;
+        this.type = null;
+    }
+
+    AbstractGui(Component title, GuiType type) {
+        this.title = Objects.requireNonNull(title, "title");
+        this.type = Objects.requireNonNull(type, "type");
+        this.size = type.size();
     }
 
     @Override
@@ -79,6 +89,19 @@ abstract class AbstractGui implements Gui {
     }
 
     @Override
+    public void onOpen(Consumer<InventoryOpenEvent> handler) {
+        this.openHandler = Objects.requireNonNull(handler, "handler");
+    }
+
+    @Override
+    public void handleOpen(InventoryOpenEvent event) {
+        Consumer<InventoryOpenEvent> handler = openHandler;
+        if (handler != null) {
+            handler.accept(event);
+        }
+    }
+
+    @Override
     public void open(HumanEntity viewer) {
         Objects.requireNonNull(viewer, "viewer");
         viewer.openInventory(getInventory());
@@ -110,7 +133,9 @@ abstract class AbstractGui implements Gui {
     public final Inventory getInventory() {
         Inventory inv = inventory;
         if (inv == null) {
-            inv = Bukkit.createInventory(this, size, title);
+            inv = type == null
+                    ? Bukkit.createInventory(this, size, title)
+                    : Bukkit.createInventory(this, type.inventoryType(), title);
             inventory = inv;
             render(inv);
         }

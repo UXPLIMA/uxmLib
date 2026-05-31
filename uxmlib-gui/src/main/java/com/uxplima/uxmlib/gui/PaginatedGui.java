@@ -73,10 +73,9 @@ public final class PaginatedGui extends AbstractGui {
         }
     }
 
-    /** Jump to {@code target} (clamped to a valid page) and re-render. */
+    /** Jump to {@code target} (clamped to a valid page) and open for {@code viewer}. */
     public void open(org.bukkit.entity.HumanEntity viewer, int target) {
-        this.page = Math.max(0, Math.min(target, pageCount() - 1));
-        render();
+        page(target);
         open(viewer);
     }
 

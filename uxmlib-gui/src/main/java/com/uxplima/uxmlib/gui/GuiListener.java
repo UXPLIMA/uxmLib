@@ -5,6 +5,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
+import org.bukkit.event.inventory.InventoryOpenEvent;
 
 /**
  * The single Bukkit listener that drives every {@link Gui}. Because a menu is its inventory's holder,
@@ -32,6 +33,13 @@ public final class GuiListener implements Listener {
     public void onClose(InventoryCloseEvent event) {
         if (event.getInventory().getHolder() instanceof Gui gui) {
             gui.handleClose(event);
+        }
+    }
+
+    @EventHandler
+    public void onOpen(InventoryOpenEvent event) {
+        if (event.getInventory().getHolder() instanceof Gui gui) {
+            gui.handleOpen(event);
         }
     }
 }
