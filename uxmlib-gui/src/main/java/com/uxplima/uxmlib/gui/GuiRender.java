@@ -1,0 +1,56 @@
+package com.uxplima.uxmlib.gui;
+
+import java.util.Map;
+
+import org.bukkit.entity.HumanEntity;
+import org.bukkit.entity.Player;
+import org.bukkit.inventory.Inventory;
+
+import org.jspecify.annotations.Nullable;
+
+/**
+ * Writes {@link GuiItem}s into a backing {@link Inventory}, resolving each item against a viewer through
+ * a {@link RenderContext}. A {@link GuiItem.Static} resolves the same for everyone and can be written
+ * with no viewer; a dynamic, stateful, or animated item needs a viewer, so when none is present (the
+ * inventory has not been opened yet) those slots are left for the next render once a viewer exists.
+ *
+ * <p>Kept separate from {@code AbstractGui} so the menu class stays small and rendering has one home.
+ */
+final class GuiRender {
+
+    private GuiRender() {}
+
+    /** The first player viewing {@code inventory}, or {@code null} if none (or only non-players). */
+    static @Nullable Player firstViewer(@Nullable Inventory inventory) {
+        if (inventory == null) {
+            return null;
+        }
+        for (HumanEntity viewer : inventory.getViewers()) {
+            if (viewer instanceof Player player) {
+                return player;
+            }
+        }
+        return null;
+    }
+
+    /** Write one slot, using the inventory's current viewer to resolve a non-static item. */
+    static void writeSlot(Inventory inventory, Gui gui, int slot, GuiItem item) {
+        writeSlot(inventory, gui, slot, item, firstViewer(inventory));
+    }
+
+    /** Write one slot for {@code viewer}; a static item is written even when {@code viewer} is null. */
+    static void writeSlot(Inventory inventory, Gui gui, int slot, GuiItem item, @Nullable Player viewer) {
+        if (item instanceof GuiItem.Static fixed) {
+            inventory.setItem(slot, fixed.item());
+        } else if (viewer != null) {
+            inventory.setItem(slot, item.icon(new RenderContext(viewer, gui, slot)));
+        }
+    }
+
+    /** Write every item in {@code items} for {@code viewer} (resolving statics regardless). */
+    static void renderAll(Inventory inventory, Gui gui, Map<Integer, GuiItem> items, @Nullable Player viewer) {
+        for (Map.Entry<Integer, GuiItem> entry : items.entrySet()) {
+            writeSlot(inventory, gui, entry.getKey(), entry.getValue(), viewer);
+        }
+    }
+}

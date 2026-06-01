@@ -18,5 +18,22 @@ public enum InteractionModifier {
     ITEM_SWAP,
 
     /** Dropping an item (Q / drop key) while the menu is open. */
-    ITEM_DROP
+    ITEM_DROP;
+
+    /** The modifier a click {@code action} falls under, or {@code null} if it is not a take/place/swap/drop. */
+    static @org.jspecify.annotations.Nullable InteractionModifier forAction(
+            org.bukkit.event.inventory.InventoryAction action) {
+        return switch (action) {
+            case PICKUP_ALL,
+                    PICKUP_HALF,
+                    PICKUP_SOME,
+                    PICKUP_ONE,
+                    MOVE_TO_OTHER_INVENTORY,
+                    COLLECT_TO_CURSOR -> ITEM_TAKE;
+            case PLACE_ALL, PLACE_SOME, PLACE_ONE -> ITEM_PLACE;
+            case SWAP_WITH_CURSOR, HOTBAR_SWAP, HOTBAR_MOVE_AND_READD -> ITEM_SWAP;
+            case DROP_ALL_SLOT, DROP_ONE_SLOT, DROP_ALL_CURSOR, DROP_ONE_CURSOR -> ITEM_DROP;
+            default -> null;
+        };
+    }
 }

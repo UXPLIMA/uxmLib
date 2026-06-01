@@ -25,6 +25,12 @@ public interface Gui extends InventoryHolder {
     /** The number of slots (rows × 9). */
     int size();
 
+    /** The menu's animation clock in ticks since it started ticking; drives animated items. */
+    long ticks();
+
+    /** Re-resolve every item for the current viewer and rewrite the open inventory in place. */
+    void refresh();
+
     /** Place {@code item} at {@code slot}; updates the open inventory immediately if it is showing. */
     void set(int slot, GuiItem item);
 

@@ -99,8 +99,9 @@ class GuiLayoutTest {
         gui.filler().fillEmpty(item(Material.GRAY_STAINED_GLASS_PANE));
 
         GuiItem atFour = gui.getItem(4);
-        assertThat(atFour).isNotNull();
-        assertThat(java.util.Objects.requireNonNull(atFour).item()).isEqualTo(diamond); // not overwritten
+        assertThat(atFour).isInstanceOf(GuiItem.Static.class);
+        assertThat(((GuiItem.Static) java.util.Objects.requireNonNull(atFour)).item())
+                .isEqualTo(diamond); // not overwritten
         assertThat(gui.getItem(0)).isNotNull(); // filled
     }
 

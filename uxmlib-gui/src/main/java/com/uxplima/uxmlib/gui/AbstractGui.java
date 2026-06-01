@@ -11,7 +11,6 @@ import java.util.function.Consumer;
 
 import org.bukkit.Bukkit;
 import org.bukkit.entity.HumanEntity;
-import org.bukkit.event.inventory.InventoryAction;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryOpenEvent;
@@ -38,6 +37,7 @@ abstract class AbstractGui implements Gui {
     private @Nullable Consumer<InventoryClickEvent> defaultClickHandler;
     private @Nullable Consumer<InventoryClickEvent> outsideClickHandler;
     private final Set<InteractionModifier> allowed = EnumSet.noneOf(InteractionModifier.class);
+    private long ticks;
 
     AbstractGui(Component title, int rows) {
         this.title = Objects.requireNonNull(title, "title");
@@ -70,7 +70,7 @@ abstract class AbstractGui implements Gui {
         checkSlot(slot);
         items.put(slot, item);
         if (inventory != null) {
-            inventory.setItem(slot, item.item());
+            GuiRender.writeSlot(inventory, this, slot, item);
         }
     }
 
@@ -175,7 +175,12 @@ abstract class AbstractGui implements Gui {
     @Override
     public void open(HumanEntity viewer) {
         Objects.requireNonNull(viewer, "viewer");
-        viewer.openInventory(getInventory());
+        Inventory inv = getInventory();
+        // Resolve dynamic/stateful/animated items for this specific viewer before showing the menu.
+        if (viewer instanceof org.bukkit.entity.Player player) {
+            GuiRender.renderAll(inv, this, items, player);
+        }
+        viewer.openInventory(inv);
     }
 
     @Override
@@ -198,55 +203,7 @@ abstract class AbstractGui implements Gui {
 
     @Override
     public void handleClick(InventoryClickEvent event) {
-        // Cancel unless this class of interaction has been explicitly allowed, so an unconfigured menu
-        // never leaks items but a storage-style menu can opt taking/placing back in.
-        if (!isAllowed(event)) {
-            event.setCancelled(true);
-        }
-        Inventory clicked = event.getClickedInventory();
-        if (clicked == null) {
-            // A click outside the inventory window entirely (the grey border area).
-            Consumer<InventoryClickEvent> outside = outsideClickHandler;
-            if (outside != null) {
-                outside.accept(event);
-            }
-            return;
-        }
-        if (!clicked.equals(inventory)) {
-            return;
-        }
-        GuiItem item = items.get(event.getSlot());
-        if (item != null) {
-            item.action().accept(event);
-            return;
-        }
-        Consumer<InventoryClickEvent> fallback = defaultClickHandler;
-        if (fallback != null) {
-            fallback.accept(event);
-        }
-    }
-
-    private boolean isAllowed(InventoryClickEvent event) {
-        if (allowed.isEmpty()) {
-            return false;
-        }
-        InteractionModifier modifier = modifierFor(event.getAction());
-        return modifier != null && allowed.contains(modifier);
-    }
-
-    private static @Nullable InteractionModifier modifierFor(InventoryAction action) {
-        return switch (action) {
-            case PICKUP_ALL,
-                    PICKUP_HALF,
-                    PICKUP_SOME,
-                    PICKUP_ONE,
-                    MOVE_TO_OTHER_INVENTORY,
-                    COLLECT_TO_CURSOR -> InteractionModifier.ITEM_TAKE;
-            case PLACE_ALL, PLACE_SOME, PLACE_ONE -> InteractionModifier.ITEM_PLACE;
-            case SWAP_WITH_CURSOR, HOTBAR_SWAP, HOTBAR_MOVE_AND_READD -> InteractionModifier.ITEM_SWAP;
-            case DROP_ALL_SLOT, DROP_ONE_SLOT, DROP_ALL_CURSOR, DROP_ONE_CURSOR -> InteractionModifier.ITEM_DROP;
-            default -> null;
-        };
+        GuiClick.route(this, inventory, items, allowed, defaultClickHandler, outsideClickHandler, event);
     }
 
     @Override
@@ -281,9 +238,37 @@ abstract class AbstractGui implements Gui {
     }
 
     private void render(Inventory inv) {
-        for (Map.Entry<Integer, GuiItem> entry : items.entrySet()) {
-            inv.setItem(entry.getKey(), entry.getValue().item());
+        GuiRender.renderAll(inv, this, items, GuiRender.firstViewer(inv));
+    }
+
+    @Override
+    public long ticks() {
+        return ticks;
+    }
+
+    /** Re-resolve every item for the current viewer and rewrite the open inventory in place. */
+    @Override
+    public void refresh() {
+        Inventory inv = inventory;
+        if (inv != null) {
+            render(inv);
         }
+    }
+
+    /** Advance the menu's animation clock by one tick and re-render. Called by the GUI registry. */
+    final void tick() {
+        ticks++;
+        refresh();
+    }
+
+    /** Whether this menu has any item that needs ticking (animated content). */
+    final boolean hasAnimatedContent() {
+        for (GuiItem item : items.values()) {
+            if (item instanceof GuiItem.Animated) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void checkSlot(int slot) {
