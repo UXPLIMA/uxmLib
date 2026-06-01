@@ -76,6 +76,59 @@ public final class GuiFiller {
         return this;
     }
 
+    /**
+     * Lay items out from a character mask: each string in {@code mask} is one row, each non-space char is
+     * looked up in {@code legend} and placed in that slot, and a space (or a char absent from the legend)
+     * leaves the slot untouched. A compact, declarative way to design a menu — the API half of a
+     * config-driven layout.
+     *
+     * <pre>{@code
+     * filler.pattern(List.of(
+     *     "XXXXXXXXX",
+     *     "X       X",
+     *     "XXXXXXXXX"), Map.of('X', border));
+     * }</pre>
+     */
+    public GuiFiller pattern(java.util.List<String> mask, java.util.Map<Character, GuiItem> legend) {
+        Objects.requireNonNull(mask, "mask");
+        Objects.requireNonNull(legend, "legend");
+        for (int row = 0; row < mask.size(); row++) {
+            String line = mask.get(row);
+            for (int col = 0; col < line.length() && col < WIDTH; col++) {
+                GuiItem item = legend.get(line.charAt(col));
+                if (item != null) {
+                    int slot = row * WIDTH + col;
+                    if (slot < gui.size()) {
+                        gui.set(slot, item);
+                    }
+                }
+            }
+        }
+        return this;
+    }
+
+    /** Put {@code item} around the {@code offset}-th ring inward from the edge (0 = the outer border). */
+    public GuiFiller fillBorder(int offset, GuiItem item) {
+        Objects.requireNonNull(item, "item");
+        int rows = rows();
+        int top = 1 + offset;
+        int bottom = rows - offset;
+        int left = 1 + offset;
+        int right = WIDTH - offset;
+        if (top > bottom || left > right) {
+            return this;
+        }
+        for (int col = left; col <= right; col++) {
+            gui.set(top, col, item);
+            gui.set(bottom, col, item);
+        }
+        for (int row = top; row <= bottom; row++) {
+            gui.set(row, left, item);
+            gui.set(row, right, item);
+        }
+        return this;
+    }
+
     /** Put {@code item} in the inclusive rectangle from ({@code row1},{@code col1}) to ({@code row2},{@code col2}). */
     public GuiFiller fillRect(int row1, int col1, int row2, int col2, GuiItem item) {
         Objects.requireNonNull(item, "item");

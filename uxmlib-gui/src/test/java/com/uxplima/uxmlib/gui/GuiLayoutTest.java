@@ -106,6 +106,27 @@ class GuiLayoutTest {
     }
 
     @Test
+    void patternLaysOutFromAMask() {
+        SimpleGui gui = Guis.gui().rows(3).build();
+        GuiItem x = item(Material.GRAY_STAINED_GLASS_PANE);
+        gui.filler().pattern(java.util.List.of("XXXXXXXXX", "X       X", "XXXXXXXXX"), java.util.Map.of('X', x));
+
+        assertThat(gui.getItem(0)).isNotNull(); // top-left corner from row 0
+        assertThat(gui.getItem(9)).isNotNull(); // row 1, col 0 (the 'X' at start of middle row)
+        assertThat(gui.getItem(13)).isNull(); // middle interior is a space -> untouched
+        assertThat(gui.getItem(26)).isNotNull(); // bottom-right corner
+    }
+
+    @Test
+    void fillBorderWithOffsetMakesAnInnerRing() {
+        SimpleGui gui = Guis.gui().rows(5).build();
+        gui.filler().fillBorder(1, item(Material.STONE)); // one ring in from the edge
+
+        assertThat(gui.getItem(0)).isNull(); // the true outer corner is untouched
+        assertThat(gui.getItem(10)).isNotNull(); // row 2, col 2 -> the inner ring corner
+    }
+
+    @Test
     void defaultClickFiresOnEmptySlots() {
         SimpleGui gui = Guis.gui().rows(1).build();
         boolean[] ran = {false};
