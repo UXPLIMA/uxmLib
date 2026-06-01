@@ -1,4 +1,4 @@
-package com.uxplima.uxmlib.storage;
+package com.uxplima.uxmlib.storage.repository;
 
 import java.util.Objects;
 import java.util.regex.Pattern;

@@ -1,4 +1,4 @@
-package com.uxplima.uxmlib.storage;
+package com.uxplima.uxmlib.storage.repository;
 
 import java.util.Objects;
 import java.util.Optional;
@@ -57,10 +57,19 @@ public final class CachedStorage<I, T> {
 
     /** Write {@code entity} off-thread on {@code executor}, updating the cache when it completes. */
     public CompletableFuture<Void> saveAsync(Executor executor, T entity) {
-        return Async.on(executor, () -> {
-            save(entity);
-            return null;
+        Objects.requireNonNull(executor, "executor");
+        // Run on the given executor without CompletableFuture.supplyAsync (which the project bans because
+        // it can fall back to the common pool); complete the future, exceptionally on failure.
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        executor.execute(() -> {
+            try {
+                save(entity);
+                future.complete(null);
+            } catch (RuntimeException failure) {
+                future.completeExceptionally(failure);
+            }
         });
+        return future;
     }
 
     /** Flush every loaded entity to the backend (e.g. on a periodic autosave). */

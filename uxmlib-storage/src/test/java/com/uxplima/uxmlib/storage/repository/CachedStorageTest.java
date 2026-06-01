@@ -1,4 +1,4 @@
-package com.uxplima.uxmlib.storage;
+package com.uxplima.uxmlib.storage.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

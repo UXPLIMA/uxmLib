@@ -1,4 +1,4 @@
-package com.uxplima.uxmlib.storage;
+package com.uxplima.uxmlib.storage.sql;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;

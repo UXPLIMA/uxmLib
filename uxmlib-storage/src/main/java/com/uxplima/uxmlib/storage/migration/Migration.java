@@ -1,4 +1,4 @@
-package com.uxplima.uxmlib.storage;
+package com.uxplima.uxmlib.storage.migration;
 
 import java.util.Objects;
 

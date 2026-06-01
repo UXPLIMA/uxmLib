@@ -1,4 +1,4 @@
-package com.uxplima.uxmlib.storage;
+package com.uxplima.uxmlib.storage.sql;
 
 import java.sql.PreparedStatement;
 import java.sql.SQLException;

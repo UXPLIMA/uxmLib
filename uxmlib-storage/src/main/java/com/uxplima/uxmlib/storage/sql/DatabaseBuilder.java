@@ -1,4 +1,4 @@
-package com.uxplima.uxmlib.storage;
+package com.uxplima.uxmlib.storage.sql;
 
 import java.nio.file.Path;
 import java.util.Objects;

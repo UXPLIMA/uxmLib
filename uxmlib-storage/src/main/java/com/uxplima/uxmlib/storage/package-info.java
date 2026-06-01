@@ -1,10 +1,9 @@
 /**
- * Plain-JDBC persistence plumbing — no jOOQ, no Flyway, no Paper dependency. {@link
- * com.uxplima.uxmlib.storage.Database} is a HikariCP-pooled handle built by {@link
- * com.uxplima.uxmlib.storage.DatabaseBuilder}, with SQLite as the zero-config default and
- * MySQL/MariaDB/PostgreSQL as opt-in network backends. {@link com.uxplima.uxmlib.storage.Sql} runs
- * parameterised queries and updates through a {@link com.uxplima.uxmlib.storage.RowMapper}, and
- * {@link com.uxplima.uxmlib.storage.Cache} is a thin Caffeine wrapper for read-through caching.
+ * Plain-JDBC persistence plumbing — no jOOQ, no Flyway, no Paper dependency — grouped into sub-packages:
+ * {@code sql} (the HikariCP-pooled {@code Database}, {@code Sql}/{@code TxSql}, and the injection-safe
+ * {@code SelectBuilder}), {@code migration} (versioned schema migration), and {@code repository}
+ * (CRUD-by-id, storage-provider abstraction, write-through cache). This root holds only the shared
+ * {@link com.uxplima.uxmlib.storage.StorageException}.
  */
 @NullMarked
 package com.uxplima.uxmlib.storage;

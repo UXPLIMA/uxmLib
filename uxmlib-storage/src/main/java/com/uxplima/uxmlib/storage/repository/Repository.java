@@ -1,10 +1,14 @@
-package com.uxplima.uxmlib.storage;
+package com.uxplima.uxmlib.storage.repository;
 
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+
+import com.uxplima.uxmlib.storage.sql.RowMapper;
+import com.uxplima.uxmlib.storage.sql.Sql;
+import com.uxplima.uxmlib.storage.sql.StatementBinder;
 
 /**
  * A CRUD-by-id base over a single table, so a plugin gets {@code findById}/{@code findAll}/{@code save}/

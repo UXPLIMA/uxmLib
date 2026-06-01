@@ -1,4 +1,4 @@
-package com.uxplima.uxmlib.storage;
+package com.uxplima.uxmlib.storage.migration;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -9,6 +9,9 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+
+import com.uxplima.uxmlib.storage.StorageException;
+import com.uxplima.uxmlib.storage.sql.Database;
 
 /**
  * Applies a set of {@link Migration}s exactly once each, in ascending version order. Applied versions

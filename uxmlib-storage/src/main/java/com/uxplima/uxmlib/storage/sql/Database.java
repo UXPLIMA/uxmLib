@@ -1,4 +1,4 @@
-package com.uxplima.uxmlib.storage;
+package com.uxplima.uxmlib.storage.sql;
 
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -6,6 +6,7 @@ import java.util.Objects;
 
 import javax.sql.DataSource;
 
+import com.uxplima.uxmlib.storage.StorageException;
 import com.zaxxer.hikari.HikariDataSource;
 
 /**
