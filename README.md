@@ -18,7 +18,7 @@ Each module is published separately; pull only what you use.
 | --- | --- |
 | `uxmlib-common` | Folia-ready `Scheduler`, MiniMessage `Text` helpers, typed `HoconConfig` |
 | `uxmlib-item` | A fluent `ItemBuilder`, sealed `SkullData`, registry lookups, item serialization |
-| `uxmlib-gui` | Inventory-menu framework — single/paginated/typed menus, click routing, anvil input |
+| `uxmlib-gui` | Inventory-menu framework — simple/paginated/scrolling/storage/typed menus, fillers, interaction control, anvil input |
 | `uxmlib-command` | A thin Brigadier facade plus an annotation-driven command DSL |
 | `uxmlib-storage` | Pooled (HikariCP) + cached (Caffeine) JDBC, a query builder, and migrations |
 | `uxmlib-integration` | PlaceholderAPI / Vault / LuckPerms hooks, native-Display holograms, a Discord webhook |
@@ -76,15 +76,31 @@ ItemStack back = ItemSerialization.fromBase64(saved);
 Guis.install(plugin);   // once, in onEnable
 
 SimpleGui menu = Guis.gui().title(Text.mini("<dark_aqua>Menu")).rows(3).build();
-menu.set(13, GuiItem.button(icon, event -> event.getWhoClicked().sendMessage("clicked")));
+menu.filler().fillBorder(GuiItem.display(pane));     // border / row / column / rect / fill helpers
+menu.set(2, 5, GuiItem.button(icon, e -> click()));  // 1-indexed row, col
+menu.addItem(a, b, c);                               // drop into the next empty slots
+menu.onDefaultClick(e -> {});                        // fallback for empty-slot clicks
 menu.onClose(event -> { /* ... */ });
+menu.updateTitle(Text.mini("<green>Updated"));       // live title change
 menu.open(player);
 
-// Paginated, hopper/dispenser shapes, and anvil text input:
+// Paginated, scrolling, and non-chest (hopper/dispenser) shapes:
 PaginatedGui shop = Guis.paginated().title(Text.mini("Shop")).rows(6).build();
 products.forEach(p -> shop.addPageItem(GuiItem.button(p.icon(), e -> buy(p))));
 shop.open(player);
 
+ScrollingGui list = Guis.scrolling(ScrollType.VERTICAL).rows(4).build();
+entries.forEach(e -> list.addScrollItem(GuiItem.display(e.icon())));   // scrollNext()/scrollPrevious()
+
+// A storage menu holds real items (take/place allowed) and keeps them across opens:
+StorageGui vault = Guis.storage().rows(3).build();
+vault.setContents(saved);
+vault.onClose(e -> persist(vault.contents()));
+
+// Fine-grained interaction control on any menu:
+Guis.gui().rows(3).allow(InteractionModifier.ITEM_TAKE).build();
+
+// Anvil text input:
 new AnvilInput(plugin).install();
 new AnvilInput(plugin).open(player, prompt, result -> {
     if (result instanceof AnvilResult.Submitted s) handle(s.text());
