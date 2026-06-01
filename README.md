@@ -18,7 +18,7 @@ Each module is published separately; pull only what you use.
 | --- | --- |
 | `uxmlib-common` | Folia-ready `Scheduler`, MiniMessage `Text` helpers, typed `HoconConfig` |
 | `uxmlib-item` | A fluent `ItemBuilder`, sealed `SkullData`, registry lookups, item serialization |
-| `uxmlib-gui` | Inventory-menu framework — simple/paginated/scrolling/storage/typed menus, fillers, interaction control, anvil input |
+| `uxmlib-gui` | Inventory-menu framework — simple/paginated/scrolling/storage/typed menus, per-viewer & animated items, fillers, interaction control, navigation, config-driven menus, anvil input |
 | `uxmlib-command` | A thin Brigadier facade plus an annotation-driven command DSL |
 | `uxmlib-storage` | Pooled (HikariCP) + cached (Caffeine) JDBC, a query builder, and migrations |
 | `uxmlib-integration` | PlaceholderAPI / Vault / LuckPerms hooks, native-Display holograms, a Discord webhook |
@@ -99,6 +99,33 @@ vault.onClose(e -> persist(vault.contents()));
 
 // Fine-grained interaction control on any menu:
 Guis.gui().rows(3).allow(InteractionModifier.ITEM_TAKE).build();
+
+// Per-viewer items: dynamic (computed per player), stateful (first matching condition), animated:
+menu.set(4, GuiItem.dynamic(ctx -> headOf(ctx.viewer())));
+menu.set(5, GuiItem.stateful()
+        .display(ctx -> ctx.viewer().hasPermission("vip"), vipIcon)
+        .display(ctx -> true, normalIcon).build());
+menu.set(6, GuiItem.animated(List.of(frame1, frame2), Duration.ofMillis(250)));
+Guis.install(plugin, scheduler);          // the Scheduler overload enables animation/auto-refresh
+
+// Display-modifier pipeline (viewer's own head, PlaceholderAPI, per-viewer transforms):
+DisplayModifiers.apply(item, DisplayModifiers.of(
+        DisplayModifiers.viewerSkull(), DisplayModifiers.placeholders()));
+
+// Populate a paginated menu straight from a domain list:
+shop.populate(products, ItemPopulator.of(p -> p.icon(), (p, e) -> buy(p)));
+
+// Multi-screen navigation with a back-stack:
+GuiNavigator nav = new GuiNavigator();
+nav.open(player, mainMenu);
+subMenu.set(8, GuiItem.back(nav, backArrow));   // also nextPage/previousPage/scrollNext helpers
+
+// Define a menu entirely in HOCON (operators re-skin; code owns the actions):
+MenuActions actions = new MenuActions().register("buy", e -> openShop(e));
+SimpleGui fromFile = MenuConfig.load(configNode, actions);
+
+// Click/open sounds:
+Guis.gui().rows(3).clickSound(click).openSound(open).build();
 
 // Anvil text input:
 new AnvilInput(plugin).install();
