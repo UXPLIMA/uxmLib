@@ -18,9 +18,11 @@ import com.zaxxer.hikari.HikariDataSource;
 public final class Database implements AutoCloseable {
 
     private final HikariDataSource dataSource;
+    private final Dialect dialect;
 
-    Database(HikariDataSource dataSource) {
+    Database(HikariDataSource dataSource, Dialect dialect) {
         this.dataSource = Objects.requireNonNull(dataSource, "dataSource");
+        this.dialect = Objects.requireNonNull(dialect, "dialect");
     }
 
     /** Start configuring a database; SQLite is the default backend. */
@@ -70,6 +72,11 @@ public final class Database implements AutoCloseable {
     /** The underlying pooled {@link DataSource}. */
     public DataSource dataSource() {
         return dataSource;
+    }
+
+    /** The SQL dialect this database speaks, inferred from its JDBC URL (drives upsert and the like). */
+    public Dialect dialect() {
+        return dialect;
     }
 
     /** Whether the pool has been shut down. */

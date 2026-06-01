@@ -64,14 +64,10 @@ public abstract class Repository<I, T> {
                 .isPresent();
     }
 
-    /** Insert {@code entity}, or replace the row with the same id (upsert). */
+    /** Insert {@code entity}, or update the row with the same id (a cross-dialect upsert). */
     public void save(T entity) {
         Objects.requireNonNull(entity, "entity");
-        String placeholders = String.join(", ", java.util.Collections.nCopies(columns.size(), "?"));
-        String columnList = String.join(", ", columns);
-        sql.update(
-                "INSERT OR REPLACE INTO " + table + " (" + columnList + ") VALUES (" + placeholders + ")",
-                ps -> bind(ps, entity));
+        sql.update(sql.dialect().upsert(table, idColumn, columns), ps -> bind(ps, entity));
     }
 
     /** Delete the entity with id {@code id}; returns whether a row was removed. */

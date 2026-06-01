@@ -27,6 +27,11 @@ public final class Sql {
         this.database = Objects.requireNonNull(database, "database");
     }
 
+    /** The SQL dialect of the underlying database, for dialect-specific statements such as upsert. */
+    public Dialect dialect() {
+        return database.dialect();
+    }
+
     /** Run a query and map every row, in result-set order. */
     public <T> List<T> query(String sql, StatementBinder binder, RowMapper<T> mapper) {
         Objects.requireNonNull(sql, "sql");
