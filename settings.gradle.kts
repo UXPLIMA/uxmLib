@@ -19,5 +19,6 @@ include(
     ":uxmlib-gui",
     ":uxmlib-storage",
     ":uxmlib-integration",
+    ":uxmlib-hud",
     ":uxmlib-all",
 )

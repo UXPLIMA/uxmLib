@@ -13,6 +13,7 @@ dependencies {
     api(project(":uxmlib-gui"))
     api(project(":uxmlib-storage"))
     api(project(":uxmlib-integration"))
+    api(project(":uxmlib-hud"))
     compileOnly(libs.paper.api)
 
     // Architecture guards analyse every module's bytecode (all are api deps, so they're on the test
