@@ -43,8 +43,7 @@ public final class HoconConfig {
     /** Load {@code file} as HOCON. A non-existent file loads as an empty tree. */
     public static HoconConfig load(Path file) {
         Objects.requireNonNull(file, "file");
-        HoconConfigurationLoader loader =
-                HoconConfigurationLoader.builder().path(file).build();
+        HoconConfigurationLoader loader = loader(file, null);
         return new HoconConfig(loader, read(loader));
     }
 
@@ -55,11 +54,29 @@ public final class HoconConfig {
     public static HoconConfig load(Path file, TypeSerializerCollection serializers) {
         Objects.requireNonNull(file, "file");
         Objects.requireNonNull(serializers, "serializers");
-        HoconConfigurationLoader loader = HoconConfigurationLoader.builder()
-                .path(file)
-                .defaultOptions(options -> options.serializers(serializers))
-                .build();
+        HoconConfigurationLoader loader = loader(file, serializers);
         return new HoconConfig(loader, read(loader));
+    }
+
+    /**
+     * Seed {@code file} from the bundled classpath resource {@code defaultResource} if it is absent (the
+     * authored, comment-rich template), then load it. The on-disk file is never clobbered once it exists,
+     * so user edits survive every upgrade. Comments round-trip through edits and saves.
+     */
+    public static HoconConfig loadOrExtract(Path file, String defaultResource, ClassLoader classLoader) {
+        Objects.requireNonNull(file, "file");
+        ConfigDefaults.extractIfAbsent(file, defaultResource, classLoader);
+        return load(file);
+    }
+
+    private static HoconConfigurationLoader loader(
+            Path file, @org.jspecify.annotations.Nullable TypeSerializerCollection serializers) {
+        HoconConfigurationLoader.Builder builder =
+                HoconConfigurationLoader.builder().path(file).emitComments(true);
+        if (serializers != null) {
+            builder.defaultOptions(options -> options.serializers(serializers));
+        }
+        return builder.build();
     }
 
     /**
@@ -89,6 +106,44 @@ public final class HoconConfig {
     /** Run {@code listener} after each {@link #reload()}. */
     public void onReload(Runnable listener) {
         reloadListeners.add(Objects.requireNonNull(listener, "listener"));
+    }
+
+    /**
+     * Deep-merge a bundled default tree into the live config: keys absent from the user's file are added,
+     * but a value the user already set is never overwritten. If anything was added the file is saved once
+     * (so newly-shipped options appear on upgrade without the user deleting their file); an unchanged
+     * config is left byte-for-byte untouched. Returns whether anything was written.
+     */
+    public synchronized boolean mergeDefaults(ConfigurationNode defaults) {
+        Objects.requireNonNull(defaults, "defaults");
+        CommentedConfigurationNode live = currentRoot();
+        int before = live.childrenMap().size() + descendantCount(live);
+        live.mergeFrom(defaults);
+        int after = live.childrenMap().size() + descendantCount(live);
+        if (after != before) {
+            save();
+            return true;
+        }
+        return false;
+    }
+
+    /** Deep-merge defaults parsed from a bundled classpath resource. Returns whether anything was written. */
+    public boolean mergeDefaults(String defaultResource, ClassLoader classLoader) {
+        return mergeDefaults(ConfigDefaults.parseResource(defaultResource, classLoader));
+    }
+
+    /** Set the comment shown above {@code path} on the next save, without overwriting a user's own comment. */
+    public void commentIfAbsent(String path, String comment) {
+        Objects.requireNonNull(comment, "comment");
+        currentRoot().node((Object[]) path.split("\\.")).commentIfAbsent(comment);
+    }
+
+    private static int descendantCount(ConfigurationNode node) {
+        int count = 0;
+        for (ConfigurationNode child : node.childrenMap().values()) {
+            count += 1 + descendantCount(child);
+        }
+        return count;
     }
 
     /** Write the current in-memory tree back to the file. Synchronized so saves never overlap. */
