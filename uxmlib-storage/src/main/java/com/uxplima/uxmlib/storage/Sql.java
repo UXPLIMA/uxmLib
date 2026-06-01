@@ -60,14 +60,12 @@ public final class Sql {
     /** Run a query off-thread on {@code executor}; the future completes with the mapped rows. */
     public <T> CompletableFuture<List<T>> queryAsync(
             Executor executor, String sql, StatementBinder binder, RowMapper<T> mapper) {
-        Objects.requireNonNull(executor, "executor");
-        return CompletableFuture.supplyAsync(() -> query(sql, binder, mapper), executor);
+        return Async.on(executor, () -> query(sql, binder, mapper));
     }
 
     /** Run a write off-thread on {@code executor}; the future completes with the affected row count. */
     public CompletableFuture<Integer> updateAsync(Executor executor, String sql, StatementBinder binder) {
-        Objects.requireNonNull(executor, "executor");
-        return CompletableFuture.supplyAsync(() -> update(sql, binder), executor);
+        return Async.on(executor, () -> update(sql, binder));
     }
 
     /**
