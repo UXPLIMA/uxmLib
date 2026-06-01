@@ -32,7 +32,7 @@ final class BuiltinResolvers {
     private BuiltinResolvers() {}
 
     static void installInto(ParamResolvers r) {
-        r.register(String.class, simple(StringArgumentType::word, (c, n) -> StringArgumentType.getString(c, n)));
+        r.register(String.class, strings());
         r.register(int.class, ints());
         r.register(Integer.class, ints());
         r.register(long.class, simple(LongArgumentType::longArg, (c, n) -> LongArgumentType.getLong(c, n)));
@@ -81,6 +81,21 @@ final class BuiltinResolvers {
 
     private static ParamResolver<Boolean> bools() {
         return simple(BoolArgumentType::bool, (c, n) -> BoolArgumentType.getBool(c, n));
+    }
+
+    /** A String resolver that consumes the whole rest of the input when {@code @Arg(greedy = true)}. */
+    private static ParamResolver<String> strings() {
+        return new ParamResolver<>() {
+            @Override
+            public ArgumentType<?> argumentType(Arg arg) {
+                return arg.greedy() ? StringArgumentType.greedyString() : StringArgumentType.word();
+            }
+
+            @Override
+            public String resolve(CommandContext<CommandSourceStack> context, String name) {
+                return StringArgumentType.getString(context, name);
+            }
+        };
     }
 
     /** Resolve one online player from a selector or name (native @p/@a validation and completion). */

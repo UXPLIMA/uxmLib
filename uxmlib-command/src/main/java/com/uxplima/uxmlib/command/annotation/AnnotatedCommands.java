@@ -119,6 +119,9 @@ public final class AnnotatedCommands {
             applyPermission(root, method);
             if (chain.firstArg != null) {
                 root.then(chain.firstArg);
+                if (chain.firstOptional) {
+                    root.executes(executor); // the first argument is optional, so the bare root runs too
+                }
             } else {
                 root.executes(executor);
             }
@@ -129,6 +132,9 @@ public final class AnnotatedCommands {
         ArgumentBuilder<CommandSourceStack, ?> tail = Cmd.literal(literals[literals.length - 1]);
         if (chain.firstArg != null) {
             tail.then(chain.firstArg);
+            if (chain.firstOptional) {
+                tail.executes(executor); // the first argument is optional, so the bare literal runs too
+            }
         } else {
             tail.executes(executor);
         }
@@ -152,9 +158,12 @@ public final class AnnotatedCommands {
             Method method, com.mojang.brigadier.Command<CommandSourceStack> executor, ParamResolvers resolvers) {
         List<ParamArg> args = argParameters(method, resolvers);
         if (args.isEmpty()) {
-            return new ArgChain(null);
+            return new ArgChain(null, false);
         }
-        // Nest arguments innermost-first; the deepest carries the executor.
+        checkArgOrder(method, args);
+        // Nest arguments innermost-first; the deepest carries the executor. An optional argument ALSO
+        // carries the executor itself, so Brigadier dispatches the shorter path when it is omitted and the
+        // earlier (mandatory) argument's node already ends the command.
         RequiredArgumentBuilder<CommandSourceStack, ?> tail = null;
         for (int i = args.size() - 1; i >= 0; i--) {
             ParamArg pa = args.get(i);
@@ -165,10 +174,28 @@ public final class AnnotatedCommands {
                 builder.executes(executor);
             } else {
                 builder.then(tail);
+                if (args.get(i + 1).arg.optional()) {
+                    builder.executes(executor); // the next arg is optional, so this node may end the command
+                }
             }
             tail = builder;
         }
-        return new ArgChain(tail);
+        return new ArgChain(tail, args.get(0).arg.optional());
+    }
+
+    private static void checkArgOrder(Method method, List<ParamArg> args) {
+        boolean seenOptional = false;
+        for (int i = 0; i < args.size(); i++) {
+            ParamArg pa = args.get(i);
+            if (seenOptional && !pa.arg.optional()) {
+                throw new CommandParseException(
+                        "a required argument cannot follow an optional one on " + method.getName());
+            }
+            seenOptional = seenOptional || pa.arg.optional();
+            if (pa.arg.greedy() && i != args.size() - 1) {
+                throw new CommandParseException("only the last argument may be greedy on " + method.getName());
+            }
+        }
     }
 
     private static com.mojang.brigadier.Command<CommandSourceStack> executorFor(
@@ -244,10 +271,48 @@ public final class AnnotatedCommands {
                 callArgs[i] = ctx.getSource().getSender();
             } else {
                 ParamArg pa = args.get(argIndex++);
-                callArgs[i] = pa.resolver.resolve(ctx, pa.name);
+                callArgs[i] = resolveOrDefault(ctx, pa, type);
             }
         }
         return callArgs;
+    }
+
+    private static @org.jspecify.annotations.Nullable Object resolveOrDefault(
+            CommandContext<CommandSourceStack> ctx, ParamArg pa, Class<?> type) {
+        if (pa.arg.optional() && !hasArgument(ctx, pa.name)) {
+            String def = pa.arg.def();
+            return def.isEmpty() ? zeroValue(type) : Defaults.parse(type, def);
+        }
+        return pa.resolver.resolve(ctx, pa.name);
+    }
+
+    /** Whether {@code name} was actually parsed in this dispatch (vs an omitted optional). */
+    private static boolean hasArgument(CommandContext<CommandSourceStack> ctx, String name) {
+        for (com.mojang.brigadier.context.ParsedCommandNode<CommandSourceStack> node : ctx.getNodes()) {
+            if (node.getNode().getName().equals(name)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static @org.jspecify.annotations.Nullable Object zeroValue(Class<?> type) {
+        if (type == int.class || type == Integer.class) {
+            return 0;
+        }
+        if (type == long.class || type == Long.class) {
+            return 0L;
+        }
+        if (type == double.class || type == Double.class) {
+            return 0.0d;
+        }
+        if (type == float.class || type == Float.class) {
+            return 0.0f;
+        }
+        if (type == boolean.class || type == Boolean.class) {
+            return false;
+        }
+        return null;
     }
 
     private static List<ParamArg> argParameters(Method method, ParamResolvers resolvers) {
@@ -269,7 +334,11 @@ public final class AnnotatedCommands {
 
     private record ParamArg(String name, Arg arg, ParamResolver<?> resolver, Parameter parameter) {}
 
-    /** The outermost argument builder of a branch (or {@code null} when the branch takes no arguments). */
+    /**
+     * The outermost argument builder of a branch (or {@code null} when the branch takes no arguments) and
+     * whether that first argument is optional (so the node above it must also end the command).
+     */
     private record ArgChain(
-            @org.jspecify.annotations.Nullable RequiredArgumentBuilder<CommandSourceStack, ?> firstArg) {}
+            @org.jspecify.annotations.Nullable RequiredArgumentBuilder<CommandSourceStack, ?> firstArg,
+            boolean firstOptional) {}
 }
