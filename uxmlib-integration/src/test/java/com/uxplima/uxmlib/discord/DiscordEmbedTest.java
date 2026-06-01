@@ -27,6 +27,16 @@ class DiscordEmbedTest {
     }
 
     @Test
+    void escapesControlCharactersAsUnicode() {
+        // A bare 0x01 is illegal unescaped in JSON and must become \\u0001; backspace (0x08) and form-feed
+        // (0x0C) get their short escapes \\b and \\f. Build the control chars explicitly to be unambiguous.
+        String title = "a" + (char) 0x01 + "b";
+        String description = "c" + (char) 0x08 + "d" + (char) 0x0C + "e";
+        String body = DiscordWebhook.embedBody(DiscordEmbed.of(title, description));
+        assertThat(body).contains("\"title\":\"a\\u0001b\"").contains("\"description\":\"c\\bd\\fe\"");
+    }
+
+    @Test
     void colorValueReflectsPresence() {
         assertThat(DiscordEmbed.of("t", "d").colorValue()).isEmpty();
         assertThat(DiscordEmbed.colored("t", "d", 1).colorValue()).contains(1);

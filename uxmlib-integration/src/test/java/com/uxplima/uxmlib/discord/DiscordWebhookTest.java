@@ -1,15 +1,30 @@
 package com.uxplima.uxmlib.discord;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import org.junit.jupiter.api.Test;
 
-/** Pure tests of the webhook JSON encoding — no network, no Bukkit. */
+/** Pure tests of the webhook JSON encoding and URL validation — no network, no Bukkit. */
 class DiscordWebhookTest {
 
     @Test
     void wrapsContentInAJsonObject() {
         assertThat(DiscordWebhook.contentBody("hello")).isEqualTo("{\"content\":\"hello\"}");
+    }
+
+    @Test
+    void acceptsAWellFormedHttpsUrl() {
+        assertThatCode(() -> new DiscordWebhook("https://discord.com/api/webhooks/1/abc"))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    void rejectsAMalformedUrlAtConstruction() {
+        assertThatThrownBy(() -> new DiscordWebhook("not a url")).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new DiscordWebhook("ftp://example.com/x"))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test

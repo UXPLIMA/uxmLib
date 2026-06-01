@@ -15,14 +15,27 @@ import java.util.concurrent.CompletableFuture;
  */
 public final class DiscordWebhook {
 
-    private final HttpClient http;
+    // One client (and its connection pool / executor) shared by every webhook, so constructing webhooks
+    // per config reload doesn't leak thread pools. The client itself holds no per-endpoint state.
+    private static final HttpClient HTTP =
+            HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
+
     private final URI endpoint;
 
-    /** @param url the channel's incoming-webhook URL */
+    /** @param url the channel's incoming-webhook URL (an absolute http/https URL) */
     public DiscordWebhook(String url) {
-        this.endpoint = URI.create(Objects.requireNonNull(url, "url"));
-        this.http =
-                HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
+        Objects.requireNonNull(url, "url");
+        URI uri;
+        try {
+            uri = new URI(url);
+        } catch (java.net.URISyntaxException malformed) {
+            throw new IllegalArgumentException("malformed webhook URL: " + url, malformed);
+        }
+        String scheme = uri.getScheme();
+        if (uri.getHost() == null || scheme == null || !(scheme.equals("http") || scheme.equals("https"))) {
+            throw new IllegalArgumentException("webhook URL must be an absolute http/https URL: " + url);
+        }
+        this.endpoint = uri;
     }
 
     /**
@@ -37,7 +50,7 @@ public final class DiscordWebhook {
                 .timeout(Duration.ofSeconds(15))
                 .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8))
                 .build();
-        return http.sendAsync(request, HttpResponse.BodyHandlers.discarding()).thenApply(HttpResponse::statusCode);
+        return HTTP.sendAsync(request, HttpResponse.BodyHandlers.discarding()).thenApply(HttpResponse::statusCode);
     }
 
     /** Post an embed. Never blocks; the future yields the Discord HTTP status code (a 204 means delivered). */
@@ -48,7 +61,7 @@ public final class DiscordWebhook {
                 .timeout(Duration.ofSeconds(15))
                 .POST(HttpRequest.BodyPublishers.ofString(embedBody(embed), StandardCharsets.UTF_8))
                 .build();
-        return http.sendAsync(request, HttpResponse.BodyHandlers.discarding()).thenApply(HttpResponse::statusCode);
+        return HTTP.sendAsync(request, HttpResponse.BodyHandlers.discarding()).thenApply(HttpResponse::statusCode);
     }
 
     /** The JSON request body for a plain-content message. Package-private so the encoding is testable. */
@@ -78,7 +91,16 @@ public final class DiscordWebhook {
                 case '\n' -> out.append("\\n");
                 case '\r' -> out.append("\\r");
                 case '\t' -> out.append("\\t");
-                default -> out.append(c);
+                case '\b' -> out.append("\\b");
+                case '\f' -> out.append("\\f");
+                default -> {
+                    // Any other control character below 0x20 is illegal raw in JSON; emit a \\uXXXX escape.
+                    if (c < 0x20) {
+                        out.append(String.format("\\u%04x", (int) c));
+                    } else {
+                        out.append(c);
+                    }
+                }
             }
         }
         out.append('"');
