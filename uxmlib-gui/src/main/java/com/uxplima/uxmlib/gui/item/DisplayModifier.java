@@ -1,4 +1,4 @@
-package com.uxplima.uxmlib.gui;
+package com.uxplima.uxmlib.gui.item;
 
 import org.bukkit.inventory.ItemStack;
 

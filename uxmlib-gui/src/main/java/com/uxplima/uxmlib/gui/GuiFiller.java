@@ -2,6 +2,8 @@ package com.uxplima.uxmlib.gui;
 
 import java.util.Objects;
 
+import com.uxplima.uxmlib.gui.item.GuiItem;
+
 /**
  * Layout helpers for a chest-style {@link Gui}: fill the border, a row, a column, a rectangle, or every
  * empty slot, without writing the slot arithmetic by hand. Obtain one with {@link Gui#filler()}. Every

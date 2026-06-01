@@ -8,6 +8,9 @@ import org.bukkit.inventory.InventoryHolder;
 
 import net.kyori.adventure.text.Component;
 
+import com.uxplima.uxmlib.gui.item.GuiAction;
+import com.uxplima.uxmlib.gui.item.GuiItem;
+
 /**
  * A chest-style menu backed by a Bukkit {@link Inventory} whose holder is the menu itself, so a single
  * registered {@link GuiListener} can route an event back to the menu that owns the inventory via

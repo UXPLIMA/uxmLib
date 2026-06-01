@@ -1,9 +1,11 @@
-package com.uxplima.uxmlib.gui;
+package com.uxplima.uxmlib.gui.item;
 
 import java.util.Locale;
 import java.util.Objects;
 
 import org.bukkit.entity.Player;
+
+import com.uxplima.uxmlib.gui.Gui;
 
 /**
  * The per-viewer context handed to a {@link GuiItem} when its icon and action are resolved. It carries

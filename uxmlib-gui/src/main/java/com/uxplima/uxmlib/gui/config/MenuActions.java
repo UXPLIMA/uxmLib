@@ -1,4 +1,4 @@
-package com.uxplima.uxmlib.gui;
+package com.uxplima.uxmlib.gui.config;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -7,6 +7,7 @@ import java.util.function.Consumer;
 
 import org.bukkit.event.inventory.InventoryClickEvent;
 
+import com.uxplima.uxmlib.gui.GuiNavigator;
 import org.jspecify.annotations.Nullable;
 
 /**

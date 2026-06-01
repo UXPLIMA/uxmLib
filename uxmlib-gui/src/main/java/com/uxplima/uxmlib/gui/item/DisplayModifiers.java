@@ -1,4 +1,4 @@
-package com.uxplima.uxmlib.gui;
+package com.uxplima.uxmlib.gui.item;
 
 import java.util.List;
 import java.util.Objects;

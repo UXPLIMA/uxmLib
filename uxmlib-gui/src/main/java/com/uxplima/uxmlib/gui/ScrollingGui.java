@@ -8,6 +8,8 @@ import org.bukkit.entity.HumanEntity;
 
 import net.kyori.adventure.text.Component;
 
+import com.uxplima.uxmlib.gui.item.GuiItem;
+
 /**
  * A chest menu that scrolls a long list of items past a fixed window, one row (vertical) or one column
  * (horizontal) at a time, rather than jumping a whole page like {@link PaginatedGui}. Items are laid out

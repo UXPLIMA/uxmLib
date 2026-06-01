@@ -18,6 +18,7 @@ import org.bukkit.inventory.Inventory;
 
 import net.kyori.adventure.text.Component;
 
+import com.uxplima.uxmlib.gui.item.GuiItem;
 import org.jspecify.annotations.Nullable;
 
 /**

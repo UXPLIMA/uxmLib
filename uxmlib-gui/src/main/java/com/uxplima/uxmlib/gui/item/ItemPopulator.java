@@ -1,4 +1,4 @@
-package com.uxplima.uxmlib.gui;
+package com.uxplima.uxmlib.gui.item;
 
 import java.util.Objects;
 import java.util.function.BiConsumer;
@@ -6,6 +6,8 @@ import java.util.function.Function;
 
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.ItemStack;
+
+import com.uxplima.uxmlib.gui.PaginatedGui;
 
 /**
  * Maps a domain object of type {@code T} to the {@link GuiItem} that represents it in a

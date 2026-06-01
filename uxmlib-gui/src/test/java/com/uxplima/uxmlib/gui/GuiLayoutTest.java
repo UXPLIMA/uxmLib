@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 
+import com.uxplima.uxmlib.gui.item.GuiItem;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

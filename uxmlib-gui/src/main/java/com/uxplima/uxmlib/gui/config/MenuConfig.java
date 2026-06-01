@@ -1,4 +1,4 @@
-package com.uxplima.uxmlib.gui;
+package com.uxplima.uxmlib.gui.config;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -11,6 +11,9 @@ import org.bukkit.inventory.ItemStack;
 
 import net.kyori.adventure.text.Component;
 
+import com.uxplima.uxmlib.gui.Guis;
+import com.uxplima.uxmlib.gui.SimpleGui;
+import com.uxplima.uxmlib.gui.item.GuiItem;
 import com.uxplima.uxmlib.item.ItemBuilder;
 import com.uxplima.uxmlib.text.Text;
 import org.spongepowered.configurate.ConfigurationNode;

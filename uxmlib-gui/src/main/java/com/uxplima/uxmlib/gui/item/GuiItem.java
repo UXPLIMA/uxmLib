@@ -1,4 +1,4 @@
-package com.uxplima.uxmlib.gui;
+package com.uxplima.uxmlib.gui.item;
 
 import java.util.Objects;
 import java.util.function.Consumer;
@@ -6,6 +6,11 @@ import java.util.function.Function;
 
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.ItemStack;
+
+import com.uxplima.uxmlib.gui.Gui;
+import com.uxplima.uxmlib.gui.GuiNavigator;
+import com.uxplima.uxmlib.gui.PaginatedGui;
+import com.uxplima.uxmlib.gui.ScrollingGui;
 
 /**
  * An icon in a {@link Gui}: an {@link ItemStack} to show and a {@link GuiAction} to run on click. A

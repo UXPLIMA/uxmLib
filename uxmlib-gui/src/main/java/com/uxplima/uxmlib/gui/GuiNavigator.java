@@ -13,6 +13,8 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.Plugin;
 
+import com.uxplima.uxmlib.gui.item.GuiItem;
+
 /**
  * A per-player screen history, so menus can push new screens and pop back to the previous one. Because
  * each screen is a retained {@link Gui} instance, popping reopens it exactly as the player left it — its

@@ -6,6 +6,8 @@ import org.bukkit.entity.HumanEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 
+import com.uxplima.uxmlib.gui.item.GuiItem;
+import com.uxplima.uxmlib.gui.item.RenderContext;
 import org.jspecify.annotations.Nullable;
 
 /**

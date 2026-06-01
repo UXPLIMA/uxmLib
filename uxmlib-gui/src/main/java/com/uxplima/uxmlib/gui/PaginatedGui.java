@@ -6,6 +6,9 @@ import java.util.Objects;
 
 import net.kyori.adventure.text.Component;
 
+import com.uxplima.uxmlib.gui.item.GuiItem;
+import com.uxplima.uxmlib.gui.item.ItemPopulator;
+
 /**
  * A menu that pages a long list of items through a fixed set of content slots. The full list is the
  * source of truth; each page render projects a window of it into the content slots, so items can be
