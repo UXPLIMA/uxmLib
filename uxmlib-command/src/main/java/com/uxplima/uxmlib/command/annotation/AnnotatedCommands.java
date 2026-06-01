@@ -201,7 +201,16 @@ public final class AnnotatedCommands {
     private static com.mojang.brigadier.Command<CommandSourceStack> executorFor(
             Object handler, Method method, ParamResolvers resolvers) {
         List<ParamArg> args = argParameters(method, resolvers);
+        boolean playerOnly = method.isAnnotationPresent(PlayerOnly.class)
+                || method.getDeclaringClass().isAnnotationPresent(PlayerOnly.class);
         return ctx -> {
+            if (playerOnly && !(ctx.getSource().getSender() instanceof org.bukkit.entity.Player)) {
+                Sender.of(ctx.getSource())
+                        .send(net.kyori.adventure.text.Component.text(
+                                "Only a player can run this command.",
+                                net.kyori.adventure.text.format.NamedTextColor.RED));
+                return 0;
+            }
             Object[] callArgs;
             try {
                 callArgs = buildCallArgs(ctx, method, args);
@@ -241,11 +250,17 @@ public final class AnnotatedCommands {
         };
     }
 
+    private static boolean isInjectable(Class<?> type) {
+        return type == Sender.class
+                || type == CommandSourceStack.class
+                || type == CommandSender.class
+                || type == org.bukkit.entity.Player.class;
+    }
+
     private static void validateSignature(Method method, ParamResolvers resolvers) {
         for (Parameter param : method.getParameters()) {
             Class<?> type = param.getType();
-            boolean injectable =
-                    type == Sender.class || type == CommandSourceStack.class || type == CommandSender.class;
+            boolean injectable = isInjectable(type) && !param.isAnnotationPresent(Arg.class);
             if (!injectable && !param.isAnnotationPresent(Arg.class)) {
                 throw new CommandParseException("parameter '" + param.getName() + "' of " + method.getName()
                         + " must be @Arg-annotated or be a Sender/CommandSourceStack/CommandSender");
@@ -263,7 +278,9 @@ public final class AnnotatedCommands {
         int argIndex = 0;
         for (int i = 0; i < params.length; i++) {
             Class<?> type = params[i].getType();
-            if (type == Sender.class) {
+            if (type == org.bukkit.entity.Player.class && !params[i].isAnnotationPresent(Arg.class)) {
+                callArgs[i] = requirePlayer(ctx);
+            } else if (type == Sender.class) {
                 callArgs[i] = Sender.of(ctx.getSource());
             } else if (type == CommandSourceStack.class) {
                 callArgs[i] = ctx.getSource();
@@ -284,6 +301,14 @@ public final class AnnotatedCommands {
             return def.isEmpty() ? zeroValue(type) : Defaults.parse(type, def);
         }
         return pa.resolver.resolve(ctx, pa.name);
+    }
+
+    /** The sender as a Player, or a rejected-input error (caught and shown to the sender) if from console. */
+    private static org.bukkit.entity.Player requirePlayer(CommandContext<CommandSourceStack> ctx) {
+        if (ctx.getSource().getSender() instanceof org.bukkit.entity.Player player) {
+            return player;
+        }
+        throw new IllegalArgumentException("Only a player can run this command.");
     }
 
     /** Whether {@code name} was actually parsed in this dispatch (vs an omitted optional). */
