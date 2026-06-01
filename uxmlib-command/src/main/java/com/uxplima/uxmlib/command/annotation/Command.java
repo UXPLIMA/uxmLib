@@ -22,4 +22,7 @@ public @interface Command {
 
     /** Help text shown by the server. */
     String description() default "";
+
+    /** Whether to auto-generate a {@code help} subcommand listing the visible branches. */
+    boolean help() default true;
 }

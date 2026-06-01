@@ -25,12 +25,11 @@ import com.uxplima.uxmlib.command.Sender;
  * parameters become typed arguments, a leading {@link Sender} or {@link CommandSourceStack} parameter is
  * injected, and {@code @}{@link Permission} becomes a {@code requires} gate. Malformed handlers fail at
  * registration with a {@link CommandParseException}, not at command-run time.
- *
  * <pre>{@code
  * @Command(name = "money")
  * class MoneyCommand {
  *     @Subcommand("pay") @Permission("money.pay")
- *     void pay(Sender sender, @Arg("target") String target, @Arg(value = "amount", min = 1) int amount) { ... }
+ *     void pay(Sender s, @Arg("target") Player t, @Arg(value = "amount", min = 1) int n) { ... }
  * }
  * AnnotatedCommands.register(plugin, new MoneyCommand());
  * }</pre>
@@ -85,6 +84,9 @@ public final class AnnotatedCommands {
         }
         for (Method method : branches) {
             attachBranch(root, handler, method, resolvers);
+        }
+        if (command.help()) {
+            root.then(HelpRenderer.helpLiteral(command.name(), branches));
         }
         return root.build();
     }

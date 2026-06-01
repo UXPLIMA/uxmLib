@@ -18,4 +18,7 @@ public @interface Subcommand {
 
     /** The literal path beneath the root, space-separated; empty for the root executor. */
     String value() default "";
+
+    /** A short description of this branch, shown in the generated help. */
+    String description() default "";
 }
