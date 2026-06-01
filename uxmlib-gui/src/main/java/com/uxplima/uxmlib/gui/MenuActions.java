@@ -15,8 +15,8 @@ import org.jspecify.annotations.Nullable;
  * config file, so a server owner can re-slot and re-skin a menu without touching code, while the actual
  * effects (open another menu, give an item, run a command) stay code-controlled.
  *
- * <p>A close and a back-to-the-previous-screen action are pre-registered; register your own with
- * {@link #register}.
+ * <p>A {@code close} action is registered out of the box; add {@code back} by passing a navigator to
+ * {@link #withBack}, and register your own with {@link #register}.
  */
 public final class MenuActions {
 

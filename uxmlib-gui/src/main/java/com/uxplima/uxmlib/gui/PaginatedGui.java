@@ -10,7 +10,7 @@ import net.kyori.adventure.text.Component;
  * A menu that pages a long list of items through a fixed set of content slots. The full list is the
  * source of truth; each page render projects a window of it into the content slots, so items can be
  * added or cleared without recomputing slot math. Slots outside the content region are free for fixed
- * decorations and navigation buttons (wire those to {@link #next()} / {@link #previous()}).
+ * decorations and navigation buttons (wire those to {@link #nextPage()} / {@link #previousPage()}).
  *
  * <p>Created through {@link Guis#paginated()}.
  */
@@ -73,7 +73,7 @@ public final class PaginatedGui extends AbstractGui {
     }
 
     /** Advance one page if there is one, re-rendering the content slots. */
-    public void next() {
+    public void nextPage() {
         if (page + 1 < pageCount()) {
             page++;
             render();
@@ -81,7 +81,7 @@ public final class PaginatedGui extends AbstractGui {
     }
 
     /** Go back one page if there is one, re-rendering the content slots. */
-    public void previous() {
+    public void previousPage() {
         if (page > 0) {
             page--;
             render();

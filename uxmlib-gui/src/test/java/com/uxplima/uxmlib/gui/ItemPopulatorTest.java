@@ -78,7 +78,7 @@ class ItemPopulatorTest {
     void populateReplacesPreviousContent() {
         PaginatedGui gui = Guis.paginated().rows(2).build();
         gui.populate(List.of(1, 2, 3), ItemPopulator.display(i -> new ItemStack(Material.STONE)));
-        gui.next();
+        gui.nextPage();
 
         gui.populate(List.of(9), ItemPopulator.display(i -> new ItemStack(Material.DIRT)));
 

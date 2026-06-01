@@ -54,7 +54,7 @@ class PaginatedGuiTest {
         assertThat(gui.getInventory().getItem(0)).isEqualTo(a);
         assertThat(gui.getInventory().getItem(1)).isEqualTo(b);
 
-        gui.next();
+        gui.nextPage();
         assertThat(gui.page()).isEqualTo(1);
         assertThat(gui.getInventory().getItem(0)).isEqualTo(c);
         assertThat(gui.getInventory().getItem(1)).isNull(); // window not full
@@ -66,11 +66,11 @@ class PaginatedGuiTest {
         gui.addPageItem(item());
         gui.addPageItem(item());
 
-        gui.previous(); // already on first page
+        gui.previousPage(); // already on first page
         assertThat(gui.page()).isZero();
 
-        gui.next();
-        gui.next(); // only two pages
+        gui.nextPage();
+        gui.nextPage(); // only two pages
         assertThat(gui.page()).isEqualTo(1);
     }
 

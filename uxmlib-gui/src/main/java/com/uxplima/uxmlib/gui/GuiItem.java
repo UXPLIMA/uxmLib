@@ -72,13 +72,13 @@ public sealed interface GuiItem permits GuiItem.Static, GuiItem.Dynamic, GuiItem
     /** A button that turns {@code gui} to its next page when clicked. */
     static GuiItem nextPage(PaginatedGui gui, ItemStack icon) {
         java.util.Objects.requireNonNull(gui, "gui");
-        return button(icon, event -> gui.next());
+        return button(icon, event -> gui.nextPage());
     }
 
     /** A button that turns {@code gui} to its previous page when clicked. */
     static GuiItem previousPage(PaginatedGui gui, ItemStack icon) {
         java.util.Objects.requireNonNull(gui, "gui");
-        return button(icon, event -> gui.previous());
+        return button(icon, event -> gui.previousPage());
     }
 
     /** A button that scrolls {@code gui} forward one row/column when clicked. */
