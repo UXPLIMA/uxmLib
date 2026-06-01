@@ -44,6 +44,11 @@ public final class Guis {
         return new TypedBuilder(type);
     }
 
+    /** A builder for a {@link StorageGui} that holds real items and keeps them across opens. */
+    public static StorageBuilder storage() {
+        return new StorageBuilder();
+    }
+
     /** Shared builder state with a self-returning fluent API. */
     abstract static class Builder<B extends Builder<B>> {
         Component title = Component.empty();
@@ -115,6 +120,16 @@ public final class Guis {
         /** Build the menu. */
         public SimpleGui build() {
             return new SimpleGui(title, type);
+        }
+    }
+
+    /** Builder for a {@link StorageGui}. */
+    public static final class StorageBuilder extends Builder<StorageBuilder> {
+        private StorageBuilder() {}
+
+        /** Build the storage menu. */
+        public StorageGui build() {
+            return applyModifiers(new StorageGui(title, rows));
         }
     }
 
