@@ -49,6 +49,11 @@ public final class Guis {
         return new StorageBuilder();
     }
 
+    /** A builder for a {@link ScrollingGui} that scrolls its content in {@code scrollType} direction. */
+    public static ScrollingBuilder scrolling(ScrollType scrollType) {
+        return new ScrollingBuilder(scrollType);
+    }
+
     /** Shared builder state with a self-returning fluent API. */
     abstract static class Builder<B extends Builder<B>> {
         Component title = Component.empty();
@@ -84,9 +89,20 @@ public final class Guis {
             return self();
         }
 
-        final <G extends Gui> G applyModifiers(G gui) {
+        private final List<java.util.function.Consumer<Gui>> postBuild = new ArrayList<>();
+
+        /** Run {@code action} on the menu right after it is built (to add items, set handlers, etc.). */
+        public B apply(java.util.function.Consumer<Gui> action) {
+            postBuild.add(Objects.requireNonNull(action, "action"));
+            return self();
+        }
+
+        final <G extends Gui> G finish(G gui) {
             for (InteractionModifier modifier : allowed) {
                 gui.allow(modifier);
+            }
+            for (java.util.function.Consumer<Gui> action : postBuild) {
+                action.accept(gui);
             }
             return gui;
         }
@@ -98,7 +114,7 @@ public final class Guis {
 
         /** Build the menu. */
         public SimpleGui build() {
-            return applyModifiers(new SimpleGui(title, rows));
+            return finish(new SimpleGui(title, rows));
         }
     }
 
@@ -129,7 +145,21 @@ public final class Guis {
 
         /** Build the storage menu. */
         public StorageGui build() {
-            return applyModifiers(new StorageGui(title, rows));
+            return finish(new StorageGui(title, rows));
+        }
+    }
+
+    /** Builder for a {@link ScrollingGui}. */
+    public static final class ScrollingBuilder extends Builder<ScrollingBuilder> {
+        private final ScrollType scrollType;
+
+        private ScrollingBuilder(ScrollType scrollType) {
+            this.scrollType = Objects.requireNonNull(scrollType, "scrollType");
+        }
+
+        /** Build the scrolling menu. */
+        public ScrollingGui build() {
+            return finish(new ScrollingGui(title, rows, scrollType));
         }
     }
 
@@ -149,7 +179,7 @@ public final class Guis {
         /** Build the menu. */
         public PaginatedGui build() {
             List<Integer> slots = contentSlots != null ? contentSlots : defaultContentSlots(rows);
-            return applyModifiers(new PaginatedGui(title, rows, slots));
+            return finish(new PaginatedGui(title, rows, slots));
         }
 
         private static List<Integer> defaultContentSlots(int rows) {

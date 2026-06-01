@@ -1,7 +1,9 @@
 package com.uxplima.uxmlib.gui;
 
+import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -26,7 +28,7 @@ import org.jspecify.annotations.Nullable;
  */
 abstract class AbstractGui implements Gui {
 
-    private final Component title;
+    private Component title;
     private final int size;
     private final @Nullable GuiType type;
     private final Map<Integer, GuiItem> items = new HashMap<>();
@@ -174,6 +176,24 @@ abstract class AbstractGui implements Gui {
     public void open(HumanEntity viewer) {
         Objects.requireNonNull(viewer, "viewer");
         viewer.openInventory(getInventory());
+    }
+
+    @Override
+    public void updateTitle(Component newTitle) {
+        Objects.requireNonNull(newTitle, "title");
+        this.title = newTitle;
+        Inventory old = inventory;
+        if (old == null) {
+            return; // not built yet; the new title will be used when it is created
+        }
+        // Bukkit fixes a title at creation, so rebuild the inventory, copy the items, and reopen it for
+        // everyone currently viewing the old one.
+        List<HumanEntity> viewers = new ArrayList<>(old.getViewers());
+        this.inventory = null;
+        Inventory fresh = getInventory();
+        for (HumanEntity viewer : viewers) {
+            viewer.openInventory(fresh);
+        }
     }
 
     @Override

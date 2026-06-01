@@ -67,6 +67,25 @@ class GuiTest {
     }
 
     @Test
+    void updateTitleChangesTheReportedTitle() {
+        SimpleGui gui = Guis.gui().title(Component.text("Old")).rows(1).build();
+        gui.getInventory(); // build it
+
+        gui.updateTitle(Component.text("New"));
+
+        assertThat(gui.title()).isEqualTo(Component.text("New"));
+    }
+
+    @Test
+    void applyHookRunsOnTheBuiltMenu() {
+        ItemStack icon = new ItemStack(Material.DIAMOND);
+        SimpleGui gui =
+                Guis.gui().rows(1).apply(g -> g.set(0, GuiItem.display(icon))).build();
+
+        assertThat(gui.getItem(0)).isNotNull();
+    }
+
+    @Test
     void clickCancelsByDefaultAndRunsTheSlotAction() {
         SimpleGui gui = Guis.gui().rows(1).build();
         boolean[] ran = {false};
