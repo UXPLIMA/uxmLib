@@ -109,6 +109,22 @@ public final class HoconConfig {
     }
 
     /**
+     * Upgrade the config across schema versions: replay only the {@code migration} steps newer than the
+     * file's recorded {@code config-version}, then rewrite the version key and save once if anything
+     * changed. An already-current file is left untouched. Returns the version the config is now at.
+     */
+    public synchronized int migrate(ConfigMigration migration) {
+        Objects.requireNonNull(migration, "migration");
+        CommentedConfigurationNode live = currentRoot();
+        int from = migration.versionOf(live);
+        int to = migration.apply(live);
+        if (to != from) {
+            save();
+        }
+        return to;
+    }
+
+    /**
      * Deep-merge a bundled default tree into the live config: keys absent from the user's file are added,
      * but a value the user already set is never overwritten. If anything was added the file is saved once
      * (so newly-shipped options appear on upgrade without the user deleting their file); an unchanged
