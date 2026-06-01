@@ -1,10 +1,12 @@
-package com.uxplima.uxmlib.hologram;
+package com.uxplima.uxmlib.hologram.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import org.bukkit.entity.Display;
 
+import com.uxplima.uxmlib.hologram.Appearance;
+import com.uxplima.uxmlib.hologram.HologramSpec;
 import com.uxplima.uxmlib.text.Text;
 import org.junit.jupiter.api.Test;
 import org.spongepowered.configurate.CommentedConfigurationNode;

@@ -1,4 +1,4 @@
-package com.uxplima.uxmlib.hologram;
+package com.uxplima.uxmlib.hologram.leaderboard;
 
 import java.util.List;
 import java.util.Locale;

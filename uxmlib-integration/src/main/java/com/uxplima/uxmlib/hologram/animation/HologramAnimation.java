@@ -1,4 +1,4 @@
-package com.uxplima.uxmlib.hologram;
+package com.uxplima.uxmlib.hologram.animation;
 
 import java.time.Duration;
 import java.util.List;
@@ -6,6 +6,7 @@ import java.util.Objects;
 
 import net.kyori.adventure.text.Component;
 
+import com.uxplima.uxmlib.hologram.Hologram;
 import com.uxplima.uxmlib.scheduler.Scheduler;
 import com.uxplima.uxmlib.scheduler.TaskHandle;
 

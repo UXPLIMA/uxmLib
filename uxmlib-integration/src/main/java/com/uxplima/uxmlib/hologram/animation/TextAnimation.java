@@ -1,4 +1,4 @@
-package com.uxplima.uxmlib.hologram;
+package com.uxplima.uxmlib.hologram.animation;
 
 import java.util.ArrayList;
 import java.util.List;

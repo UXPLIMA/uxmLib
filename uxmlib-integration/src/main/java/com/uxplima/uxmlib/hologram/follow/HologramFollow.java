@@ -1,4 +1,4 @@
-package com.uxplima.uxmlib.hologram;
+package com.uxplima.uxmlib.hologram.follow;
 
 import java.time.Duration;
 import java.util.Objects;
@@ -6,6 +6,7 @@ import java.util.Objects;
 import org.bukkit.entity.Entity;
 import org.bukkit.util.Vector;
 
+import com.uxplima.uxmlib.hologram.Hologram;
 import com.uxplima.uxmlib.scheduler.Scheduler;
 import com.uxplima.uxmlib.scheduler.TaskHandle;
 

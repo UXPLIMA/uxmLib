@@ -1,4 +1,4 @@
-package com.uxplima.uxmlib.hologram;
+package com.uxplima.uxmlib.hologram.animation;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;

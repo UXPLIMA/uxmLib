@@ -1,4 +1,4 @@
-package com.uxplima.uxmlib.hologram;
+package com.uxplima.uxmlib.hologram.config;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -9,6 +9,9 @@ import org.bukkit.entity.Display;
 
 import net.kyori.adventure.text.Component;
 
+import com.uxplima.uxmlib.hologram.Appearance;
+import com.uxplima.uxmlib.hologram.HologramSpec;
+import com.uxplima.uxmlib.hologram.Transform;
 import com.uxplima.uxmlib.text.Text;
 import org.spongepowered.configurate.ConfigurationNode;
 import org.spongepowered.configurate.serialize.SerializationException;
@@ -18,7 +21,7 @@ import org.spongepowered.configurate.serialize.SerializationException;
  * hologram in a config file while code spawns it. The node carries a {@code lines} list (MiniMessage) and
  * an optional {@code appearance} table with {@code billboard}, {@code seeThrough}, {@code glow} (hex),
  * {@code background} (hex), {@code lineWidth}, {@code textShadow}, {@code viewRange}, {@code scale}, and
- * {@code rotation}. Spawn the result with {@link Holograms} or a {@link HologramManager}.
+ * {@code rotation}. Spawn the result with {@link com.uxplima.uxmlib.hologram.Holograms} or a {@link com.uxplima.uxmlib.hologram.HologramManager}.
  *
  * <pre>{@code
  * lines = [ "<gold>Spawn", "<gray>Welcome!" ]

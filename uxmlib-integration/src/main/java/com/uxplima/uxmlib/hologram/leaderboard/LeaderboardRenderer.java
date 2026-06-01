@@ -1,4 +1,4 @@
-package com.uxplima.uxmlib.hologram;
+package com.uxplima.uxmlib.hologram.leaderboard;
 
 import java.text.NumberFormat;
 import java.util.ArrayList;
