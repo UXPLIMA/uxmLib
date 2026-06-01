@@ -53,4 +53,20 @@ final class GuiRender {
             writeSlot(inventory, gui, entry.getKey(), entry.getValue(), viewer);
         }
     }
+
+    /** Reopen {@code fresh} (a rebuilt inventory) for everyone who was viewing {@code old}. */
+    static void reopen(Inventory old, Inventory fresh) {
+        for (HumanEntity viewer : new java.util.ArrayList<>(old.getViewers())) {
+            viewer.openInventory(fresh);
+        }
+    }
+
+    /** Close {@code inventory} for every current viewer. */
+    static void closeAll(@Nullable Inventory inventory) {
+        if (inventory != null) {
+            for (HumanEntity viewer : new java.util.ArrayList<>(inventory.getViewers())) {
+                viewer.closeInventory();
+            }
+        }
+    }
 }

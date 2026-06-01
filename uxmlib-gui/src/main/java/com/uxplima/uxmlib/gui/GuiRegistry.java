@@ -28,6 +28,22 @@ final class GuiRegistry {
         this.scheduler = Objects.requireNonNull(scheduler, "scheduler");
     }
 
+    /** Register {@code gui} with the installed registry if it needs ticking; a no-op if none is installed. */
+    static void onOpen(AbstractGui gui) {
+        GuiRegistry registry = Guis.registry();
+        if (registry != null && gui.needsTicking()) {
+            registry.register(gui);
+        }
+    }
+
+    /** Unregister {@code gui} from the installed registry; a no-op if none is installed. */
+    static void onClose(AbstractGui gui) {
+        GuiRegistry registry = Guis.registry();
+        if (registry != null) {
+            registry.unregister(gui);
+        }
+    }
+
     /** Begin ticking {@code gui}; starts the shared timer if it was not already running. */
     synchronized void register(AbstractGui gui) {
         ticking.add(gui);

@@ -55,6 +55,40 @@ public sealed interface GuiItem permits GuiItem.Static, GuiItem.Dynamic, GuiItem
         return new Stateful.Builder();
     }
 
+    /** A back button that pops {@code navigator}'s screen stack to the previous menu when clicked. */
+    static GuiItem back(GuiNavigator navigator, ItemStack icon) {
+        java.util.Objects.requireNonNull(navigator, "navigator");
+        return button(icon, event -> {
+            if (event.getWhoClicked() instanceof org.bukkit.entity.Player player) {
+                navigator.back(player);
+            }
+        });
+    }
+
+    /** A button that turns {@code gui} to its next page when clicked. */
+    static GuiItem nextPage(PaginatedGui gui, ItemStack icon) {
+        java.util.Objects.requireNonNull(gui, "gui");
+        return button(icon, event -> gui.next());
+    }
+
+    /** A button that turns {@code gui} to its previous page when clicked. */
+    static GuiItem previousPage(PaginatedGui gui, ItemStack icon) {
+        java.util.Objects.requireNonNull(gui, "gui");
+        return button(icon, event -> gui.previous());
+    }
+
+    /** A button that scrolls {@code gui} forward one row/column when clicked. */
+    static GuiItem scrollNext(ScrollingGui gui, ItemStack icon) {
+        java.util.Objects.requireNonNull(gui, "gui");
+        return button(icon, event -> gui.scrollNext());
+    }
+
+    /** A button that scrolls {@code gui} back one row/column when clicked. */
+    static GuiItem scrollPrevious(ScrollingGui gui, ItemStack icon) {
+        java.util.Objects.requireNonNull(gui, "gui");
+        return button(icon, event -> gui.scrollPrevious());
+    }
+
     /** A display-only item that cycles through {@code frames} every {@code interval} while open. */
     static GuiItem animated(java.util.List<ItemStack> frames, java.time.Duration interval) {
         return new Animated(frames, interval, GuiAction.None.INSTANCE);

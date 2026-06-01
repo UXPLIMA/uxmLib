@@ -1,10 +1,8 @@
 package com.uxplima.uxmlib.gui;
 
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -168,22 +166,22 @@ abstract class AbstractGui implements Gui {
 
     @Override
     public void handleOpen(InventoryOpenEvent event) {
-        if (needsTicking()) {
-            GuiRegistry registry = Guis.registry();
-            if (registry != null) {
-                registry.register(this);
-            }
-        }
+        GuiRegistry.onOpen(this);
         Consumer<InventoryOpenEvent> handler = openHandler;
         if (handler != null) {
             handler.accept(event);
         }
     }
 
-    private boolean needsTicking() {
+    /** Whether this menu has animated or auto-refresh content and is currently being viewed. */
+    boolean needsTicking() {
         return (autoRefresh != null || hasAnimatedContent())
                 && inventory != null
                 && !inventory.getViewers().isEmpty();
+    }
+
+    final boolean hasAnimatedContent() {
+        return items.values().stream().anyMatch(GuiItem.Animated.class::isInstance);
     }
 
     @Override
@@ -198,6 +196,19 @@ abstract class AbstractGui implements Gui {
     }
 
     @Override
+    public void close(HumanEntity viewer) {
+        Objects.requireNonNull(viewer, "viewer");
+        if (inventory != null && inventory.getViewers().contains(viewer)) {
+            viewer.closeInventory();
+        }
+    }
+
+    @Override
+    public void closeAll() {
+        GuiRender.closeAll(inventory);
+    }
+
+    @Override
     public void updateTitle(Component newTitle) {
         Objects.requireNonNull(newTitle, "title");
         this.title = newTitle;
@@ -205,14 +216,9 @@ abstract class AbstractGui implements Gui {
         if (old == null) {
             return; // not built yet; the new title will be used when it is created
         }
-        // Bukkit fixes a title at creation, so rebuild the inventory, copy the items, and reopen it for
-        // everyone currently viewing the old one.
-        List<HumanEntity> viewers = new ArrayList<>(old.getViewers());
+        // Bukkit fixes a title at creation, so rebuild the inventory and reopen it for current viewers.
         this.inventory = null;
-        Inventory fresh = getInventory();
-        for (HumanEntity viewer : viewers) {
-            viewer.openInventory(fresh);
-        }
+        GuiRender.reopen(old, getInventory());
     }
 
     @Override
@@ -225,10 +231,7 @@ abstract class AbstractGui implements Gui {
         // Stop ticking once the last viewer leaves (getViewers still includes the closing player here,
         // so one-or-fewer means this close empties the menu).
         if (inventory != null && inventory.getViewers().size() <= 1) {
-            GuiRegistry registry = Guis.registry();
-            if (registry != null) {
-                registry.unregister(this);
-            }
+            GuiRegistry.onClose(this);
         }
         Consumer<InventoryCloseEvent> handler = closeHandler;
         if (handler != null) {
@@ -286,16 +289,6 @@ abstract class AbstractGui implements Gui {
     /** Set how often this menu auto-refreshes while open; {@code null} disables it. */
     final void autoRefresh(@Nullable Duration interval) {
         this.autoRefresh = interval;
-    }
-
-    /** Whether this menu has any item that needs ticking (animated content). */
-    final boolean hasAnimatedContent() {
-        for (GuiItem item : items.values()) {
-            if (item instanceof GuiItem.Animated) {
-                return true;
-            }
-        }
-        return false;
     }
 
     private void checkSlot(int slot) {

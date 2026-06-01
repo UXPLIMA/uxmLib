@@ -67,6 +67,12 @@ public interface Gui extends InventoryHolder {
     /** Open the menu for {@code viewer}. Must run on the viewer's region thread. */
     void open(HumanEntity viewer);
 
+    /** Close this menu for {@code viewer} (a no-op if they are not viewing it). */
+    void close(HumanEntity viewer);
+
+    /** Close this menu for every current viewer. */
+    void closeAll();
+
     /**
      * Change the menu title. Bukkit titles are fixed at inventory creation, so this rebuilds the backing
      * inventory and reopens it for anyone currently viewing — call sparingly (not every tick).
