@@ -42,6 +42,18 @@ final class DisplayHologram implements Hologram {
     }
 
     @Override
+    public void setTransform(Transform transform) {
+        Objects.requireNonNull(transform, "transform");
+        display.setTransformation(transform.toBukkit());
+    }
+
+    @Override
+    public boolean attachTo(org.bukkit.entity.Entity target) {
+        Objects.requireNonNull(target, "target");
+        return target.addPassenger(display);
+    }
+
+    @Override
     public void restrictToViewers() {
         display.setVisibleByDefault(false);
     }

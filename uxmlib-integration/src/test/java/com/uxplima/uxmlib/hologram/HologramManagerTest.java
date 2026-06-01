@@ -22,6 +22,14 @@ class HologramManagerTest {
         public void moveTo(org.bukkit.Location to, int interpolationTicks) {}
 
         @Override
+        public void setTransform(Transform transform) {}
+
+        @Override
+        public boolean attachTo(org.bukkit.entity.Entity target) {
+            return false;
+        }
+
+        @Override
         public void restrictToViewers() {}
 
         @Override

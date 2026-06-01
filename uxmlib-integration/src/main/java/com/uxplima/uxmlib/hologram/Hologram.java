@@ -24,6 +24,16 @@ public interface Hologram {
      */
     void moveTo(Location to, int interpolationTicks);
 
+    /** Re-apply a scale/rotation {@link Transform} to the live entity (no re-spawn). */
+    void setTransform(Transform transform);
+
+    /**
+     * Mount the hologram on {@code target} as a passenger so it rides exactly with it (native
+     * {@code addPassenger}). This is exact-mount only — for an above-the-head offset, follow the entity
+     * with a scheduler task instead. Returns whether the mount succeeded.
+     */
+    boolean attachTo(org.bukkit.entity.Entity target);
+
     /** Make this hologram visible only to explicitly shown players (native per-viewer visibility). */
     void restrictToViewers();
 

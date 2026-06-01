@@ -20,55 +20,151 @@ public record Appearance(
         @Nullable Integer lineWidth,
         boolean textShadow,
         @Nullable Float viewRange,
-        Display.@Nullable Brightness brightness) {
+        Display.@Nullable Brightness brightness,
+        @Nullable Transform transform) {
 
     /** The default appearance: centred billboard, no overrides. */
     public static final Appearance DEFAULT =
-            new Appearance(Display.Billboard.CENTER, false, null, null, null, null, false, null, null);
+            new Appearance(Display.Billboard.CENTER, false, null, null, null, null, false, null, null, null);
 
     public Appearance withBillboard(Display.Billboard value) {
         return new Appearance(
-                value, seeThrough, glow, background, textOpacity, lineWidth, textShadow, viewRange, brightness);
+                value,
+                seeThrough,
+                glow,
+                background,
+                textOpacity,
+                lineWidth,
+                textShadow,
+                viewRange,
+                brightness,
+                transform);
     }
 
     public Appearance withSeeThrough(boolean value) {
         return new Appearance(
-                billboard, value, glow, background, textOpacity, lineWidth, textShadow, viewRange, brightness);
+                billboard,
+                value,
+                glow,
+                background,
+                textOpacity,
+                lineWidth,
+                textShadow,
+                viewRange,
+                brightness,
+                transform);
     }
 
     public Appearance withGlow(@Nullable Color value) {
         return new Appearance(
-                billboard, seeThrough, value, background, textOpacity, lineWidth, textShadow, viewRange, brightness);
+                billboard,
+                seeThrough,
+                value,
+                background,
+                textOpacity,
+                lineWidth,
+                textShadow,
+                viewRange,
+                brightness,
+                transform);
     }
 
     public Appearance withBackground(@Nullable Color value) {
         return new Appearance(
-                billboard, seeThrough, glow, value, textOpacity, lineWidth, textShadow, viewRange, brightness);
+                billboard,
+                seeThrough,
+                glow,
+                value,
+                textOpacity,
+                lineWidth,
+                textShadow,
+                viewRange,
+                brightness,
+                transform);
     }
 
     public Appearance withTextOpacity(@Nullable Byte value) {
         return new Appearance(
-                billboard, seeThrough, glow, background, value, lineWidth, textShadow, viewRange, brightness);
+                billboard,
+                seeThrough,
+                glow,
+                background,
+                value,
+                lineWidth,
+                textShadow,
+                viewRange,
+                brightness,
+                transform);
     }
 
     public Appearance withLineWidth(@Nullable Integer value) {
         return new Appearance(
-                billboard, seeThrough, glow, background, textOpacity, value, textShadow, viewRange, brightness);
+                billboard,
+                seeThrough,
+                glow,
+                background,
+                textOpacity,
+                value,
+                textShadow,
+                viewRange,
+                brightness,
+                transform);
     }
 
     public Appearance withTextShadow(boolean value) {
         return new Appearance(
-                billboard, seeThrough, glow, background, textOpacity, lineWidth, value, viewRange, brightness);
+                billboard,
+                seeThrough,
+                glow,
+                background,
+                textOpacity,
+                lineWidth,
+                value,
+                viewRange,
+                brightness,
+                transform);
     }
 
     public Appearance withViewRange(@Nullable Float value) {
         return new Appearance(
-                billboard, seeThrough, glow, background, textOpacity, lineWidth, textShadow, value, brightness);
+                billboard,
+                seeThrough,
+                glow,
+                background,
+                textOpacity,
+                lineWidth,
+                textShadow,
+                value,
+                brightness,
+                transform);
     }
 
     public Appearance withBrightness(Display.@Nullable Brightness value) {
         return new Appearance(
-                billboard, seeThrough, glow, background, textOpacity, lineWidth, textShadow, viewRange, value);
+                billboard,
+                seeThrough,
+                glow,
+                background,
+                textOpacity,
+                lineWidth,
+                textShadow,
+                viewRange,
+                value,
+                transform);
+    }
+
+    public Appearance withTransform(@Nullable Transform value) {
+        return new Appearance(
+                billboard,
+                seeThrough,
+                glow,
+                background,
+                textOpacity,
+                lineWidth,
+                textShadow,
+                viewRange,
+                brightness,
+                value);
     }
 
     /** Apply every set field to {@code display}, leaving unset (null/false) fields at Paper's default. */
@@ -94,6 +190,9 @@ public record Appearance(
         }
         if (brightness != null) {
             display.setBrightness(brightness);
+        }
+        if (transform != null) {
+            display.setTransformation(transform.toBukkit());
         }
     }
 }

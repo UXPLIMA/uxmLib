@@ -117,6 +117,29 @@ public final class Holograms {
             return this;
         }
 
+        /** Scale the hologram uniformly (1.0 = default size). */
+        public Builder scale(float factor) {
+            appearance = appearance.withTransform(transformOrNone().withScale(factor));
+            return this;
+        }
+
+        /** Rotate the hologram {@code degrees} about the vertical axis. */
+        public Builder rotation(float degrees) {
+            appearance = appearance.withTransform(transformOrNone().withYaw(degrees));
+            return this;
+        }
+
+        /** Set the full scale-and-rotation transform at once. */
+        public Builder transform(Transform transform) {
+            appearance = appearance.withTransform(Objects.requireNonNull(transform, "transform"));
+            return this;
+        }
+
+        private Transform transformOrNone() {
+            Transform current = appearance.transform();
+            return current == null ? Transform.NONE : current;
+        }
+
         /** The immutable specification, for inspection or reuse. Requires at least one line. */
         public HologramSpec spec() {
             return new HologramSpec(lines, appearance);

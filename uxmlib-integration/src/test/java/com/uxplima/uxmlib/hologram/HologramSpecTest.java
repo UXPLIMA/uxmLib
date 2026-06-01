@@ -69,6 +69,20 @@ class HologramSpecTest {
     }
 
     @Test
+    void scaleAndRotationFoldIntoTheTransform() {
+        HologramSpec spec = Holograms.builder()
+                .line(Component.text("big"))
+                .scale(2.0f)
+                .rotation(90f)
+                .spec();
+
+        Transform transform = spec.appearance().transform();
+        assertThat(transform).isNotNull();
+        assertThat(java.util.Objects.requireNonNull(transform).scaleX()).isEqualTo(2.0f);
+        assertThat(java.util.Objects.requireNonNull(transform).yawDegrees()).isEqualTo(90f);
+    }
+
+    @Test
     void requiresAtLeastOneLine() {
         assertThatThrownBy(() -> Holograms.builder().spec()).isInstanceOf(IllegalArgumentException.class);
     }
