@@ -11,8 +11,8 @@ import com.mojang.brigadier.context.CommandContext;
 /**
  * Resolves an enum parameter from a lower-cased constant name. Pure Java enums have no native client
  * argument type, so it parses a word and matches it case-insensitively against the constants, failing
- * with a clear message naming the allowed values. Tab-completion of the constant names is wired
- * separately from {@link #constantNames()}.
+ * with a clear message naming the allowed values. Tab-completion offers the constant names via
+ * {@link #suggestions()}.
  */
 final class EnumResolver implements ParamResolver<Enum<?>> {
 
@@ -38,11 +38,11 @@ final class EnumResolver implements ParamResolver<Enum<?>> {
         throw new IllegalArgumentException("expected one of " + java.util.Arrays.toString(constants) + ", got " + raw);
     }
 
-    /** The constant names, lower-cased, for tab-completion. */
-    String[] constantNames() {
-        String[] names = new String[constants.length];
-        for (int i = 0; i < constants.length; i++) {
-            names[i] = constants[i].name().toLowerCase(Locale.ROOT);
+    @Override
+    public java.util.Collection<String> suggestions() {
+        java.util.List<String> names = new java.util.ArrayList<>(constants.length);
+        for (Enum<?> constant : constants) {
+            names.add(constant.name().toLowerCase(Locale.ROOT));
         }
         return names;
     }

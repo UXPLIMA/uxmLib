@@ -1,9 +1,12 @@
 package com.uxplima.uxmlib.command.annotation;
 
+import java.util.Collection;
+
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 
 import com.mojang.brigadier.arguments.ArgumentType;
 import com.mojang.brigadier.context.CommandContext;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Turns one Java parameter type into a Brigadier argument: the {@link ArgumentType} to register for it,
@@ -21,4 +24,13 @@ public interface ParamResolver<T> {
 
     /** Read the parsed value for {@code name} out of {@code context}. */
     T resolve(CommandContext<CommandSourceStack> context, String name);
+
+    /**
+     * The completions to offer for this parameter, or {@code null} to leave the argument type's native
+     * suggestions (a player/world/material arg completes itself). A resolver over a plain word — an enum,
+     * a custom type — overrides this to drive tab-completion.
+     */
+    default @Nullable Collection<String> suggestions() {
+        return null;
+    }
 }

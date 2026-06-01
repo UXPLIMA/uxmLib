@@ -160,6 +160,7 @@ public final class AnnotatedCommands {
             ParamArg pa = args.get(i);
             RequiredArgumentBuilder<CommandSourceStack, ?> builder =
                     Cmd.argument(pa.name, pa.resolver.argumentType(pa.arg));
+            Suggestions.apply(builder, pa.parameter, pa.resolver);
             if (tail == null) {
                 builder.executes(executor);
             } else {
@@ -261,12 +262,12 @@ public final class AnnotatedCommands {
                 throw new CommandParseException(
                         "no resolver for @Arg type " + param.getType().getName() + " on " + method.getName());
             }
-            args.add(new ParamArg(arg.value(), arg, resolver));
+            args.add(new ParamArg(arg.value(), arg, resolver, param));
         }
         return args;
     }
 
-    private record ParamArg(String name, Arg arg, ParamResolver<?> resolver) {}
+    private record ParamArg(String name, Arg arg, ParamResolver<?> resolver, Parameter parameter) {}
 
     /** The outermost argument builder of a branch (or {@code null} when the branch takes no arguments). */
     private record ArgChain(
