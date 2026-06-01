@@ -40,6 +40,21 @@ public final class PaginatedGui extends AbstractGui {
         pageItems.add(item);
     }
 
+    /**
+     * Replace the paged list by running every element of {@code source} through {@code populator}, which
+     * maps each domain object to its icon and click action. The common case for a list-backed menu: give
+     * it the data and a per-element renderer and the pages compute themselves.
+     */
+    public <T> void populate(java.util.List<T> source, ItemPopulator<T> populator) {
+        Objects.requireNonNull(source, "source");
+        Objects.requireNonNull(populator, "populator");
+        pageItems.clear();
+        page = 0;
+        for (T element : source) {
+            pageItems.add(populator.toItem(element));
+        }
+    }
+
     /** Remove every paged item (fixed decorations placed with {@code set} are kept). */
     public void clearPageItems() {
         pageItems.clear();
