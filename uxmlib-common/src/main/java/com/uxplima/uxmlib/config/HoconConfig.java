@@ -32,30 +32,30 @@ public final class HoconConfig {
 
     private final Path file;
     private final HoconConfigurationLoader loader;
+    private final @Nullable TypeSerializerCollection serializers;
     private final AtomicReference<CommentedConfigurationNode> root;
     private final List<ConfigProperty<?>> properties = new CopyOnWriteArrayList<>();
     private final List<Runnable> reloadListeners = new CopyOnWriteArrayList<>();
     private @Nullable TaskHandle watchTask;
 
-    private HoconConfig(Path file, HoconConfigurationLoader loader, CommentedConfigurationNode root) {
+    private HoconConfig(Path file, @Nullable TypeSerializerCollection serializers) {
         this.file = file;
-        this.loader = loader;
-        this.root = new AtomicReference<>(root);
+        this.serializers = serializers;
+        this.loader = loader(file, serializers);
+        this.root = new AtomicReference<>(read(this.loader));
     }
 
     /** Load {@code file} as HOCON. A non-existent file loads as an empty tree. */
     public static HoconConfig load(Path file) {
         Objects.requireNonNull(file, "file");
-        HoconConfigurationLoader loader = loader(file, null);
-        return new HoconConfig(file, loader, read(loader));
+        return new HoconConfig(file, null);
     }
 
     /** Load {@code file} with extra type serializers (see {@link ConfigCodecs#bukkit()}) for value mapping. */
     public static HoconConfig load(Path file, TypeSerializerCollection serializers) {
         Objects.requireNonNull(file, "file");
         Objects.requireNonNull(serializers, "serializers");
-        HoconConfigurationLoader loader = loader(file, serializers);
-        return new HoconConfig(file, loader, read(loader));
+        return new HoconConfig(file, serializers);
     }
 
     /**
@@ -151,13 +151,9 @@ public final class HoconConfig {
         currentRoot().node((Object[]) path.split("\\.")).commentIfAbsent(comment);
     }
 
-    /** Write the current in-memory tree back to the file. Synchronized so saves never overlap. */
+    /** Atomically write the in-memory tree to the file (temp file + rename), so a crash never half-writes it. */
     public synchronized void save() {
-        try {
-            loader.save(currentRoot());
-        } catch (ConfigurateException failure) {
-            throw new ConfigException("failed to save config", failure);
-        }
+        AtomicFiles.save(file, temp -> loader(temp, serializers), currentRoot());
     }
 
     /** Save off the calling thread on {@code executor}; the returned future completes when the write ends. */

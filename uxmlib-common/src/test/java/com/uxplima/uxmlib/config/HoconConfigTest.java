@@ -59,6 +59,34 @@ class HoconConfigTest {
         assertThat(config.getInt("value", -1)).isEqualTo(2);
     }
 
+    @Test
+    void savesEditsAtomicallyLeavingNoTempFile(@TempDir Path dir) throws Exception {
+        Path file = dir.resolve("config.conf");
+        Files.writeString(file, "value = 1\n");
+        HoconConfig config = HoconConfig.load(file);
+        config.root().node("value").set(2);
+        config.root().node("added").set("new");
+
+        config.save();
+
+        HoconConfig reread = HoconConfig.load(file);
+        assertThat(reread.getInt("value", -1)).isEqualTo(2);
+        assertThat(reread.getString("added", "?")).isEqualTo("new");
+        assertThat(Files.exists(file.resolveSibling("config.conf.tmp"))).isFalse();
+    }
+
+    @Test
+    void savesToANewFileWhenNoneExists(@TempDir Path dir) throws Exception {
+        Path file = dir.resolve("fresh.conf");
+        HoconConfig config = HoconConfig.load(file);
+        config.root().node("created").set(true);
+
+        config.save();
+
+        assertThat(Files.exists(file)).isTrue();
+        assertThat(HoconConfig.load(file).getBoolean("created", false)).isTrue();
+    }
+
     @ConfigSerializable
     record Storage(String backend, int poolSize) {}
 }
