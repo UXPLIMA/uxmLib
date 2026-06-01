@@ -20,6 +20,12 @@ public final class DiscordWebhook {
     private static final HttpClient HTTP =
             HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
 
+    // Discord asks every client to identify itself; a generic JDK user-agent risks being throttled or blocked.
+    private static final String USER_AGENT = "uxmLib-DiscordWebhook (+https://github.com/siracozmen01/uxmLib)";
+
+    // Suppress every mention by default so a message body can never mass-ping @everyone/@here or a role.
+    private static final String ALLOWED_MENTIONS_NONE = "\"allowed_mentions\":{\"parse\":[]}";
+
     private final URI endpoint;
 
     /** @param url the channel's incoming-webhook URL (an absolute http/https URL) */
@@ -47,6 +53,7 @@ public final class DiscordWebhook {
         String body = contentBody(content);
         HttpRequest request = HttpRequest.newBuilder(endpoint)
                 .header("Content-Type", "application/json")
+                .header("User-Agent", USER_AGENT)
                 .timeout(Duration.ofSeconds(15))
                 .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8))
                 .build();
@@ -58,6 +65,7 @@ public final class DiscordWebhook {
         Objects.requireNonNull(embed, "embed");
         HttpRequest request = HttpRequest.newBuilder(endpoint)
                 .header("Content-Type", "application/json")
+                .header("User-Agent", USER_AGENT)
                 .timeout(Duration.ofSeconds(15))
                 .POST(HttpRequest.BodyPublishers.ofString(embedBody(embed), StandardCharsets.UTF_8))
                 .build();
@@ -66,12 +74,12 @@ public final class DiscordWebhook {
 
     /** The JSON request body for a plain-content message. Package-private so the encoding is testable. */
     static String contentBody(String content) {
-        return "{\"content\":" + jsonString(content) + "}";
+        return "{\"content\":" + jsonString(content) + "," + ALLOWED_MENTIONS_NONE + "}";
     }
 
     /** The JSON request body for an embed. Package-private so the encoding is testable. */
     static String embedBody(DiscordEmbed embed) {
-        return "{\"embeds\":[" + EmbedJson.encode(embed) + "]}";
+        return "{\"embeds\":[" + EmbedJson.encode(embed) + "]," + ALLOWED_MENTIONS_NONE + "}";
     }
 
     static String jsonString(String raw) {

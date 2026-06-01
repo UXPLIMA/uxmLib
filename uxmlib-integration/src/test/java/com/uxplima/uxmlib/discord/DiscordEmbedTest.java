@@ -10,14 +10,18 @@ class DiscordEmbedTest {
     @Test
     void encodesTitleAndDescription() {
         String body = DiscordWebhook.embedBody(DiscordEmbed.of("Title", "Body"));
-        assertThat(body).isEqualTo("{\"embeds\":[{\"title\":\"Title\",\"description\":\"Body\"}]}");
+        assertThat(body)
+                .isEqualTo(
+                        "{\"embeds\":[{\"title\":\"Title\",\"description\":\"Body\"}],\"allowed_mentions\":{\"parse\":[]}}");
     }
 
     @Test
     void includesColourWhenSet() {
         // 0xFF8800 == 16746496 decimal — Discord embed colours are the decimal RGB integer.
         String body = DiscordWebhook.embedBody(DiscordEmbed.colored("T", "D", 0xFF8800));
-        assertThat(body).isEqualTo("{\"embeds\":[{\"title\":\"T\",\"description\":\"D\",\"color\":16746496}]}");
+        assertThat(body)
+                .isEqualTo(
+                        "{\"embeds\":[{\"title\":\"T\",\"description\":\"D\",\"color\":16746496}],\"allowed_mentions\":{\"parse\":[]}}");
     }
 
     @Test
@@ -79,6 +83,6 @@ class DiscordEmbedTest {
         // A title-only embed must not emit description/color/author keys.
         String body =
                 DiscordWebhook.embedBody(DiscordEmbed.builder().title("Only").build());
-        assertThat(body).isEqualTo("{\"embeds\":[{\"title\":\"Only\"}]}");
+        assertThat(body).isEqualTo("{\"embeds\":[{\"title\":\"Only\"}],\"allowed_mentions\":{\"parse\":[]}}");
     }
 }

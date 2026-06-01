@@ -11,7 +11,14 @@ class DiscordWebhookTest {
 
     @Test
     void wrapsContentInAJsonObject() {
-        assertThat(DiscordWebhook.contentBody("hello")).isEqualTo("{\"content\":\"hello\"}");
+        assertThat(DiscordWebhook.contentBody("hello"))
+                .isEqualTo("{\"content\":\"hello\",\"allowed_mentions\":{\"parse\":[]}}");
+    }
+
+    @Test
+    void suppressesMentionsInBothBodiesByDefault() {
+        assertThat(DiscordWebhook.contentBody("hi @everyone")).contains("\"allowed_mentions\":{\"parse\":[]}");
+        assertThat(DiscordWebhook.embedBody(DiscordEmbed.of("t", "d"))).contains("\"allowed_mentions\":{\"parse\":[]}");
     }
 
     @Test
