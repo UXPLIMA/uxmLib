@@ -14,7 +14,6 @@ import io.papermc.paper.command.brigadier.CommandSourceStack;
 import com.mojang.brigadier.builder.ArgumentBuilder;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.builder.RequiredArgumentBuilder;
-import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.tree.LiteralCommandNode;
 import com.uxplima.uxmlib.command.Cmd;
 import com.uxplima.uxmlib.command.CommandRegistrar;
@@ -156,7 +155,7 @@ public final class AnnotatedCommands {
 
     private static ArgChain buildArgChain(
             Method method, com.mojang.brigadier.Command<CommandSourceStack> executor, ParamResolvers resolvers) {
-        List<ParamArg> args = argParameters(method, resolvers);
+        List<ArgBinder.ParamArg> args = argParameters(method, resolvers);
         if (args.isEmpty()) {
             return new ArgChain(null, false);
         }
@@ -166,33 +165,33 @@ public final class AnnotatedCommands {
         // earlier (mandatory) argument's node already ends the command.
         RequiredArgumentBuilder<CommandSourceStack, ?> tail = null;
         for (int i = args.size() - 1; i >= 0; i--) {
-            ParamArg pa = args.get(i);
+            ArgBinder.ParamArg pa = args.get(i);
             RequiredArgumentBuilder<CommandSourceStack, ?> builder =
-                    Cmd.argument(pa.name, pa.resolver.argumentType(pa.arg));
-            Suggestions.apply(builder, pa.parameter, pa.resolver);
+                    Cmd.argument(pa.name(), pa.resolver().argumentType(pa.arg()));
+            Suggestions.apply(builder, pa.parameter(), pa.resolver());
             if (tail == null) {
                 builder.executes(executor);
             } else {
                 builder.then(tail);
-                if (args.get(i + 1).arg.optional()) {
+                if (args.get(i + 1).arg().optional()) {
                     builder.executes(executor); // the next arg is optional, so this node may end the command
                 }
             }
             tail = builder;
         }
-        return new ArgChain(tail, args.get(0).arg.optional());
+        return new ArgChain(tail, args.get(0).arg().optional());
     }
 
-    private static void checkArgOrder(Method method, List<ParamArg> args) {
+    private static void checkArgOrder(Method method, List<ArgBinder.ParamArg> args) {
         boolean seenOptional = false;
         for (int i = 0; i < args.size(); i++) {
-            ParamArg pa = args.get(i);
-            if (seenOptional && !pa.arg.optional()) {
+            ArgBinder.ParamArg pa = args.get(i);
+            if (seenOptional && !pa.arg().optional()) {
                 throw new CommandParseException(
                         "a required argument cannot follow an optional one on " + method.getName());
             }
-            seenOptional = seenOptional || pa.arg.optional();
-            if (pa.arg.greedy() && i != args.size() - 1) {
+            seenOptional = seenOptional || pa.arg().optional();
+            if (pa.arg().greedy() && i != args.size() - 1) {
                 throw new CommandParseException("only the last argument may be greedy on " + method.getName());
             }
         }
@@ -200,7 +199,7 @@ public final class AnnotatedCommands {
 
     private static com.mojang.brigadier.Command<CommandSourceStack> executorFor(
             Object handler, Method method, ParamResolvers resolvers) {
-        List<ParamArg> args = argParameters(method, resolvers);
+        List<ArgBinder.ParamArg> args = argParameters(method, resolvers);
         boolean playerOnly = method.isAnnotationPresent(PlayerOnly.class)
                 || method.getDeclaringClass().isAnnotationPresent(PlayerOnly.class);
         return ctx -> {
@@ -213,7 +212,7 @@ public final class AnnotatedCommands {
             }
             Object[] callArgs;
             try {
-                callArgs = buildCallArgs(ctx, method, args);
+                callArgs = ArgBinder.bind(ctx, method, args);
             } catch (IllegalArgumentException badArgument) {
                 // A resolver rejected the input (e.g. an offline player, an out-of-range value). Reply with
                 // its message rather than letting it surface as a server error.
@@ -272,76 +271,8 @@ public final class AnnotatedCommands {
         }
     }
 
-    private static Object[] buildCallArgs(CommandContext<CommandSourceStack> ctx, Method method, List<ParamArg> args) {
-        Parameter[] params = method.getParameters();
-        Object[] callArgs = new Object[params.length];
-        int argIndex = 0;
-        for (int i = 0; i < params.length; i++) {
-            Class<?> type = params[i].getType();
-            if (type == org.bukkit.entity.Player.class && !params[i].isAnnotationPresent(Arg.class)) {
-                callArgs[i] = requirePlayer(ctx);
-            } else if (type == Sender.class) {
-                callArgs[i] = Sender.of(ctx.getSource());
-            } else if (type == CommandSourceStack.class) {
-                callArgs[i] = ctx.getSource();
-            } else if (type == CommandSender.class) {
-                callArgs[i] = ctx.getSource().getSender();
-            } else {
-                ParamArg pa = args.get(argIndex++);
-                callArgs[i] = resolveOrDefault(ctx, pa, type);
-            }
-        }
-        return callArgs;
-    }
-
-    private static @org.jspecify.annotations.Nullable Object resolveOrDefault(
-            CommandContext<CommandSourceStack> ctx, ParamArg pa, Class<?> type) {
-        if (pa.arg.optional() && !hasArgument(ctx, pa.name)) {
-            String def = pa.arg.def();
-            return def.isEmpty() ? zeroValue(type) : Defaults.parse(type, def);
-        }
-        return pa.resolver.resolve(ctx, pa.name);
-    }
-
-    /** The sender as a Player, or a rejected-input error (caught and shown to the sender) if from console. */
-    private static org.bukkit.entity.Player requirePlayer(CommandContext<CommandSourceStack> ctx) {
-        if (ctx.getSource().getSender() instanceof org.bukkit.entity.Player player) {
-            return player;
-        }
-        throw new IllegalArgumentException("Only a player can run this command.");
-    }
-
-    /** Whether {@code name} was actually parsed in this dispatch (vs an omitted optional). */
-    private static boolean hasArgument(CommandContext<CommandSourceStack> ctx, String name) {
-        for (com.mojang.brigadier.context.ParsedCommandNode<CommandSourceStack> node : ctx.getNodes()) {
-            if (node.getNode().getName().equals(name)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private static @org.jspecify.annotations.Nullable Object zeroValue(Class<?> type) {
-        if (type == int.class || type == Integer.class) {
-            return 0;
-        }
-        if (type == long.class || type == Long.class) {
-            return 0L;
-        }
-        if (type == double.class || type == Double.class) {
-            return 0.0d;
-        }
-        if (type == float.class || type == Float.class) {
-            return 0.0f;
-        }
-        if (type == boolean.class || type == Boolean.class) {
-            return false;
-        }
-        return null;
-    }
-
-    private static List<ParamArg> argParameters(Method method, ParamResolvers resolvers) {
-        List<ParamArg> args = new ArrayList<>();
+    private static List<ArgBinder.ParamArg> argParameters(Method method, ParamResolvers resolvers) {
+        List<ArgBinder.ParamArg> args = new ArrayList<>();
         for (Parameter param : method.getParameters()) {
             Arg arg = param.getAnnotation(Arg.class);
             if (arg == null) {
@@ -352,12 +283,10 @@ public final class AnnotatedCommands {
                 throw new CommandParseException(
                         "no resolver for @Arg type " + param.getType().getName() + " on " + method.getName());
             }
-            args.add(new ParamArg(arg.value(), arg, resolver, param));
+            args.add(new ArgBinder.ParamArg(arg.value(), arg, resolver, param));
         }
         return args;
     }
-
-    private record ParamArg(String name, Arg arg, ParamResolver<?> resolver, Parameter parameter) {}
 
     /**
      * The outermost argument builder of a branch (or {@code null} when the branch takes no arguments) and
