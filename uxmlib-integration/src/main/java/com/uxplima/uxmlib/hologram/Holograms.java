@@ -39,7 +39,20 @@ public final class Holograms {
         Objects.requireNonNull(location, "location");
         Objects.requireNonNull(item, "item");
         Objects.requireNonNull(location.getWorld(), "location world");
-        return location.getWorld().spawn(location, ItemDisplay.class, entity -> entity.setItemStack(item));
+        return location.getWorld().spawn(location, ItemDisplay.class, entity -> {
+            entity.setItemStack(item);
+            Markers.stamp(entity);
+        });
+    }
+
+    /** Spawn a floating player head showing the skin of the account {@code uuid}. */
+    public static ItemDisplay spawnPlayerHead(Location location, java.util.UUID uuid) {
+        return spawnItem(location, PlayerHeads.ofUuid(uuid));
+    }
+
+    /** Spawn a floating player head showing the skin described by a base64 skin-texture value. */
+    public static ItemDisplay spawnPlayerHeadTexture(Location location, String texture) {
+        return spawnItem(location, PlayerHeads.fromTexture(texture));
     }
 
     /** Spawn a floating block display at {@code location}. Must run on that location's region thread. */
@@ -47,7 +60,10 @@ public final class Holograms {
         Objects.requireNonNull(location, "location");
         Objects.requireNonNull(block, "block");
         Objects.requireNonNull(location.getWorld(), "location world");
-        return location.getWorld().spawn(location, BlockDisplay.class, entity -> entity.setBlock(block));
+        return location.getWorld().spawn(location, BlockDisplay.class, entity -> {
+            entity.setBlock(block);
+            Markers.stamp(entity);
+        });
     }
 
     /** Fluent builder for a hologram's content and appearance. */
