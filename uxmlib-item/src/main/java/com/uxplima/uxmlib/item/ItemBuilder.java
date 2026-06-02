@@ -2,36 +2,36 @@ package com.uxplima.uxmlib.item;
 
 import java.util.List;
 import java.util.Objects;
-import java.util.UUID;
 import java.util.function.Consumer;
 
-import org.bukkit.Bukkit;
 import org.bukkit.Color;
+import org.bukkit.DyeColor;
 import org.bukkit.FireworkEffect;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeModifier;
+import org.bukkit.block.banner.Pattern;
+import org.bukkit.block.banner.PatternType;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemRarity;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.BannerMeta;
 import org.bukkit.inventory.meta.BookMeta;
-import org.bukkit.inventory.meta.Damageable;
 import org.bukkit.inventory.meta.EnchantmentStorageMeta;
 import org.bukkit.inventory.meta.FireworkMeta;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.LeatherArmorMeta;
+import org.bukkit.inventory.meta.MapMeta;
 import org.bukkit.inventory.meta.PotionMeta;
 import org.bukkit.inventory.meta.SkullMeta;
 import org.bukkit.inventory.meta.components.CustomModelDataComponent;
+import org.bukkit.map.MapView;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.potion.PotionEffect;
 
 import net.kyori.adventure.text.Component;
-
-import com.destroystokyo.paper.profile.PlayerProfile;
-import com.destroystokyo.paper.profile.ProfileProperty;
 
 /**
  * Fluent builder for an {@link ItemStack}. Construction is mutable for ergonomics; {@link #build()}
@@ -106,12 +106,7 @@ public final class ItemBuilder {
     /** Append one line to the existing lore. */
     public ItemBuilder addLore(Component line) {
         Objects.requireNonNull(line, "line");
-        return editMeta(meta -> {
-            List<Component> current = meta.hasLore() ? meta.lore() : List.of();
-            List<Component> next = new java.util.ArrayList<>(current != null ? current : List.of());
-            next.add(line);
-            meta.lore(next);
-        });
+        return editMeta(meta -> ItemMetaSupport.addLore(meta, line));
     }
 
     /** Add an enchantment at {@code level} (level restrictions are ignored, so high levels are allowed). */
@@ -131,11 +126,7 @@ public final class ItemBuilder {
 
     /** Remove every enchantment. */
     public ItemBuilder clearEnchants() {
-        return editMeta(meta -> {
-            for (Enchantment enchantment : List.copyOf(meta.getEnchants().keySet())) {
-                meta.removeEnchant(enchantment);
-            }
-        });
+        return editMeta(ItemMetaSupport::clearEnchants);
     }
 
     /** Add display flags (e.g. {@link ItemFlag#HIDE_ENCHANTS}). */
@@ -185,12 +176,7 @@ public final class ItemBuilder {
      */
     public ItemBuilder customModelDataFloats(List<Float> floats) {
         Objects.requireNonNull(floats, "floats");
-        List<Float> copy = List.copyOf(floats);
-        return editMeta(meta -> {
-            CustomModelDataComponent component = meta.getCustomModelDataComponent();
-            component.setFloats(copy);
-            meta.setCustomModelDataComponent(component);
-        });
+        return editMeta(meta -> ItemMetaSupport.customModelDataFloats(meta, floats));
     }
 
     /** Override the item model with a resource-pack model key (the native 1.21 {@code item_model}). */
@@ -254,11 +240,7 @@ public final class ItemBuilder {
         if (damage < 0) {
             throw new IllegalArgumentException("damage must be >= 0");
         }
-        return editMeta(meta -> {
-            if (meta instanceof Damageable damageable) {
-                damageable.setDamage(damage);
-            }
-        });
+        return editMeta(meta -> ItemMetaSupport.damage(meta, damage));
     }
 
     /** Add an attribute modifier. Build the modifier with {@code new AttributeModifier(key, amount, op)}. */
@@ -274,25 +256,25 @@ public final class ItemBuilder {
         if (stack.getType() != Material.PLAYER_HEAD) {
             throw new IllegalArgumentException("skull data is only valid for PLAYER_HEAD");
         }
-        return editMeta(meta -> applySkull((SkullMeta) meta, skull));
+        return editTypedMeta(SkullMeta.class, meta -> ItemMetaSupport.skull(meta, skull));
     }
 
     /** Add a potion effect (only meaningful on a potion item); a no-op on items without potion meta. */
     public ItemBuilder potionEffect(PotionEffect effect) {
         Objects.requireNonNull(effect, "effect");
-        return editTypedMeta(PotionMeta.class, meta -> meta.addCustomEffect(effect, true));
+        return editTypedMeta(PotionMeta.class, meta -> ItemMetaSupport.potionEffect(meta, effect));
     }
 
     /** Set the potion's display colour; a no-op on items without potion meta. */
     public ItemBuilder potionColor(Color color) {
         Objects.requireNonNull(color, "color");
-        return editTypedMeta(PotionMeta.class, meta -> meta.setColor(color));
+        return editTypedMeta(PotionMeta.class, meta -> ItemMetaSupport.potionColor(meta, color));
     }
 
     /** Add a firework effect; a no-op on items without firework meta. */
     public ItemBuilder fireworkEffect(FireworkEffect effect) {
         Objects.requireNonNull(effect, "effect");
-        return editTypedMeta(FireworkMeta.class, meta -> meta.addEffect(effect));
+        return editTypedMeta(FireworkMeta.class, meta -> ItemMetaSupport.fireworkEffect(meta, effect));
     }
 
     /** Set the firework flight power (0–127); a no-op on items without firework meta. */
@@ -300,31 +282,31 @@ public final class ItemBuilder {
         if (power < 0 || power > 127) {
             throw new IllegalArgumentException("power must be 0..127");
         }
-        return editTypedMeta(FireworkMeta.class, meta -> meta.setPower(power));
+        return editTypedMeta(FireworkMeta.class, meta -> ItemMetaSupport.fireworkPower(meta, power));
     }
 
     /** Dye leather armour; a no-op on items without leather-armour meta. */
     public ItemBuilder leatherColor(Color color) {
         Objects.requireNonNull(color, "color");
-        return editTypedMeta(LeatherArmorMeta.class, meta -> meta.setColor(color));
+        return editTypedMeta(LeatherArmorMeta.class, meta -> ItemMetaSupport.leatherColor(meta, color));
     }
 
     /** Set a written book's title; a no-op on items without book meta. */
     public ItemBuilder bookTitle(Component title) {
         Objects.requireNonNull(title, "title");
-        return editTypedMeta(BookMeta.class, meta -> meta.title(title));
+        return editTypedMeta(BookMeta.class, meta -> ItemMetaSupport.bookTitle(meta, title));
     }
 
     /** Set a written book's author; a no-op on items without book meta. */
     public ItemBuilder bookAuthor(Component author) {
         Objects.requireNonNull(author, "author");
-        return editTypedMeta(BookMeta.class, meta -> meta.author(author));
+        return editTypedMeta(BookMeta.class, meta -> ItemMetaSupport.bookAuthor(meta, author));
     }
 
     /** Append pages to a written book; a no-op on items without book meta. */
     public ItemBuilder bookPages(Component... pages) {
         Objects.requireNonNull(pages, "pages");
-        return editTypedMeta(BookMeta.class, meta -> meta.addPages(pages));
+        return editTypedMeta(BookMeta.class, meta -> ItemMetaSupport.bookPages(meta, pages));
     }
 
     /** Add a stored enchantment (for an enchanted book); a no-op on items without that meta. */
@@ -333,7 +315,50 @@ public final class ItemBuilder {
         if (level < 1) {
             throw new IllegalArgumentException("level must be >= 1");
         }
-        return editTypedMeta(EnchantmentStorageMeta.class, meta -> meta.addStoredEnchant(enchantment, level, true));
+        return editTypedMeta(
+                EnchantmentStorageMeta.class, meta -> ItemMetaSupport.storedEnchant(meta, enchantment, level));
+    }
+
+    /** Append a banner pattern from a {@code color} and {@code type}; a no-op on items without banner meta. */
+    public ItemBuilder bannerPattern(DyeColor color, PatternType type) {
+        Objects.requireNonNull(color, "color");
+        Objects.requireNonNull(type, "type");
+        return editTypedMeta(BannerMeta.class, meta -> ItemMetaSupport.bannerPattern(meta, color, type));
+    }
+
+    /** Append a pre-built banner {@code pattern}; a no-op on items without banner meta. */
+    public ItemBuilder bannerPattern(Pattern pattern) {
+        Objects.requireNonNull(pattern, "pattern");
+        return editTypedMeta(BannerMeta.class, meta -> ItemMetaSupport.bannerPattern(meta, pattern));
+    }
+
+    /** Replace every banner pattern with {@code patterns}; a no-op on items without banner meta. */
+    public ItemBuilder bannerPatterns(List<Pattern> patterns) {
+        Objects.requireNonNull(patterns, "patterns");
+        return editTypedMeta(BannerMeta.class, meta -> ItemMetaSupport.bannerPatterns(meta, patterns));
+    }
+
+    /** Set a filled map's tint colour; a no-op on items without map meta. */
+    public ItemBuilder mapColor(Color color) {
+        Objects.requireNonNull(color, "color");
+        return editTypedMeta(MapMeta.class, meta -> ItemMetaSupport.mapColor(meta, color));
+    }
+
+    /** Set whether a filled map renders at a scaled-out zoom; a no-op on items without map meta. */
+    public ItemBuilder mapScaling(boolean scaling) {
+        return editTypedMeta(MapMeta.class, meta -> ItemMetaSupport.mapScaling(meta, scaling));
+    }
+
+    /** Bind a filled map to a {@link MapView}; a no-op on items without map meta. */
+    public ItemBuilder mapView(MapView view) {
+        Objects.requireNonNull(view, "view");
+        return editTypedMeta(MapMeta.class, meta -> ItemMetaSupport.mapView(meta, view));
+    }
+
+    /** Set the on-hover label of a filled map; a no-op on items without map meta. */
+    public ItemBuilder mapLocationName(String name) {
+        Objects.requireNonNull(name, "name");
+        return editTypedMeta(MapMeta.class, meta -> ItemMetaSupport.mapLocationName(meta, name));
     }
 
     /**
@@ -371,22 +396,5 @@ public final class ItemBuilder {
     /** Build a fresh, independent {@link ItemStack} with everything applied. */
     public ItemStack build() {
         return new ItemStack(stack);
-    }
-
-    private static void applySkull(SkullMeta meta, SkullData skull) {
-        switch (skull) {
-            case SkullData.ByUuid byUuid -> meta.setOwningPlayer(Bukkit.getOfflinePlayer(byUuid.uuid()));
-            case SkullData.ByName byName -> meta.setOwningPlayer(offlinePlayerByName(byName.name()));
-            case SkullData.ByTexture byTexture -> {
-                PlayerProfile profile = Bukkit.createProfile(UUID.randomUUID());
-                profile.setProperty(new ProfileProperty("textures", byTexture.base64()));
-                meta.setPlayerProfile(profile);
-            }
-        }
-    }
-
-    @SuppressWarnings("deprecation") // name-based lookup is the only by-name option; documented on SkullData.ByName
-    private static org.bukkit.OfflinePlayer offlinePlayerByName(String name) {
-        return Bukkit.getOfflinePlayer(name);
     }
 }

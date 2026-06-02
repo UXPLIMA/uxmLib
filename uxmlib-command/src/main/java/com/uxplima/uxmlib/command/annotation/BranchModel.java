@@ -20,6 +20,8 @@ import org.jspecify.annotations.Nullable;
 final class BranchModel {
 
     private final Method method;
+    private final AnnotatedView methodView;
+    private final AnnotatedView classView;
     private final String path;
     private final @Nullable Permission permission;
     private final List<ArgBinder.ParamArg> args;
@@ -28,12 +30,16 @@ final class BranchModel {
 
     BranchModel(
             Method method,
+            AnnotatedView methodView,
+            AnnotatedView classView,
             String path,
             @Nullable Permission permission,
             List<ArgBinder.ParamArg> args,
             List<FlagModel> flags,
             OptionalInt priority) {
         this.method = Objects.requireNonNull(method, "method");
+        this.methodView = Objects.requireNonNull(methodView, "methodView");
+        this.classView = Objects.requireNonNull(classView, "classView");
         this.path = Objects.requireNonNull(path, "path");
         this.permission = permission;
         this.args = List.copyOf(Objects.requireNonNull(args, "args"));
@@ -44,6 +50,20 @@ final class BranchModel {
     /** The handler method this branch invokes. */
     Method method() {
         return method;
+    }
+
+    /**
+     * The effective annotation view of {@link #method()} (its raw annotations with any {@link
+     * AnnotationReplacer} applied). The implicit player-only/cooldown gates and the help/secret reads consult
+     * this so a replaced gate annotation is honoured on the run path, not only in the model shape.
+     */
+    AnnotatedView methodView() {
+        return methodView;
+    }
+
+    /** The effective annotation view of the declaring {@code @Command} class, for the class-level gate fallbacks. */
+    AnnotatedView classView() {
+        return classView;
     }
 
     /** The space-separated literal path beneath the root; empty for the root executor. */

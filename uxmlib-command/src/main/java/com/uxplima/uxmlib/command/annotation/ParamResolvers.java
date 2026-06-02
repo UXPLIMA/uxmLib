@@ -23,6 +23,7 @@ public final class ParamResolvers {
     private final Map<Class<?>, ContextParameter<?>> contextByType = new HashMap<>();
     private final List<CommandCondition> conditions = new ArrayList<>();
     private Cooldowns cooldowns = new Cooldowns();
+    private Replacers replacers = Replacers.none();
 
     private ParamResolvers() {}
 
@@ -85,6 +86,19 @@ public final class ParamResolvers {
     }
 
     /**
+     * Register an {@link AnnotationReplacer} that rewrites the custom annotation {@code type} into core
+     * annotation(s) at registration. The whole build — model reflection, the implicit permission/cooldown/
+     * player-only gates, help, suggestions, and argument validation — then reads the rewritten (effective)
+     * annotations, so a consumer's shorthand is honoured everywhere a core annotation would be. Replaces any
+     * replacer already registered for that exact type. Returns this for chaining.
+     */
+    public <A extends java.lang.annotation.Annotation> ParamResolvers replacer(
+            Class<A> type, AnnotationReplacer<A> replacer) {
+        replacers = replacers.with(Objects.requireNonNull(type, "type"), Objects.requireNonNull(replacer, "replacer"));
+        return this;
+    }
+
+    /**
      * Use {@code cooldowns} as the store backing {@code @}{@link
      * com.uxplima.uxmlib.command.annotation.annotations.Cooldown} for branches built with this registry.
      * Pass a shared instance to make several registrations share one set of windows, or one with a
@@ -98,6 +112,11 @@ public final class ParamResolvers {
     /** The cooldown store backing {@code @Cooldown} for branches built with this registry. */
     Cooldowns cooldowns() {
         return cooldowns;
+    }
+
+    /** The registered annotation replacers; the empty registry when none was added. */
+    Replacers replacers() {
+        return replacers;
     }
 
     /** Whether some resolver handles {@code type} (directly, or as an enum). */

@@ -24,24 +24,25 @@ final class CooldownCondition {
     private CooldownCondition() {}
 
     /**
-     * The cooldown condition for {@code method} under {@code commandPath}, or {@code null} when neither the
-     * method nor its declaring class carries {@code @Cooldown}.
+     * The cooldown condition for {@code branch} under {@code commandPath}, or {@code null} when neither the
+     * branch method nor its declaring class effectively carries {@code @Cooldown}. The annotation is read off
+     * the branch's effective views, so a replacer that synthesises {@code @Cooldown} gates the branch too.
      *
      * @throws CommandParseException if the {@code @Cooldown} duration is not a valid human duration
      */
-    static @Nullable CommandCondition forMethod(Method method, String commandPath, Cooldowns cooldowns) {
-        Cooldown cooldown = effective(method);
+    static @Nullable CommandCondition forBranch(BranchModel branch, String commandPath, Cooldowns cooldowns) {
+        Cooldown cooldown = effective(branch);
         if (cooldown == null) {
             return null;
         }
-        long durationMillis = parse(cooldown, method);
+        long durationMillis = parse(cooldown, branch.method());
         String keyPrefix = commandPath + '|';
         return ctx -> test(ctx, keyPrefix, durationMillis, cooldowns);
     }
 
-    private static @Nullable Cooldown effective(Method method) {
-        Cooldown onMethod = method.getAnnotation(Cooldown.class);
-        return onMethod != null ? onMethod : method.getDeclaringClass().getAnnotation(Cooldown.class);
+    private static @Nullable Cooldown effective(BranchModel branch) {
+        Cooldown onMethod = branch.methodView().get(Cooldown.class);
+        return onMethod != null ? onMethod : branch.classView().get(Cooldown.class);
     }
 
     private static long parse(Cooldown cooldown, Method method) {

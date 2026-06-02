@@ -18,14 +18,26 @@ final class CommandModel {
 
     private final Object handler;
     private final Command command;
+    private final AnnotatedView classView;
     private final @Nullable Permission classPermission;
     private final List<BranchModel> branches;
 
-    CommandModel(Object handler, Command command, @Nullable Permission classPermission, List<BranchModel> branches) {
+    CommandModel(
+            Object handler,
+            Command command,
+            AnnotatedView classView,
+            @Nullable Permission classPermission,
+            List<BranchModel> branches) {
         this.handler = Objects.requireNonNull(handler, "handler");
         this.command = Objects.requireNonNull(command, "command");
+        this.classView = Objects.requireNonNull(classView, "classView");
         this.classPermission = classPermission;
         this.branches = List.copyOf(Objects.requireNonNull(branches, "branches"));
+    }
+
+    /** The effective annotation view of the {@code @Command} class, carrying its replacer-rewritten annotations. */
+    AnnotatedView classView() {
+        return classView;
     }
 
     /** The handler instance whose methods the branches invoke. */

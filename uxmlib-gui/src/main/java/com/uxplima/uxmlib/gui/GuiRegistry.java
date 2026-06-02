@@ -33,6 +33,12 @@ final class GuiRegistry {
         return scheduler;
     }
 
+    /** The installed scheduler, or {@code null} when no Scheduler-aware registry was installed. */
+    static @Nullable Scheduler installedScheduler() {
+        GuiRegistry registry = Guis.registry();
+        return registry == null ? null : registry.scheduler();
+    }
+
     /** Register {@code gui} with the installed registry if it needs ticking; a no-op if none is installed. */
     static void onOpen(AbstractGui gui) {
         GuiRegistry registry = Guis.registry();

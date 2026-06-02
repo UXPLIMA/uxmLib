@@ -25,8 +25,13 @@ final class ArgBinder {
 
     private ArgBinder() {}
 
-    /** One {@code @Arg} parameter resolved to its resolver and source parameter. */
-    record ParamArg(String name, Arg arg, ParamResolver<?> resolver, Parameter parameter) {}
+    /**
+     * One {@code @Arg} parameter resolved to its resolver, source parameter, and the parameter's effective
+     * annotation view (the raw annotations with any {@link AnnotationReplacer} applied). The validation and
+     * suggestion paths read {@code @Range}/{@code @Length}/{@code @Suggest} off the view, so a replacer that
+     * synthesises one of those is honoured at bind and at completion, not only at tree shape.
+     */
+    record ParamArg(String name, Arg arg, ParamResolver<?> resolver, Parameter parameter, AnnotatedView view) {}
 
     /** Build the argument array for {@code method} from {@code ctx}, including any parsed flags. */
     static Object[] bind(
@@ -39,19 +44,30 @@ final class ArgBinder {
         Object[] callArgs = new Object[params.length];
         Flags parsedFlags = flags.isEmpty() ? null : parsedFlags(ctx);
         Map<Parameter, FlagModel> flagByParam = flagByParam(flags);
-        int argIndex = 0;
+        Map<Parameter, ParamArg> argByParam = argByParam(args);
         for (int i = 0; i < params.length; i++) {
             Parameter param = params[i];
             FlagModel flag = flagByParam.get(param);
+            ParamArg arg = argByParam.get(param);
+            // Drive binding off the model's args/flags (which already reflect the effective annotation view),
+            // not a fresh read of the parameter, so a replacer-supplied @Arg/@Flag binds the way it rendered.
             if (flag != null) {
                 callArgs[i] = bindFlag(ctx, flag, parsedFlags);
-            } else if (param.isAnnotationPresent(Arg.class)) {
-                callArgs[i] = resolveArg(ctx, args.get(argIndex++), resolvers);
+            } else if (arg != null) {
+                callArgs[i] = resolveArg(ctx, arg, resolvers);
             } else {
                 callArgs[i] = inject(ctx, param, resolvers);
             }
         }
         return callArgs;
+    }
+
+    private static Map<Parameter, ParamArg> argByParam(List<ParamArg> args) {
+        Map<Parameter, ParamArg> map = new HashMap<>();
+        for (ParamArg arg : args) {
+            map.put(arg.parameter(), arg);
+        }
+        return map;
     }
 
     private static Map<Parameter, FlagModel> flagByParam(List<FlagModel> flags) {
@@ -106,7 +122,7 @@ final class ArgBinder {
             CommandContext<CommandSourceStack> ctx, ParamArg pa, ParamResolvers resolvers) {
         try {
             Object value = resolveOrDefault(ctx, pa, pa.parameter().getType());
-            ArgValidators.check(pa.parameter(), value);
+            ArgValidators.check(pa.view(), value);
             runValidators(resolvers, pa, value);
             return value;
         } catch (ArgumentResolveException alreadyTyped) {

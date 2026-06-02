@@ -44,13 +44,9 @@ final class BrigadierRenderer {
             attachBranch(root, model.handler(), branch, command.name());
         }
         if (command.help()) {
-            root.then(HelpRenderer.helpLiteral(command.name(), methods(model)));
+            root.then(HelpRenderer.helpLiteral(command.name(), model.branches()));
         }
         return root.build();
-    }
-
-    private static List<java.lang.reflect.Method> methods(CommandModel model) {
-        return model.branches().stream().map(BranchModel::method).toList();
     }
 
     private void attachBranch(
@@ -58,7 +54,7 @@ final class BrigadierRenderer {
         String path = branch.path();
         String commandPath = path.isEmpty() ? rootName : rootName + ' ' + path;
         com.mojang.brigadier.Command<CommandSourceStack> executor = CommandExecutors.executorFor(
-                handler, branch.method(), branch.args(), branch.flags(), resolvers, commandPath, scheduler);
+                handler, branch, branch.args(), branch.flags(), resolvers, commandPath, scheduler);
         ArgChain chain = buildArgChain(branch, executor);
 
         String[] literals = branch.literals();
@@ -126,7 +122,7 @@ final class BrigadierRenderer {
             ArgBinder.ParamArg pa = args.get(i);
             RequiredArgumentBuilder<CommandSourceStack, ?> builder =
                     Cmd.argument(pa.name(), pa.resolver().argumentType(pa.arg(), pa.parameter()));
-            Suggestions.apply(builder, pa.parameter(), pa.resolver());
+            Suggestions.apply(builder, pa.view(), pa.resolver());
             if (tail == null) {
                 builder.executes(executor);
             } else {

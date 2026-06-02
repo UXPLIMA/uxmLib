@@ -2,7 +2,6 @@ package com.uxplima.uxmlib.command.annotation;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.lang.reflect.Method;
 import java.util.List;
 
 import io.papermc.paper.command.brigadier.CommandSourceStack;
@@ -39,29 +38,34 @@ class SecretTest {
     }
 
     @Test
-    void aMethodMarkedSecretIsRecognised() throws Exception {
-        Method debug = WarpCommand.class.getDeclaredMethod("debug", Sender.class);
-        Method list = WarpCommand.class.getDeclaredMethod("list", Sender.class);
+    void aMethodMarkedSecretIsRecognised() {
+        CommandModel warp = CommandModels.reflect(new WarpCommand(), ParamResolvers.withDefaults());
 
-        assertThat(Secrets.isSecret(debug)).isTrue();
-        assertThat(Secrets.isSecret(list)).isFalse();
+        assertThat(Secrets.isSecret(branch(warp, "debug"))).isTrue();
+        assertThat(Secrets.isSecret(branch(warp, "list"))).isFalse();
     }
 
     @Test
-    void aClassMarkedSecretMakesEveryBranchSecret() throws Exception {
-        Method panel = StaffCommand.class.getDeclaredMethod("panel", Sender.class);
+    void aClassMarkedSecretMakesEveryBranchSecret() {
+        CommandModel staff = CommandModels.reflect(new StaffCommand(), ParamResolvers.withDefaults());
 
-        assertThat(Secrets.isSecret(panel)).isTrue();
+        assertThat(Secrets.isSecret(branch(staff, "panel"))).isTrue();
     }
 
     @Test
-    void aSecretBranchIsOmittedFromTheGeneratedHelp() throws Exception {
-        Method debug = WarpCommand.class.getDeclaredMethod("debug", Sender.class);
-        Method list = WarpCommand.class.getDeclaredMethod("list", Sender.class);
+    void aSecretBranchIsOmittedFromTheGeneratedHelp() {
+        CommandModel warp = CommandModels.reflect(new WarpCommand(), ParamResolvers.withDefaults());
 
-        List<HelpRenderer.Entry> entries = HelpRenderer.entriesOf(List.of(list, debug));
+        List<HelpRenderer.Entry> entries = HelpRenderer.entriesOf(List.of(branch(warp, "list"), branch(warp, "debug")));
 
         assertThat(entries).extracting(HelpRenderer.Entry::usage).containsExactly("list");
+    }
+
+    private static BranchModel branch(CommandModel model, String path) {
+        return model.branches().stream()
+                .filter(b -> b.path().equals(path))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("no branch with path '" + path + "'"));
     }
 
     @Test

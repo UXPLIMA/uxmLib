@@ -1,16 +1,12 @@
 package com.uxplima.uxmlib.gui;
 
 import java.time.Duration;
-import java.util.EnumSet;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.function.Consumer;
 
 import org.bukkit.Bukkit;
 import org.bukkit.entity.HumanEntity;
-import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
@@ -20,6 +16,7 @@ import org.bukkit.inventory.Inventory;
 import net.kyori.adventure.text.Component;
 
 import com.uxplima.uxmlib.gui.item.GuiItem;
+import com.uxplima.uxmlib.scheduler.Scheduler;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -32,27 +29,19 @@ abstract class AbstractGui implements Gui {
     private Component title;
     private final int size;
     private final @Nullable GuiType type;
-    private final Map<Integer, GuiItem> items = new HashMap<>();
-    private final java.util.List<SlotAnimation> animations = new java.util.ArrayList<>();
+    // Owns the slot→item map and the slot-mutation API over the fixed slot count.
+    private final GuiSlots slots;
     private @Nullable Inventory inventory;
-    private @Nullable Consumer<InventoryCloseEvent> closeHandler;
-    private @Nullable Consumer<InventoryOpenEvent> openHandler;
-    private @Nullable Consumer<InventoryClickEvent> defaultClickHandler;
-    private @Nullable Consumer<InventoryClickEvent> outsideClickHandler;
-    private final Set<InteractionModifier> allowed = EnumSet.noneOf(InteractionModifier.class);
-    private long ticks;
-    private @Nullable Duration autoRefresh;
-    private long refreshEveryTicks = 1L;
+    // Owns the open/close/click handler fields and the reopen / prevent-close / programmatic-close state.
+    private final GuiHandlers handlers = new GuiHandlers();
+    // Owns the attached animations, the animation clock, and the auto-refresh cadence.
+    private final GuiAnimations animations = new GuiAnimations();
+    // Owns the allowed interaction classes and the click/drag cancel policy that consults them.
+    private final GuiInteractions interactions = new GuiInteractions();
+    // Drives the viewer lifecycle (open/close/handleClose and the scheduler-backed retry/reopen). Takes the
+    // menu per call rather than a back-reference, so this does not escape the constructor.
+    private final GuiViewing viewing = new GuiViewing(animations, handlers);
     private GuiSound sounds = GuiSound.NONE;
-    // Set while updateTitle rebuilds the inventory, so the internal close/reopen does not look like a real
-    // close or open to the user's handlers, sounds, or the tick registry.
-    private boolean reopening;
-    // When set, a client-driven close (Escape) reopens the menu next tick, so a forced-input menu cannot be
-    // dismissed; a deliberate close() / closeAll() through the API still closes it (see closingProgrammatically).
-    private boolean preventClose;
-    // Set for the span of an API-driven close() / closeAll() so handleClose knows that close was intentional
-    // and must not trigger the preventClose reopen.
-    private boolean closingProgrammatically;
 
     AbstractGui(Component title, int rows) {
         this.title = Objects.requireNonNull(title, "title");
@@ -61,12 +50,14 @@ abstract class AbstractGui implements Gui {
         }
         this.size = rows * 9;
         this.type = null;
+        this.slots = new GuiSlots(size);
     }
 
     AbstractGui(Component title, GuiType type) {
         this.title = Objects.requireNonNull(title, "title");
         this.type = Objects.requireNonNull(type, "type");
         this.size = type.size();
+        this.slots = new GuiSlots(size);
     }
 
     @Override
@@ -81,43 +72,22 @@ abstract class AbstractGui implements Gui {
 
     @Override
     public void set(int slot, GuiItem item) {
-        Objects.requireNonNull(item, "item");
-        checkSlot(slot);
-        items.put(slot, item);
-        if (inventory != null) {
-            GuiRender.writeSlot(inventory, this, slot, item);
-        }
+        slots.set(slot, item, this, inventory);
     }
 
     @Override
     public void set(int row, int col, GuiItem item) {
-        Objects.requireNonNull(item, "item");
-        if (row < 1 || col < 1 || col > 9) {
-            throw new IllegalArgumentException("row must be >= 1 and col must be 1..9");
-        }
-        set((row - 1) * 9 + (col - 1), item);
+        slots.set(row, col, item, this);
     }
 
     @Override
     public void addItem(GuiItem... newItems) {
-        Objects.requireNonNull(newItems, "items");
-        int slot = 0;
-        for (GuiItem item : newItems) {
-            Objects.requireNonNull(item, "item");
-            while (slot < size && items.containsKey(slot)) {
-                slot++;
-            }
-            if (slot >= size) {
-                return; // menu is full; the rest are silently dropped, matching addItem semantics
-            }
-            set(slot, item);
-            slot++;
-        }
+        slots.addItem(this, newItems);
     }
 
     @Override
     public @Nullable GuiItem getItem(int slot) {
-        return items.get(slot);
+        return slots.get(slot);
     }
 
     @Override
@@ -127,166 +97,99 @@ abstract class AbstractGui implements Gui {
 
     @Override
     public void addAnimation(SlotAnimation animation) {
-        animations.add(Objects.requireNonNull(animation, "animation"));
-        // Apply the first frame at once if the menu is already showing, so it does not wait a tick to appear.
-        Inventory inv = inventory;
-        if (inv != null) {
-            animation.advance(ticks, new InventorySink(inv, items));
-        }
+        animations.add(animation, inventory, slots.map());
     }
 
     @Override
     public Gui allow(InteractionModifier modifier) {
-        allowed.add(Objects.requireNonNull(modifier, "modifier"));
+        interactions.allow(modifier);
         return this;
     }
 
     @Override
     public Gui disallow(InteractionModifier modifier) {
-        allowed.remove(Objects.requireNonNull(modifier, "modifier"));
+        interactions.disallow(modifier);
         return this;
     }
 
     @Override
     public boolean allows(InteractionModifier modifier) {
-        return allowed.contains(Objects.requireNonNull(modifier, "modifier"));
+        return interactions.allows(modifier);
     }
 
     @Override
     public void remove(int slot) {
-        checkSlot(slot);
-        items.remove(slot);
-        if (inventory != null) {
-            inventory.clear(slot);
-        }
+        slots.remove(slot, inventory);
     }
 
     @Override
     public void clear() {
-        items.clear();
-        if (inventory != null) {
-            inventory.clear();
-        }
+        slots.clear(inventory);
     }
 
     @Override
     public void onClose(Consumer<InventoryCloseEvent> handler) {
-        this.closeHandler = Objects.requireNonNull(handler, "handler");
+        handlers.onClose(handler);
     }
 
     @Override
     public void onOpen(Consumer<InventoryOpenEvent> handler) {
-        this.openHandler = Objects.requireNonNull(handler, "handler");
+        handlers.onOpen(handler);
     }
 
     @Override
     public void onDefaultClick(Consumer<InventoryClickEvent> handler) {
-        this.defaultClickHandler = Objects.requireNonNull(handler, "handler");
+        handlers.onDefaultClick(handler);
     }
 
     @Override
     public void onOutsideClick(Consumer<InventoryClickEvent> handler) {
-        this.outsideClickHandler = Objects.requireNonNull(handler, "handler");
+        handlers.onOutsideClick(handler);
     }
 
     @Override
     public void handleOpen(InventoryOpenEvent event) {
         GuiRegistry.onOpen(this);
-        if (reopening) {
+        if (handlers.reopening()) {
             return; // an internal title-change reopen, not a user-visible open
         }
         sounds.playOpen(event.getPlayer());
-        Consumer<InventoryOpenEvent> handler = openHandler;
-        if (handler != null) {
-            handler.accept(event);
-        }
+        handlers.fireOpen(event);
     }
 
     /** Whether this menu has animated or auto-refresh content and is currently being viewed. */
     boolean needsTicking() {
-        return (autoRefresh != null || hasAnimatedContent())
-                && inventory != null
-                && !inventory.getViewers().isEmpty();
+        return animations.needsTicking(inventory, slots.map());
     }
 
     final boolean hasAnimatedContent() {
-        return !animations.isEmpty() || items.values().stream().anyMatch(GuiItem.Animated.class::isInstance);
+        return animations.hasAnimatedContent(slots.map());
     }
 
     @Override
     public void open(HumanEntity viewer) {
-        Objects.requireNonNull(viewer, "viewer");
-        if (deferWhileSleeping(viewer)) {
-            return; // opening over the bed UI glitches the client; retry once the player is up
-        }
-        Inventory inv = getInventory();
-        // Resolve dynamic/stateful/animated items for this specific viewer before showing the menu.
-        if (viewer instanceof org.bukkit.entity.Player player) {
-            GuiRender.renderAll(inv, this, items, player);
-        }
-        advanceAnimations(inv);
-        viewer.openInventory(inv);
-    }
-
-    /**
-     * If {@code viewer} is in bed, an inventory cannot open cleanly over the sleep screen, so defer the open
-     * to the next tick (when they have usually woken) through the installed
-     * {@link com.uxplima.uxmlib.scheduler.Scheduler}; with no scheduler the open is skipped rather than
-     * glitching. Returns whether the open was deferred or skipped.
-     */
-    private boolean deferWhileSleeping(HumanEntity viewer) {
-        if (!viewer.isSleeping()) {
-            return false;
-        }
-        nextTick(viewer, () -> {
-            if (!viewer.isSleeping()) {
-                open(viewer);
-            }
-        });
-        return true;
-    }
-
-    /** Run {@code task} on {@code viewer}'s region one tick later through the installed scheduler, if any. */
-    private static boolean nextTick(HumanEntity viewer, Runnable task) {
-        GuiRegistry registry = Guis.registry();
-        com.uxplima.uxmlib.scheduler.@Nullable Scheduler scheduler = registry == null ? null : registry.scheduler();
-        if (scheduler == null) {
-            return false;
-        }
-        scheduler.entityLater(viewer, java.time.Duration.ofMillis(50L), task);
-        return true;
+        viewing.open(this, viewer);
     }
 
     @Override
     public void close(HumanEntity viewer) {
-        Objects.requireNonNull(viewer, "viewer");
-        closingProgrammatically = true;
-        try {
-            GuiRender.close(inventory, viewer);
-        } finally {
-            closingProgrammatically = false;
-        }
+        viewing.close(this, viewer);
     }
 
     @Override
     public void closeAll() {
-        closingProgrammatically = true;
-        try {
-            GuiRender.closeAll(inventory);
-        } finally {
-            closingProgrammatically = false;
-        }
+        viewing.closeAll(this);
     }
 
     @Override
     public Gui preventClose(boolean prevent) {
-        this.preventClose = prevent;
+        handlers.preventClose(prevent);
         return this;
     }
 
     @Override
     public boolean preventsClose() {
-        return preventClose;
+        return handlers.preventsClose();
     }
 
     @Override
@@ -297,15 +200,10 @@ abstract class AbstractGui implements Gui {
         if (old == null) {
             return; // not built yet; the new title will be used when it is created
         }
-        // Bukkit fixes a title at creation, so rebuild the inventory and reopen it for current viewers.
-        // Guard the close/reopen so it doesn't fire the user's open/close handlers or the open sound.
+        // Bukkit fixes a title at creation, so rebuild and reopen the inventory under the reopen guard, so
+        // the internal close/reopen does not fire the user's handlers or the open sound.
         this.inventory = null;
-        this.reopening = true;
-        try {
-            GuiRender.reopen(old, getInventory());
-        } finally {
-            this.reopening = false;
-        }
+        handlers.runReopen(() -> GuiRender.reopen(old, getInventory()));
     }
 
     @Override
@@ -317,15 +215,14 @@ abstract class AbstractGui implements Gui {
 
     /** Cancel the event with {@code DENY} unless the menu allows its interaction; must run in-event. */
     final void applyClickPolicy(InventoryClickEvent event) {
-        GuiClick.applyPolicy(allowed, event);
+        interactions.applyPolicy(event);
     }
 
     /** Run the clicked slot's action (and click sound). May be deferred to the next tick by the listener. */
     final void dispatchClick(InventoryClickEvent event) {
-        GuiRegistry registry = Guis.registry();
-        com.uxplima.uxmlib.scheduler.@Nullable Scheduler scheduler = registry == null ? null : registry.scheduler();
-        boolean hitItem =
-                GuiClick.dispatch(this, inventory, items, defaultClickHandler, outsideClickHandler, scheduler, event);
+        @Nullable Scheduler scheduler = GuiRegistry.installedScheduler();
+        boolean hitItem = GuiClick.dispatch(
+                this, inventory, slots.map(), handlers.defaultClick(), handlers.outsideClick(), scheduler, event);
         if (hitItem) {
             sounds.playClick(event.getWhoClicked());
         }
@@ -333,7 +230,7 @@ abstract class AbstractGui implements Gui {
 
     @Override
     public void handleDrag(InventoryDragEvent event) {
-        GuiClick.routeDrag(allowed, event);
+        interactions.routeDrag(event);
     }
 
     /** Set the click/open feedback sounds for this menu. */
@@ -343,30 +240,7 @@ abstract class AbstractGui implements Gui {
 
     @Override
     public void handleClose(InventoryCloseEvent event) {
-        if (reopening) {
-            return; // the close half of an internal title-change reopen
-        }
-        if (preventClose && !closingProgrammatically && reopenAfterClose(event.getPlayer())) {
-            return; // a forced-input menu the viewer tried to dismiss: it is being reopened, not closed
-        }
-        // Stop ticking once the last viewer leaves (getViewers still includes the closing player here,
-        // so one-or-fewer means this close empties the menu).
-        if (inventory != null && inventory.getViewers().size() <= 1) {
-            GuiRegistry.onClose(this);
-        }
-        Consumer<InventoryCloseEvent> handler = closeHandler;
-        if (handler != null) {
-            handler.accept(event);
-        }
-    }
-
-    /**
-     * Schedule a reopen of this menu for {@code viewer} on the next tick. Returns whether the reopen was
-     * scheduled — it needs the Scheduler-aware install, so with no scheduler the close proceeds normally
-     * rather than silently swallowing it.
-     */
-    private boolean reopenAfterClose(HumanEntity viewer) {
-        return nextTick(viewer, () -> open(viewer));
+        viewing.handleClose(this, event);
     }
 
     @Override
@@ -384,7 +258,7 @@ abstract class AbstractGui implements Gui {
 
     /** The item map, for subclasses that render derived content (e.g. pagination). */
     final Map<Integer, GuiItem> items() {
-        return items;
+        return slots.map();
     }
 
     /** The live inventory if it has been built, else {@code null}. */
@@ -393,12 +267,12 @@ abstract class AbstractGui implements Gui {
     }
 
     private void render(Inventory inv) {
-        GuiRender.renderAll(inv, this, items, GuiRender.firstViewer(inv));
+        GuiRender.renderAll(inv, this, slots.map(), GuiRender.firstViewer(inv));
     }
 
     @Override
     public long ticks() {
-        return ticks;
+        return animations.ticks();
     }
 
     /**
@@ -414,44 +288,13 @@ abstract class AbstractGui implements Gui {
         }
     }
 
-    /**
-     * Advance the animation clock and, on the configured interval, re-render only the changeable items.
-     * Static slots are left untouched, and an unchanged icon is not rewritten, so the tick path does the
-     * least work it can.
-     */
+    /** Advance the animation clock and re-render the changeable items on the configured interval. */
     final void tick() {
-        ticks++;
-        Inventory inv = inventory;
-        if (inv == null || ticks % refreshEveryTicks != 0) {
-            return;
-        }
-        Player viewer = GuiRender.firstViewer(inv);
-        if (viewer != null) {
-            GuiRender.renderDynamic(inv, this, items, viewer);
-        }
-        advanceAnimations(inv);
-    }
-
-    /** Advance every attached overlay one step, painting only the slots its diff changed. */
-    private void advanceAnimations(Inventory inv) {
-        if (animations.isEmpty()) {
-            return;
-        }
-        InventorySink sink = new InventorySink(inv, items);
-        for (SlotAnimation animation : animations) {
-            animation.advance(ticks, sink);
-        }
+        animations.tick(inventory, this, slots.map());
     }
 
     /** Set how often this menu re-renders while open ({@code null} = every tick, for animations). */
     final void autoRefresh(@Nullable Duration interval) {
-        this.autoRefresh = interval;
-        this.refreshEveryTicks = interval == null ? 1L : Math.max(1L, interval.toMillis() / 50L);
-    }
-
-    private void checkSlot(int slot) {
-        if (slot < 0 || slot >= size) {
-            throw new IllegalArgumentException("slot must be 0.." + (size - 1));
-        }
+        animations.autoRefresh(interval);
     }
 }

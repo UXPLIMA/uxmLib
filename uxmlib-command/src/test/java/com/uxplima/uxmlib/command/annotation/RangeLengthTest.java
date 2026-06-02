@@ -57,8 +57,8 @@ class RangeLengthTest {
 
     @Test
     void rangeAlsoEnforcesServerSide() throws Exception {
-        Parameter amount = BoundedCommand.class.getDeclaredMethod("buy", Sender.class, int.class)
-                .getParameters()[1];
+        AnnotatedView amount = viewOf(BoundedCommand.class.getDeclaredMethod("buy", Sender.class, int.class)
+                .getParameters()[1]);
         assertThatCode(() -> ArgValidators.check(amount, 10)).doesNotThrowAnyException();
         assertThatThrownBy(() -> ArgValidators.check(amount, 100))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -69,14 +69,19 @@ class RangeLengthTest {
 
     @Test
     void lengthEnforcesServerSideOnly() throws Exception {
-        Parameter nick = BoundedCommand.class.getDeclaredMethod("name", Sender.class, String.class)
-                .getParameters()[1];
+        AnnotatedView nick = viewOf(BoundedCommand.class.getDeclaredMethod("name", Sender.class, String.class)
+                .getParameters()[1]);
         assertThatCode(() -> ArgValidators.check(nick, "Steve")).doesNotThrowAnyException();
         assertThatThrownBy(() -> ArgValidators.check(nick, "ab"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("characters");
         assertThatThrownBy(() -> ArgValidators.check(nick, "a".repeat(20)))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    /** The effective view of a parameter with no replacers; its raw annotations, the way the binder reads them. */
+    private static AnnotatedView viewOf(Parameter parameter) {
+        return AnnotatedView.of(parameter, Replacers.none());
     }
 
     private static <T> T argType(

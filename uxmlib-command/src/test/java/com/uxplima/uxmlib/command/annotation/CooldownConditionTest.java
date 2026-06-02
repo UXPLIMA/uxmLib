@@ -6,7 +6,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import java.lang.reflect.Method;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -65,16 +64,14 @@ class CooldownConditionTest {
     }
 
     @Test
-    void noAnnotationYieldsNoCondition() throws Exception {
-        Method free = KitCommand.class.getDeclaredMethod("free", Sender.class);
-        assertThat(CooldownCondition.forMethod(free, "kit free", new Cooldowns()))
+    void noAnnotationYieldsNoCondition() {
+        assertThat(CooldownCondition.forBranch(branch("free"), "kit free", new Cooldowns()))
                 .isNull();
     }
 
     @Test
-    void aMethodLevelCooldownDerivesACondition() throws Exception {
-        Method daily = KitCommand.class.getDeclaredMethod("daily", Sender.class);
-        assertThat(CooldownCondition.forMethod(daily, "kit daily", new Cooldowns()))
+    void aMethodLevelCooldownDerivesACondition() {
+        assertThat(CooldownCondition.forBranch(branch("daily"), "kit daily", new Cooldowns()))
                 .isNotNull();
     }
 
@@ -129,9 +126,15 @@ class CooldownConditionTest {
         assertThat(cooldowns.size()).isZero();
     }
 
-    private static CommandCondition cooldownCondition(Cooldowns cooldowns) throws Exception {
-        Method daily = KitCommand.class.getDeclaredMethod("daily", Sender.class);
-        return java.util.Objects.requireNonNull(CooldownCondition.forMethod(daily, "kit daily", cooldowns));
+    private static CommandCondition cooldownCondition(Cooldowns cooldowns) {
+        return java.util.Objects.requireNonNull(CooldownCondition.forBranch(branch("daily"), "kit daily", cooldowns));
+    }
+
+    private static BranchModel branch(String path) {
+        return CommandModels.reflect(new KitCommand(), ParamResolvers.withDefaults()).branches().stream()
+                .filter(b -> b.path().equals(path))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("no branch with path '" + path + "'"));
     }
 
     private static CommandContext<CommandSourceStack> playerContext(UUID uuid) {

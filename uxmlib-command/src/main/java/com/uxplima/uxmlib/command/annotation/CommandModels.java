@@ -30,7 +30,9 @@ final class CommandModels {
     /** Reflect {@code handler} into its command model using {@code resolvers} for argument and flag types. */
     static CommandModel reflect(Object handler, ParamResolvers resolvers) {
         Class<?> type = handler.getClass();
-        Command command = type.getAnnotation(Command.class);
+        Replacers replacers = resolvers.replacers();
+        AnnotatedView classView = AnnotatedView.of(type, replacers);
+        Command command = classView.get(Command.class);
         if (command == null) {
             throw new CommandParseException(type.getName() + " is not annotated with @Command");
         }
@@ -40,23 +42,52 @@ final class CommandModels {
         }
         List<BranchModel> branches = new ArrayList<>();
         for (Method method : methods) {
-            branches.add(branchOf(method, resolvers));
+            branches.add(branchOf(method, classView, resolvers, replacers));
         }
-        return new CommandModel(handler, command, type.getAnnotation(Permission.class), branches);
+        return new CommandModel(handler, command, classView, classView.get(Permission.class), branches);
     }
 
-    private static BranchModel branchOf(Method method, ParamResolvers resolvers) {
-        validateSignature(method, resolvers);
-        List<ArgBinder.ParamArg> args = argParameters(method, resolvers);
-        List<FlagModel> flags = flagParameters(method, resolvers);
-        checkParamOrder(method, args, !flags.isEmpty());
-        String path = method.getAnnotation(Subcommand.class).value().trim();
-        return new BranchModel(method, path, method.getAnnotation(Permission.class), args, flags, priorityOf(method));
+    private static BranchModel branchOf(
+            Method method, AnnotatedView classView, ParamResolvers resolvers, Replacers replacers) {
+        AnnotatedView methodView = AnnotatedView.of(method, replacers);
+        List<AnnotatedView> paramViews = paramViews(method, replacers);
+        validateSignature(method, resolvers, paramViews);
+        List<ArgBinder.ParamArg> args = argParameters(method, resolvers, paramViews);
+        List<FlagModel> flags = flagParameters(method, resolvers, paramViews);
+        checkParamOrder(method, args, !flags.isEmpty(), paramViews);
+        String path = effectiveSubcommand(method, methodView).value().trim();
+        return new BranchModel(
+                method,
+                methodView,
+                classView,
+                path,
+                methodView.get(Permission.class),
+                args,
+                flags,
+                priorityOf(methodView));
     }
 
-    /** The explicit {@code @CommandPriority} of {@code method}, or empty when it declares none. */
-    private static java.util.OptionalInt priorityOf(Method method) {
-        CommandPriority priority = method.getAnnotation(CommandPriority.class);
+    /** The effective annotation view of each parameter of {@code method}, index-aligned with its parameters. */
+    private static List<AnnotatedView> paramViews(Method method, Replacers replacers) {
+        List<AnnotatedView> views = new ArrayList<>();
+        for (Parameter param : method.getParameters()) {
+            views.add(AnnotatedView.of(param, replacers));
+        }
+        return views;
+    }
+
+    /** The effective {@code @Subcommand} of {@code method}; the scan only reaches a method that has one. */
+    private static Subcommand effectiveSubcommand(Method method, AnnotatedView methodView) {
+        Subcommand sub = methodView.get(Subcommand.class);
+        if (sub == null) {
+            throw new CommandParseException(method.getName() + " lost its @Subcommand");
+        }
+        return sub;
+    }
+
+    /** The explicit {@code @CommandPriority} of a branch, or empty when it declares none. */
+    private static java.util.OptionalInt priorityOf(AnnotatedView methodView) {
+        CommandPriority priority = methodView.get(CommandPriority.class);
         return priority == null ? java.util.OptionalInt.empty() : java.util.OptionalInt.of(priority.value());
     }
 
@@ -88,14 +119,17 @@ final class CommandModels {
         return priority == null ? Integer.MAX_VALUE : priority.value();
     }
 
-    private static void validateSignature(Method method, ParamResolvers resolvers) {
-        for (Parameter param : method.getParameters()) {
-            if (isFlagParam(param)) {
-                validateFlagParam(method, param, resolvers);
+    private static void validateSignature(Method method, ParamResolvers resolvers, List<AnnotatedView> paramViews) {
+        Parameter[] params = method.getParameters();
+        for (int i = 0; i < params.length; i++) {
+            Parameter param = params[i];
+            AnnotatedView view = paramViews.get(i);
+            if (isFlagParam(view)) {
+                validateFlagParam(method, param, view, resolvers);
                 continue;
             }
-            boolean injectable = isInjectable(resolvers, param);
-            if (!injectable && !param.isAnnotationPresent(Arg.class)) {
+            boolean injectable = isInjectable(resolvers, param, view);
+            if (!injectable && !view.isPresent(Arg.class)) {
                 throw new CommandParseException("parameter '" + param.getName() + "' of " + method.getName()
                         + " must be @Arg-annotated, a @Flag/@Switch, or a Sender/CommandSourceStack/CommandSender");
             }
@@ -106,12 +140,13 @@ final class CommandModels {
         }
     }
 
-    private static void validateFlagParam(Method method, Parameter param, ParamResolvers resolvers) {
-        if (param.isAnnotationPresent(Switch.class)) {
+    private static void validateFlagParam(
+            Method method, Parameter param, AnnotatedView view, ParamResolvers resolvers) {
+        if (view.isPresent(Switch.class)) {
             Class<?> t = param.getType();
             if (t != boolean.class && t != Boolean.class) {
-                throw new CommandParseException(
-                        "@Switch parameter '" + flagName(param) + "' of " + method.getName() + " must be a boolean");
+                throw new CommandParseException("@Switch parameter '" + flagName(view, param) + "' of "
+                        + method.getName() + " must be a boolean");
             }
             return;
         }
@@ -130,18 +165,22 @@ final class CommandModels {
         }
     }
 
-    private static boolean isInjectable(ParamResolvers resolvers, Parameter param) {
-        return !param.isAnnotationPresent(Arg.class) && resolvers.hasContext(param.getType());
+    private static boolean isInjectable(ParamResolvers resolvers, Parameter param, AnnotatedView view) {
+        return !view.isPresent(Arg.class) && resolvers.hasContext(param.getType());
     }
 
-    private static boolean isFlagParam(Parameter param) {
-        return param.isAnnotationPresent(Flag.class) || param.isAnnotationPresent(Switch.class);
+    private static boolean isFlagParam(AnnotatedView view) {
+        return view.isPresent(Flag.class) || view.isPresent(Switch.class);
     }
 
-    private static List<ArgBinder.ParamArg> argParameters(Method method, ParamResolvers resolvers) {
+    private static List<ArgBinder.ParamArg> argParameters(
+            Method method, ParamResolvers resolvers, List<AnnotatedView> paramViews) {
+        Parameter[] params = method.getParameters();
         List<ArgBinder.ParamArg> args = new ArrayList<>();
-        for (Parameter param : method.getParameters()) {
-            Arg arg = param.getAnnotation(Arg.class);
+        for (int i = 0; i < params.length; i++) {
+            Parameter param = params[i];
+            AnnotatedView view = paramViews.get(i);
+            Arg arg = view.get(Arg.class);
             if (arg == null) {
                 continue;
             }
@@ -150,20 +189,24 @@ final class CommandModels {
                 throw new CommandParseException(
                         "no resolver for @Arg type " + param.getType().getName() + " on " + method.getName());
             }
-            args.add(new ArgBinder.ParamArg(arg.value(), arg, resolver, param));
+            args.add(new ArgBinder.ParamArg(arg.value(), arg, resolver, param, view));
         }
         return args;
     }
 
-    private static List<FlagModel> flagParameters(Method method, ParamResolvers resolvers) {
+    private static List<FlagModel> flagParameters(
+            Method method, ParamResolvers resolvers, List<AnnotatedView> paramViews) {
+        Parameter[] params = method.getParameters();
         List<FlagModel> flags = new ArrayList<>();
-        for (Parameter param : method.getParameters()) {
-            Switch sw = param.getAnnotation(Switch.class);
+        for (int i = 0; i < params.length; i++) {
+            Parameter param = params[i];
+            AnnotatedView view = paramViews.get(i);
+            Switch sw = view.get(Switch.class);
             if (sw != null) {
                 flags.add(FlagModel.switchFlag(sw.value(), sw.shorthand(), param));
                 continue;
             }
-            Flag flag = param.getAnnotation(Flag.class);
+            Flag flag = view.get(Flag.class);
             if (flag != null) {
                 flags.add(FlagModel.valueFlag(
                         flag.value(), flag.shorthand(), resolverFor(method, resolvers, param), param));
@@ -181,12 +224,12 @@ final class CommandModels {
         return resolver;
     }
 
-    private static String flagName(Parameter param) {
-        Switch sw = param.getAnnotation(Switch.class);
+    private static String flagName(AnnotatedView view, Parameter param) {
+        Switch sw = view.get(Switch.class);
         if (sw != null) {
             return sw.value();
         }
-        Flag flag = param.getAnnotation(Flag.class);
+        Flag flag = view.get(Flag.class);
         return flag != null ? flag.value() : param.getName();
     }
 
@@ -196,7 +239,8 @@ final class CommandModels {
      * greedy, so two greedy siblings would be ambiguous), and any positional {@code @Arg} declared after a
      * flag (flags are consumed by a single greedy trailing node, so they must come last).
      */
-    private static void checkParamOrder(Method method, List<ArgBinder.ParamArg> args, boolean hasFlags) {
+    private static void checkParamOrder(
+            Method method, List<ArgBinder.ParamArg> args, boolean hasFlags, List<AnnotatedView> paramViews) {
         boolean seenOptional = false;
         for (int i = 0; i < args.size(); i++) {
             ArgBinder.ParamArg pa = args.get(i);
@@ -215,7 +259,7 @@ final class CommandModels {
                         "a greedy argument cannot be combined with @Flag/@Switch on " + method.getName());
             }
         }
-        checkFlagsLast(method);
+        checkFlagsLast(method, paramViews);
     }
 
     /** Whether a parameter type is one of the composing collection types, which consume a greedy trailing node. */
@@ -223,12 +267,12 @@ final class CommandModels {
         return type == java.util.List.class || type == java.util.Optional.class || type.isArray();
     }
 
-    private static void checkFlagsLast(Method method) {
+    private static void checkFlagsLast(Method method, List<AnnotatedView> paramViews) {
         boolean seenFlag = false;
-        for (Parameter param : method.getParameters()) {
-            if (isFlagParam(param)) {
+        for (AnnotatedView view : paramViews) {
+            if (isFlagParam(view)) {
                 seenFlag = true;
-            } else if (seenFlag && param.isAnnotationPresent(Arg.class)) {
+            } else if (seenFlag && view.isPresent(Arg.class)) {
                 throw new CommandParseException(
                         "a positional @Arg cannot follow a @Flag/@Switch on " + method.getName());
             }

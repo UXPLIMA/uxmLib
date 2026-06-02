@@ -1,7 +1,5 @@
 package com.uxplima.uxmlib.command.annotation;
 
-import java.lang.reflect.Method;
-import java.lang.reflect.Parameter;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -40,7 +38,7 @@ final class HelpRenderer {
     record Entry(String usage, String description, String permission) {}
 
     /** A {@code help [page]} node that lists the visible branches of {@code root}, paginated, when run. */
-    static LiteralArgumentBuilder<CommandSourceStack> helpLiteral(String root, List<Method> branches) {
+    static LiteralArgumentBuilder<CommandSourceStack> helpLiteral(String root, List<BranchModel> branches) {
         List<Entry> entries = entriesOf(branches);
         return Cmd.literal("help")
                 .executes(ctx -> show(ctx, root, entries, 1))
@@ -48,32 +46,35 @@ final class HelpRenderer {
                         .executes(ctx -> show(ctx, root, entries, IntegerArgumentType.getInteger(ctx, "page"))));
     }
 
-    /** The help lines for {@code branches}, with any {@code @Secret} branch omitted. Package-private for tests. */
-    static List<Entry> entriesOf(List<Method> branches) {
+    /**
+     * The help lines for {@code branches}, with any {@code @Secret} branch omitted. Reads each branch's
+     * effective annotation views (with any {@link AnnotationReplacer} applied), so a replacer-supplied
+     * permission or description shows in help just like a declared one. Package-private for tests.
+     */
+    static List<Entry> entriesOf(List<BranchModel> branches) {
         List<Entry> entries = new ArrayList<>();
-        for (Method method : branches) {
-            if (Secrets.isSecret(method)) {
+        for (BranchModel branch : branches) {
+            if (Secrets.isSecret(branch)) {
                 continue; // @Secret branches are kept off the generated help page
             }
-            Subcommand sub = method.getAnnotation(Subcommand.class);
-            Permission permission = method.getAnnotation(Permission.class);
+            AnnotatedView methodView = branch.methodView();
+            Subcommand sub = java.util.Objects.requireNonNull(methodView.get(Subcommand.class), "@Subcommand");
+            Permission permission = methodView.get(Permission.class);
             entries.add(
-                    new Entry(usageOf(method, sub), sub.description(), permission == null ? "" : permission.value()));
+                    new Entry(usageOf(branch, sub), sub.description(), permission == null ? "" : permission.value()));
         }
         return entries;
     }
 
     /** The usage path of a branch: its literal path plus {@code <name>}/{@code [name]} per argument. */
-    private static String usageOf(Method method, Subcommand sub) {
+    private static String usageOf(BranchModel branch, Subcommand sub) {
         StringBuilder usage = new StringBuilder(sub.value());
-        for (Parameter param : method.getParameters()) {
-            Arg arg = param.getAnnotation(Arg.class);
-            if (arg != null) {
-                if (usage.length() > 0) {
-                    usage.append(' ');
-                }
-                usage.append(arg.optional() ? "[" + arg.value() + "]" : "<" + arg.value() + ">");
+        for (ArgBinder.ParamArg pa : branch.args()) {
+            Arg arg = pa.arg();
+            if (usage.length() > 0) {
+                usage.append(' ');
             }
+            usage.append(arg.optional() ? "[" + arg.value() + "]" : "<" + arg.value() + ">");
         }
         return usage.toString();
     }

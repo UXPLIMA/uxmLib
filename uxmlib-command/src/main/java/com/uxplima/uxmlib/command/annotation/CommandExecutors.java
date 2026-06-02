@@ -34,13 +34,14 @@ final class CommandExecutors {
      */
     static com.mojang.brigadier.Command<CommandSourceStack> executorFor(
             Object handler,
-            Method method,
+            BranchModel branch,
             List<ArgBinder.ParamArg> args,
             List<FlagModel> flags,
             ParamResolvers resolvers,
             String commandPath,
             Scheduler scheduler) {
-        List<CommandCondition> conditions = conditionsFor(method, resolvers, commandPath);
+        Method method = branch.method();
+        List<CommandCondition> conditions = conditionsFor(branch, resolvers, commandPath);
         boolean async = AsyncCompletion.isAsync(method.getReturnType());
         return ctx -> {
             try {
@@ -149,13 +150,14 @@ final class CommandExecutors {
      * com.uxplima.uxmlib.command.annotation.annotations.Cooldown}. Folding both into the condition seam lets
      * them compose with consumer-registered conditions the same way.
      */
-    private static List<CommandCondition> conditionsFor(Method method, ParamResolvers resolvers, String commandPath) {
+    private static List<CommandCondition> conditionsFor(
+            BranchModel branch, ParamResolvers resolvers, String commandPath) {
         List<CommandCondition> conditions = new ArrayList<>(resolvers.conditions());
-        if (method.isAnnotationPresent(PlayerOnly.class)
-                || method.getDeclaringClass().isAnnotationPresent(PlayerOnly.class)) {
+        if (branch.methodView().isPresent(PlayerOnly.class)
+                || branch.classView().isPresent(PlayerOnly.class)) {
             conditions.add(playerOnlyCondition());
         }
-        CommandCondition cooldown = CooldownCondition.forMethod(method, commandPath, resolvers.cooldowns());
+        CommandCondition cooldown = CooldownCondition.forBranch(branch, commandPath, resolvers.cooldowns());
         if (cooldown != null) {
             conditions.add(cooldown);
         }

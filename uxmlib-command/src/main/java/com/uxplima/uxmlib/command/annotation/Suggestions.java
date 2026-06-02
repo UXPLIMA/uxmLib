@@ -1,6 +1,5 @@
 package com.uxplima.uxmlib.command.annotation;
 
-import java.lang.reflect.Parameter;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -26,8 +25,8 @@ final class Suggestions {
     private Suggestions() {}
 
     static void apply(
-            RequiredArgumentBuilder<CommandSourceStack, ?> builder, Parameter parameter, ParamResolver<?> resolver) {
-        List<SuggestionSource> sources = sourcesFor(parameter, resolver);
+            RequiredArgumentBuilder<CommandSourceStack, ?> builder, AnnotatedView view, ParamResolver<?> resolver) {
+        List<SuggestionSource> sources = sourcesFor(view, resolver);
         if (sources.isEmpty()) {
             return;
         }
@@ -35,14 +34,14 @@ final class Suggestions {
         builder.suggests(chain::suggest);
     }
 
-    /** The ordered suggestion sources for {@code parameter}: explicit provider, static list, then resolver. */
-    private static List<SuggestionSource> sourcesFor(Parameter parameter, ParamResolver<?> resolver) {
+    /** The ordered suggestion sources for a parameter: explicit provider, static list, then resolver. */
+    private static List<SuggestionSource> sourcesFor(AnnotatedView view, ParamResolver<?> resolver) {
         List<SuggestionSource> sources = new ArrayList<>();
-        SuggestWith suggestWith = parameter.getAnnotation(SuggestWith.class);
+        SuggestWith suggestWith = view.get(SuggestWith.class);
         if (suggestWith != null) {
             sources.add(instantiate(suggestWith.value()));
         }
-        Suggest suggest = parameter.getAnnotation(Suggest.class);
+        Suggest suggest = view.get(Suggest.class);
         if (suggest != null) {
             sources.add(fromList(List.of(suggest.value())));
         }

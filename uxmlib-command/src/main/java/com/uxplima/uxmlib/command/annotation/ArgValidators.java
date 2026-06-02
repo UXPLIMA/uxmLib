@@ -18,13 +18,14 @@ final class ArgValidators {
 
     private ArgValidators() {}
 
-    /** Re-check a resolved {@code value} against the {@code @Range}/{@code @Length} on {@code parameter}. */
-    static void check(Parameter parameter, @Nullable Object value) {
-        Range range = parameter.getAnnotation(Range.class);
+    /** Re-check a resolved {@code value} against the effective {@code @Range}/{@code @Length} of {@code view}. */
+    static void check(AnnotatedView view, @Nullable Object value) {
+        Parameter parameter = (Parameter) view.element();
+        Range range = view.get(Range.class);
         if (range != null && value instanceof Number number) {
             checkRange(parameter, number.doubleValue(), range);
         }
-        Length length = parameter.getAnnotation(Length.class);
+        Length length = view.get(Length.class);
         if (length != null && value instanceof String text) {
             checkLength(parameter, text, length);
         }
