@@ -10,6 +10,7 @@ dependencies {
     // Soft-depend integrations: reached only past a plugin-present guard, so a server without them is fine.
     compileOnly(libs.luckperms.api)
     compileOnly(libs.vault.api)
+    compileOnly(libs.vaultunlocked.api)
     compileOnly(libs.placeholderapi)
     compileOnly(libs.worldguard.bukkit)
     compileOnly(libs.towny)
@@ -23,6 +24,7 @@ dependencies {
     // Vault on the test runtime lets a fake Economy service exercise the bridge's format/currency
     // delegation and the service-register rebinding; production still treats Vault as compileOnly.
     testImplementation(libs.vault.api)
+    testImplementation(libs.vaultunlocked.api)
     // WorldGuard and Towny on the test runtime let the region adapter classes load so the present-guard
     // (no plugin under MockBukkit -> empty) is asserted; production still treats both as compileOnly.
     testImplementation(libs.worldguard.bukkit)

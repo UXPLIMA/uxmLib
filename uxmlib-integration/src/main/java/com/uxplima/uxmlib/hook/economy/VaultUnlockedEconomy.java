@@ -1,46 +1,102 @@
 package com.uxplima.uxmlib.hook.economy;
 
+import java.math.BigDecimal;
+import java.util.Objects;
 import java.util.Optional;
 
+import org.bukkit.Bukkit;
+import org.bukkit.OfflinePlayer;
+import org.bukkit.plugin.RegisteredServiceProvider;
+
 import com.uxplima.uxmlib.hook.Hooks;
+import net.milkbowl.vault2.economy.Economy;
 
 /**
- * A present-guarded view of the VaultUnlocked economy — the {@code net.milkbowl.vault2.economy} provider,
- * a separate plugin from classic Vault with a {@code BigDecimal}, UUID-keyed, multi-currency API. {@link
- * #find()} returns empty when VaultUnlocked is not installed, so {@link EconomyBridge#find()} can try it
- * alongside classic Vault and fall through cleanly when it is absent.
+ * A present-guarded view of the VaultUnlocked economy — the {@code net.milkbowl.vault2.economy} provider, a
+ * separate plugin from classic Vault with a {@code BigDecimal}, UUID-keyed, multi-currency API. {@link #find()}
+ * looks the service up and returns empty when VaultUnlocked (or a provider for it) is absent, so
+ * {@link EconomyBridge#find()} can try it after classic Vault and fall through cleanly. The {@code vault2}
+ * classes are touched only past the registration check, so a server without VaultUnlocked still loads.
  *
- * <p>The {@code vault2} API is not yet on this module's compile classpath, so the operational surface
- * (balance/withdraw/deposit/format against {@code net.milkbowl.vault2.economy.Economy}) cannot be bound here
- * without either adding that dependency or resorting to reflection — the latter is disallowed. Until the
- * dependency is added, this view only reports presence; once {@code vault2} is a {@code compileOnly}
- * dependency, the service lookup and a {@code VaultUnlockedEconomyBridge} slot in behind the same guard.
+ * <p>Every vault2 call is keyed by a requesting plugin name; the library passes a stable {@code "uxmlib"}
+ * identifier (economy plugins use it only for logging / per-plugin scoping). Amounts cross the {@code double}
+ * bridge surface as {@link BigDecimal} against the provider's default currency.
  */
 public final class VaultUnlockedEconomy {
 
-    private VaultUnlockedEconomy() {}
+    private static final String PLUGIN_NAME = "uxmlib";
 
-    /**
-     * The registered VaultUnlocked economy, or empty when the plugin is absent. Operational binding awaits
-     * the {@code vault2} API on the compile classpath (see the class note), so this currently yields empty
-     * whenever the API is unavailable rather than constructing a half-wired bridge.
-     */
+    private final Economy economy;
+
+    private VaultUnlockedEconomy(Economy economy) {
+        this.economy = economy;
+    }
+
+    /** The registered VaultUnlocked economy, or empty when VaultUnlocked or a provider for it is absent. */
     public static Optional<VaultUnlockedEconomy> find() {
         if (!Hooks.isPresent("VaultUnlocked")) {
             return Optional.empty();
         }
-        // The vault2 service can only be looked up with its API Class on the classpath, which this module
-        // does not yet depend on. Report absent so EconomyBridge.find() falls through to classic Vault.
-        return Optional.empty();
+        RegisteredServiceProvider<Economy> registration =
+                Bukkit.getServicesManager().getRegistration(Economy.class);
+        if (registration == null) {
+            return Optional.empty();
+        }
+        // A registration always carries a non-null provider; the unannotated vault2 API hides that from NullAway.
+        Economy provider = Objects.requireNonNull(registration.getProvider(), "provider");
+        return Optional.of(new VaultUnlockedEconomy(provider));
     }
 
-    /**
-     * Adapt this view to an {@link EconomyBridge}. Empty until the {@code vault2} API is on the compile
-     * classpath: with no operational binding to construct, a present view still cannot back a bridge, so the
-     * wiring in {@link EconomyBridge#find()} falls through to the dummy economy. This is the single seam to
-     * fill once the dependency lands — a {@code VaultUnlockedEconomyBridge} returns here.
-     */
+    /** Wrap an already-resolved {@code economy} — the seam {@link #find()} uses, exposed for tests. */
+    static VaultUnlockedEconomy of(Economy economy) {
+        return new VaultUnlockedEconomy(Objects.requireNonNull(economy, "economy"));
+    }
+
+    /** A player's balance in the default currency. */
+    @SuppressWarnings("deprecation") // the single-currency convenience accessor is the right default-currency surface
+    public double balance(OfflinePlayer player) {
+        Objects.requireNonNull(player, "player");
+        return Objects.requireNonNullElse(economy.getBalance(PLUGIN_NAME, player.getUniqueId()), BigDecimal.ZERO)
+                .doubleValue();
+    }
+
+    /** Whether a player has at least {@code amount} (VaultUnlocked has no direct check, so the balance is read). */
+    public boolean has(OfflinePlayer player, double amount) {
+        return balance(player) >= amount;
+    }
+
+    /** Withdraw {@code amount} from a player; returns whether the transaction succeeded. */
+    public boolean withdraw(OfflinePlayer player, double amount) {
+        Objects.requireNonNull(player, "player");
+        return economy.withdraw(PLUGIN_NAME, player.getUniqueId(), BigDecimal.valueOf(amount))
+                .transactionSuccess();
+    }
+
+    /** Deposit {@code amount} to a player; returns whether the transaction succeeded. */
+    public boolean deposit(OfflinePlayer player, double amount) {
+        Objects.requireNonNull(player, "player");
+        return economy.deposit(PLUGIN_NAME, player.getUniqueId(), BigDecimal.valueOf(amount))
+                .transactionSuccess();
+    }
+
+    /** The provider's own rendering of {@code amount}. */
+    @SuppressWarnings("deprecation") // the default-currency format convenience method is exactly this bridge's need
+    public String format(double amount) {
+        return Objects.requireNonNullElse(economy.format(BigDecimal.valueOf(amount)), "");
+    }
+
+    /** The default currency's singular name. */
+    public String currencyNameSingular() {
+        return Objects.requireNonNullElse(economy.defaultCurrencyNameSingular(PLUGIN_NAME), "");
+    }
+
+    /** The default currency's plural name. */
+    public String currencyNamePlural() {
+        return Objects.requireNonNullElse(economy.defaultCurrencyNamePlural(PLUGIN_NAME), "");
+    }
+
+    /** Adapt this view to an {@link EconomyBridge}. */
     Optional<EconomyBridge> toBridge() {
-        return Optional.empty();
+        return Optional.of(new VaultUnlockedEconomyBridge(this));
     }
 }
