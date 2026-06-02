@@ -48,9 +48,13 @@ final class HelpRenderer {
                         .executes(ctx -> show(ctx, root, entries, IntegerArgumentType.getInteger(ctx, "page"))));
     }
 
-    private static List<Entry> entriesOf(List<Method> branches) {
+    /** The help lines for {@code branches}, with any {@code @Secret} branch omitted. Package-private for tests. */
+    static List<Entry> entriesOf(List<Method> branches) {
         List<Entry> entries = new ArrayList<>();
         for (Method method : branches) {
+            if (Secrets.isSecret(method)) {
+                continue; // @Secret branches are kept off the generated help page
+            }
             Subcommand sub = method.getAnnotation(Subcommand.class);
             Permission permission = method.getAnnotation(Permission.class);
             entries.add(

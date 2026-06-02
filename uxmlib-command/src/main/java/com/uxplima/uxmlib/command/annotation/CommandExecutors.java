@@ -110,14 +110,12 @@ final class CommandExecutors {
             CommandContext<CommandSourceStack> ctx,
             @org.jspecify.annotations.Nullable Throwable cause,
             Throwable fallback) {
+        Throwable logged = StackTraceSanitizer.sanitize(cause != null ? cause : fallback);
         ctx.getSource()
                 .getSender()
                 .getServer()
                 .getLogger()
-                .log(
-                        Level.SEVERE,
-                        "Command '" + method.getName() + "' threw an exception",
-                        cause != null ? cause : fallback);
+                .log(Level.SEVERE, "Command '" + method.getName() + "' threw an exception", logged);
         replyRed(ctx, "An internal error occurred while running this command.");
     }
 

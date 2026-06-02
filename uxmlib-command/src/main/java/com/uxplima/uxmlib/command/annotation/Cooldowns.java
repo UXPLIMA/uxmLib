@@ -1,8 +1,11 @@
 package com.uxplima.uxmlib.command.annotation;
 
 import java.util.Objects;
+import java.util.OptionalLong;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.LongSupplier;
+
+import org.jspecify.annotations.Nullable;
 
 /**
  * A dependency-free, thread-safe cooldown gate keyed by an opaque string (the command path plus the
@@ -12,6 +15,11 @@ import java.util.function.LongSupplier;
  * {@code CooldownMap} uses. The clock is injectable so the arm/expire progression is unit-testable
  * without sleeping; the default is wall time.
  *
+ * <p>By default windows live only in memory and are lost on restart. To make long cooldowns (a daily kit,
+ * a weekly reward) survive one, back the gate with a {@link CooldownStore} via
+ * {@link #Cooldowns(LongSupplier, CooldownStore)}: a cold key is read through the store, and arming a window
+ * writes through it. The store is an optional seam so this module never depends on storage.
+ *
  * <p>This is a plain instance with no static mutable state — construct one and share it across a set of
  * registrations through {@link ParamResolvers#cooldowns(Cooldowns)} so they all see the same windows.
  */
@@ -19,10 +27,11 @@ public final class Cooldowns {
 
     private final ConcurrentHashMap<String, Long> expiryByKey = new ConcurrentHashMap<>();
     private final LongSupplier clock;
+    private final @Nullable CooldownStore store;
 
     /** A cooldown store driven by wall-clock time ({@link System#currentTimeMillis()}). */
     public Cooldowns() {
-        this(System::currentTimeMillis);
+        this(System::currentTimeMillis, null);
     }
 
     /**
@@ -30,7 +39,17 @@ public final class Cooldowns {
      * supplier in tests; production code wants the no-arg constructor.
      */
     public Cooldowns(LongSupplier clock) {
+        this(clock, null);
+    }
+
+    /**
+     * A cooldown gate driven by {@code clock} and persisted through {@code store}, so windows armed before a
+     * restart are recovered the first time their key is checked again. Pass {@code null} for {@code store} to
+     * keep the windows in memory only.
+     */
+    public Cooldowns(LongSupplier clock, @Nullable CooldownStore store) {
         this.clock = Objects.requireNonNull(clock, "clock");
+        this.store = store;
     }
 
     /**
@@ -49,12 +68,41 @@ public final class Cooldowns {
             return 0L;
         }
         long now = clock.getAsLong();
-        Long expiry = expiryByKey.get(key);
-        if (expiry != null && expiry > now) {
+        long expiry = expiryOf(key);
+        if (expiry > now) {
             return expiry - now;
         }
-        expiryByKey.put(key, now + durationMillis);
+        arm(key, now + durationMillis);
         return 0L;
+    }
+
+    /**
+     * The expiry for {@code key}: the in-memory value, or — on a cold key with a {@link CooldownStore} — the
+     * persisted value pulled into memory. {@code 0} when no live window is known.
+     */
+    private long expiryOf(String key) {
+        Long inMemory = expiryByKey.get(key);
+        if (inMemory != null) {
+            return inMemory;
+        }
+        if (store == null) {
+            return 0L;
+        }
+        OptionalLong persisted = store.load(key);
+        if (persisted.isEmpty()) {
+            return 0L;
+        }
+        long expiry = persisted.getAsLong();
+        expiryByKey.put(key, expiry);
+        return expiry;
+    }
+
+    /** Arm a fresh window for {@code key} in memory and, when a store backs this gate, persist it too. */
+    private void arm(String key, long expiry) {
+        expiryByKey.put(key, expiry);
+        if (store != null) {
+            store.save(key, expiry);
+        }
     }
 
     /** The number of live (or not-yet-evicted) entries. Exposed for tests and diagnostics. */
