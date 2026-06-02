@@ -3,15 +3,20 @@ package com.uxplima.uxmlib.gui;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import org.bukkit.entity.Player;
 import org.bukkit.event.Event;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.ItemStack;
 
+import com.uxplima.uxmlib.gui.item.GuiAction;
 import com.uxplima.uxmlib.gui.item.GuiItem;
 import com.uxplima.uxmlib.gui.item.RenderContext;
+import com.uxplima.uxmlib.scheduler.Scheduler;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -26,6 +31,8 @@ import org.jspecify.annotations.Nullable;
  * may be deferred to the next tick (so opening another inventory inside the handler is safe).
  */
 final class GuiClick {
+
+    private static final Logger LOG = Logger.getLogger(GuiClick.class.getName());
 
     private GuiClick() {}
 
@@ -50,6 +57,7 @@ final class GuiClick {
             Map<Integer, GuiItem> items,
             @Nullable Consumer<InventoryClickEvent> defaultClick,
             @Nullable Consumer<InventoryClickEvent> outsideClick,
+            @Nullable Scheduler scheduler,
             InventoryClickEvent event) {
         Inventory clicked = event.getClickedInventory();
         if (clicked == null) {
@@ -64,7 +72,7 @@ final class GuiClick {
         GuiItem item = items.get(event.getSlot());
         if (item != null) {
             if (event.getWhoClicked() instanceof Player player) {
-                item.action(new RenderContext(player, gui, event.getSlot())).accept(event);
+                runItemAction(gui, item, scheduler, player, event);
             }
             return true;
         }
@@ -72,6 +80,31 @@ final class GuiClick {
             defaultClick.accept(event);
         }
         return false;
+    }
+
+    /**
+     * Run the resolved slot action. A {@link GuiAction.Responding} action is routed through the declarative
+     * + async pipeline (which re-checks the icon and applies its responses); any other action runs its
+     * imperative {@code accept(event)} as before.
+     */
+    private static void runItemAction(
+            Gui gui, GuiItem item, @Nullable Scheduler scheduler, Player player, InventoryClickEvent event) {
+        RenderContext context = new RenderContext(player, gui, event.getSlot());
+        GuiAction action = item.action(context);
+        if (action instanceof GuiAction.Responding responding) {
+            ItemStack currentIcon = item.icon(context);
+            AsyncClick.dispatch(responding, gui, event, scheduler, currentIcon, error -> log(item, error));
+        } else {
+            action.accept(event);
+        }
+    }
+
+    private static void log(GuiItem item, Throwable error) {
+        LOG.log(
+                Level.SEVERE,
+                error,
+                () -> "GUI declarative click handler failed for "
+                        + item.getClass().getSimpleName());
     }
 
     /**

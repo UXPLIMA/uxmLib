@@ -250,7 +250,10 @@ abstract class AbstractGui implements Gui {
 
     /** Run the clicked slot's action (and click sound). May be deferred to the next tick by the listener. */
     final void dispatchClick(InventoryClickEvent event) {
-        boolean hitItem = GuiClick.dispatch(this, inventory, items, defaultClickHandler, outsideClickHandler, event);
+        GuiRegistry registry = Guis.registry();
+        com.uxplima.uxmlib.scheduler.@Nullable Scheduler scheduler = registry == null ? null : registry.scheduler();
+        boolean hitItem =
+                GuiClick.dispatch(this, inventory, items, defaultClickHandler, outsideClickHandler, scheduler, event);
         if (hitItem) {
             sounds.playClick(event.getWhoClicked());
         }

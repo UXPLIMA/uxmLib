@@ -64,6 +64,52 @@ public sealed interface GuiItem permits GuiItem.Static, GuiItem.Dynamic, GuiItem
         return new Stateful.Builder();
     }
 
+    /**
+     * A button whose click is handled declaratively and synchronously: the handler receives an immutable
+     * {@link com.uxplima.uxmlib.gui.ClickContext} and returns the {@link com.uxplima.uxmlib.gui.GuiResponse}s
+     * to apply. The pure, unit-testable alternative to {@link #button}.
+     */
+    static GuiItem responding(
+            ItemStack item,
+            java.util.function.Function<
+                            com.uxplima.uxmlib.gui.ClickContext, java.util.List<com.uxplima.uxmlib.gui.GuiResponse>>
+                    onClick) {
+        return new Static(item, respondingSync(onClick));
+    }
+
+    /**
+     * A button whose click computes its responses off-thread: the handler returns a
+     * {@code CompletableFuture} of responses which the framework applies back on the viewer's region thread.
+     */
+    static GuiItem respondingAsyncButton(
+            ItemStack item,
+            java.util.function.Function<
+                            com.uxplima.uxmlib.gui.ClickContext,
+                            java.util.concurrent.CompletableFuture<java.util.List<com.uxplima.uxmlib.gui.GuiResponse>>>
+                    onClick) {
+        return new Static(item, respondingAsync(onClick));
+    }
+
+    /** Wrap a synchronous declarative handler (its responses are ready immediately) as a {@link GuiAction}. */
+    static GuiAction.Responding respondingSync(
+            java.util.function.Function<
+                            com.uxplima.uxmlib.gui.ClickContext, java.util.List<com.uxplima.uxmlib.gui.GuiResponse>>
+                    onClick) {
+        Objects.requireNonNull(onClick, "onClick");
+        return new GuiAction.Responding(ctx ->
+                com.uxplima.uxmlib.gui.GuiResponse.completed(Objects.requireNonNull(onClick.apply(ctx), "responses")));
+    }
+
+    /** Wrap an asynchronous declarative handler (its responses arrive via a future) as a {@link GuiAction}. */
+    static GuiAction.Responding respondingAsync(
+            java.util.function.Function<
+                            com.uxplima.uxmlib.gui.ClickContext,
+                            java.util.concurrent.CompletableFuture<java.util.List<com.uxplima.uxmlib.gui.GuiResponse>>>
+                    onClick) {
+        Objects.requireNonNull(onClick, "onClick");
+        return new GuiAction.Responding(onClick);
+    }
+
     /** A back button that pops {@code navigator}'s screen stack to the previous menu when clicked. */
     static GuiItem back(GuiNavigator navigator, ItemStack icon) {
         java.util.Objects.requireNonNull(navigator, "navigator");
