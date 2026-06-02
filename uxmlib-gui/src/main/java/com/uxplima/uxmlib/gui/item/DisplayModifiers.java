@@ -2,13 +2,15 @@ package com.uxplima.uxmlib.gui.item;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.function.BiFunction;
 
+import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.SkullMeta;
 
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 
-import com.uxplima.uxmlib.hook.Placeholders;
 import com.uxplima.uxmlib.item.ItemBuilder;
 import com.uxplima.uxmlib.item.SkullData;
 
@@ -54,20 +56,22 @@ public final class DisplayModifiers {
         };
     }
 
-    /** Resolves PlaceholderAPI tokens in the icon's display name for the viewer (no-op without PAPI). */
-    public static DisplayModifier placeholders() {
+    /**
+     * Resolves placeholder tokens in the icon's display name for the viewer through {@code resolver} — pass
+     * {@code com.uxplima.uxmlib.hook.Placeholders::apply} (from uxmlib-integration) for PlaceholderAPI, or any
+     * other {@code (viewer, text) -> text}. Kept as an injected seam so the gui module need not depend on the
+     * integration module.
+     */
+    public static DisplayModifier placeholders(BiFunction<Player, String, String> resolver) {
+        Objects.requireNonNull(resolver, "resolver");
         return (context, base) -> {
-            if (!Placeholders.isAvailable()) {
-                return base;
-            }
             Component name =
                     base.getItemMeta() == null ? null : base.getItemMeta().displayName();
             if (name == null) {
                 return base;
             }
-            String plain = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText()
-                    .serialize(name);
-            String resolved = Placeholders.apply(context.viewer(), plain);
+            String plain = PlainTextComponentSerializer.plainText().serialize(name);
+            String resolved = resolver.apply(context.viewer(), plain);
             return ItemBuilder.from(base).name(Component.text(resolved)).build();
         };
     }

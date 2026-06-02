@@ -115,7 +115,8 @@ Guis.install(plugin, scheduler);          // the Scheduler overload enables anim
 
 // Display-modifier pipeline (viewer's own head, PlaceholderAPI, per-viewer transforms):
 DisplayModifiers.apply(item, DisplayModifiers.of(
-        DisplayModifiers.viewerSkull(), DisplayModifiers.placeholders()));
+        DisplayModifiers.viewerSkull(),
+        DisplayModifiers.placeholders(Placeholders::apply)));   // any (viewer, text) -> text seam
 
 // Populate a paginated menu straight from a domain list:
 shop.populate(products, ItemPopulator.of(p -> p.icon(), (p, e) -> buy(p)));

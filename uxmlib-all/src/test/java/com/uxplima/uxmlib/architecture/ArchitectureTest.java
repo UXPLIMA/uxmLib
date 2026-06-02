@@ -64,4 +64,18 @@ class ArchitectureTest {
             .dependOnClassesThat()
             .resideInAPackage("com.uxplima.uxmlib.gui..")
             .because("gui depends on item, never the reverse");
+
+    /** The gui module stays UI-only: PlaceholderAPI/integration glue is an injected seam, not a dependency. */
+    @ArchTest
+    static final ArchRule guiDoesNotDependOnIntegration = noClasses()
+            .that()
+            .resideInAPackage("com.uxplima.uxmlib.gui..")
+            .should()
+            .dependOnClassesThat()
+            .resideInAnyPackage(
+                    "com.uxplima.uxmlib.hook..",
+                    "com.uxplima.uxmlib.hologram..",
+                    "com.uxplima.uxmlib.discord..",
+                    "com.uxplima.uxmlib.advancement..")
+            .because("gui is UI-only; the placeholder resolver is injected, so gui must not pull integration");
 }
