@@ -3,8 +3,9 @@
 [![](https://jitpack.io/v/siracozmen01/uxmLib.svg)](https://jitpack.io/#siracozmen01/uxmLib)
 
 A small, modern toolkit for writing Paper plugins on Minecraft **1.21+**. It bundles the things every
-plugin ends up rewriting — inventory GUIs, item building, commands, config, storage, a few integrations —
-behind a clean API, so you stop copy-pasting the same helpers between projects.
+plugin ends up rewriting — inventory GUIs, item building, commands, config, storage, integrations, HUD
+overlays (scoreboard/title/actionbar/bossbar/tablist), an update-checker, and a config-driven condition
+engine — behind a clean API, so you stop copy-pasting the same helpers between projects.
 
 It targets **Paper 1.21+ and Java 21 only**. That's deliberate: no legacy cross-version reflection layers
 to drag around, just the current Paper API used the way it's meant to be used. Everything is built with
@@ -16,12 +17,15 @@ Each module is published separately; pull only what you use.
 
 | Module | What it gives you |
 | --- | --- |
-| `uxmlib-common` | Folia-ready `Scheduler`, MiniMessage `Text` helpers, typed `HoconConfig` |
-| `uxmlib-item` | A fluent `ItemBuilder`, sealed `SkullData`, registry lookups, item serialization |
-| `uxmlib-gui` | Inventory-menu framework — simple/paginated/scrolling/storage/typed menus, per-viewer & animated items, fillers, interaction control, navigation, config-driven menus, anvil input |
-| `uxmlib-command` | A thin Brigadier facade plus an annotation-driven command DSL |
-| `uxmlib-storage` | Pooled (HikariCP) + cached (Caffeine) JDBC, a query builder, and migrations |
-| `uxmlib-integration` | PlaceholderAPI / Vault / LuckPerms hooks, native-Display holograms, a Discord webhook |
+| `uxmlib-common` | Folia-ready `Scheduler`, MiniMessage `Text`, typed `HoconConfig`, an i18n message catalog + retargetable `Message`, `Durations`/`Numbers`/`Sounds`/particle helpers |
+| `uxmlib-item` | A fluent `ItemBuilder`, sealed `SkullData`, registry lookups, component-safe serialization, typed PDC + UUID codec, HOCON→item loader, async skull resolver |
+| `uxmlib-gui` | Inventory-menu framework — simple/paginated/scrolling/storage/typed menus, per-viewer & animated items, fillers, interaction control, navigation, config-driven state menus, async/declarative click pipeline, unified anvil/chat/sign input, server-side Dialogs |
+| `uxmlib-command` | A Brigadier facade + annotation DSL over a platform-neutral node IR: args/suggestions/permissions, `@Range`/`@Length`, `@Cooldown`, flags & switches, async execution, validator/context/condition SPIs |
+| `uxmlib-storage` | Pooled (HikariCP) + cached (Caffeine) JDBC, a cross-dialect query builder (SQLite/MySQL/Postgres/H2), upserts, migrations, schema introspection, keyset paging, write-behind cache |
+| `uxmlib-integration` | PlaceholderAPI read **and** expansion registration, Vault/LuckPerms hooks (online & offline), native-Display holograms (pools/widgets/leaderboards), an advancement-toast API, a Discord webhook |
+| `uxmlib-hud` | Native-Adventure HUD overlays — flicker-free diff sidebar, title/subtitle, sticky actionbar, bossbar (with modes), tablist, per-tick update batching, animated/ticker text |
+| `uxmlib-update` | A notify-only release update-checker (GitHub/Modrinth) with a build-time version constant — never self-downloads |
+| `uxmlib-condition` | A declarative condition engine (placeholder comparator + failure policy) and a config-driven action engine |
 | `uxmlib-bom` | A bill of materials to align every module to one version |
 | `uxmlib-all` | The aggregate; also the standalone server-side plugin jar |
 
@@ -42,7 +46,8 @@ dependencies {
     implementation("com.github.siracozmen01.uxmLib:uxmlib-gui:0.1.0")
     implementation("com.github.siracozmen01.uxmLib:uxmlib-item:0.1.0")
     implementation("com.github.siracozmen01.uxmLib:uxmlib-command:0.1.0")
-    // ...and uxmlib-common / uxmlib-storage / uxmlib-integration as needed
+    // ...and uxmlib-common / uxmlib-storage / uxmlib-integration / uxmlib-hud /
+    // uxmlib-update / uxmlib-condition as needed
 }
 ```
 
@@ -193,6 +198,44 @@ String text = Placeholders.apply(player, "Hi %player_name%");   // no-op without
 Holograms.builder().line(Text.mini("<yellow>Spawn")).glow(Color.YELLOW).spawnAt(location);
 
 new DiscordWebhook(url).sendEmbed(DiscordEmbed.colored("Alert", "Server started", 0x00FF00));
+```
+
+### HUD overlays
+
+```java
+// Flicker-free sidebar (only changed lines re-send), titles, sticky actionbar, countdown bossbar:
+SidebarManager sidebars = new SidebarManager(Bukkit.getScoreboardManager());
+Sidebar sb = sidebars.create(player, Text.mini("<gold>Server"));
+sb.lines(List.of(Text.mini("<gray>Online: <white>42"), Text.mini("<gray>Map: <white>spawn")));
+sb.show();
+
+new Titles().show(player, Text.mini("<green>Welcome"), Text.mini("<gray>have fun"));
+new Tablist().set(player, header, footer);
+
+new ActionBarManager(scheduler, server).show(player, Text.mini("<yellow>Saved!"), Duration.ofSeconds(3));
+new BossBarManager(scheduler, server).countdown(player, Text.mini("<red>Event"), Duration.ofMinutes(1));
+```
+
+### Conditions & actions
+
+```java
+// A config-driven gate: resolve %...% through an injected resolver, then compare; with a failure message.
+ConditionList gate = ConditionList.of(
+        PlaceholderCondition.parse("%player_level% >= 30"), Text.mini("<red>You need level 30"));
+boolean allowed = gate.test(ConditionRequest.forPlayer(player));
+
+// Named actions, parsed once into closures and run in order:
+ActionList.parse(List.of("[message] <green>Hi %player_name%", "[console] heal %player_name%")).run(ctx);
+```
+
+### Update-checker
+
+```java
+// Notify-only: console log + a clickable on-join message; it never self-downloads.
+UpdateChecker checker = new UpdateChecker(
+        scheduler, new GitHubReleaseProvider("you", "your-plugin"), UxmLibVersion.VERSION);
+new UpdateNotifier(plugin, scheduler, checker, "yourplugin.update.notify")
+        .start(Duration.ofSeconds(40), Duration.ofHours(6));
 ```
 
 ## Building from source
