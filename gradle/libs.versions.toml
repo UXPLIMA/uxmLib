@@ -39,6 +39,11 @@ spotless     = "7.0.2"
 palantir-fmt = "2.52.0"
 shadow       = "9.4.1"
 
+# Netty — the channel/pipeline types for the experimental uxmlib-npc packet layer. compileOnly: Paper bundles
+# Netty at runtime but paper-api's POM does not export it, so it must be pinned here to match what the server
+# ships (4.2.x, Paper 1.21.11). Infra dependency, never shaded.
+netty        = "4.2.13.Final"
+
 [libraries]
 paper-api         = { module = "io.papermc.paper:paper-api",            version.ref = "paper" }
 adventure-api     = { module = "net.kyori:adventure-api",                     version.ref = "adventure" }
@@ -70,6 +75,8 @@ archunit-junit    = { module = "com.tngtech.archunit:archunit-junit5", version.r
 
 errorprone-core   = { module = "com.google.errorprone:error_prone_core", version.ref = "errorprone" }
 nullaway          = { module = "com.uber.nullaway:nullaway",           version.ref = "nullaway" }
+
+netty-transport   = { module = "io.netty:netty-transport",            version.ref = "netty" }
 
 [bundles]
 testing   = ["junit-jupiter", "assertj", "mockito-core", "mockito-jupiter"]
