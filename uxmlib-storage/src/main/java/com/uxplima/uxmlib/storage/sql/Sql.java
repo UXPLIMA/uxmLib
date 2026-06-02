@@ -194,11 +194,16 @@ public final class Sql {
      * the pool before the consumer runs, so a multi-thousand-row table is processed without loading it all and
      * without holding a connection across the callback (the callback may itself query the database).
      *
+     * <p><strong>{@code keyColumn} must be strictly unique.</strong> The cursor advances with {@code key > ?},
+     * so any rows that share the last key of a page (a duplicate sitting on the page boundary) are skipped
+     * silently — exactly-once holds only for a unique key. Pass a primary/unique key; this is not validated.
+     *
      * @param table the table to walk; a simple SQL identifier
-     * @param keyColumn a unique, monotonically comparable column to seek on (typically the primary key)
+     * @param keyColumn a <em>strictly unique</em>, monotonically comparable column to seek on (typically the
+     *     primary key); a non-unique column silently drops rows that tie on a page boundary
      * @param pageSize rows per page; must be {@code >= 1}
      * @param mapper maps each row to the value handed to {@code consumer}
-     * @param consumer receives every row exactly once, in {@code keyColumn} order
+     * @param consumer receives every row exactly once, in {@code keyColumn} order (given a unique key)
      */
     public <T> void forEachByKey(
             String table, String keyColumn, int pageSize, RowMapper<T> mapper, Consumer<? super T> consumer) {

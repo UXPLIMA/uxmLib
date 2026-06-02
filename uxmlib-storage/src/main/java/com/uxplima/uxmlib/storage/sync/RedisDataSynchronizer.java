@@ -26,6 +26,8 @@ import io.lettuce.core.pubsub.StatefulRedisPubSubConnection;
  */
 public final class RedisDataSynchronizer implements DataSynchronizer {
 
+    private static final System.Logger LOG = System.getLogger(RedisDataSynchronizer.class.getName());
+
     /** The default physical channel every node subscribes to; logical channels ride inside the frame. */
     public static final String DEFAULT_UMBRELLA_CHANNEL = "uxmlib:sync";
 
@@ -99,8 +101,14 @@ public final class RedisDataSynchronizer implements DataSynchronizer {
             if (closed || !umbrella.equals(channel)) {
                 return;
             }
-            SyncMessage decoded = SyncMessage.decode(frame);
-            local.publish(decoded.channel(), decoded.payload());
+            // This runs on Lettuce's pub/sub event loop: contain decode and fan-out so one poisoned frame
+            // from another node logs and is dropped rather than escaping into the Netty I/O thread.
+            try {
+                SyncMessage decoded = SyncMessage.decode(frame);
+                local.publish(decoded.channel(), decoded.payload());
+            } catch (RuntimeException failure) {
+                LOG.log(System.Logger.Level.WARNING, "dropped a malformed sync frame", failure);
+            }
         }
     }
 }

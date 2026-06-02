@@ -83,11 +83,15 @@ public final class WriteBehindStorage<I, T> {
     /** Persist the pending write for {@code id} if it is dirty, then mark it clean; else do nothing. */
     public boolean flush(I id) {
         Objects.requireNonNull(id, "id");
-        T staged = pending.remove(id);
+        T staged = pending.get(id);
         if (staged == null) {
             return false;
         }
+        // Persist first, then drop the key only on success: if save throws the key stays dirty and is
+        // retried on the next flush instead of being silently lost. The value-conditional remove also
+        // avoids clobbering a newer pending write that arrived while this save was in flight.
         backend.save(staged);
+        pending.remove(id, staged);
         return true;
     }
 
@@ -108,6 +112,13 @@ public final class WriteBehindStorage<I, T> {
             return;
         }
         readTier.invalidate(id);
+        // A save can land between the containsKey check and the invalidate above, leaving the key dirty in
+        // pending but dropped from the read tier. Re-check after the drop and restore the read-tier copy so
+        // a dirty key is never left out of the read tier (its documented invariant).
+        T dirty = pending.get(id);
+        if (dirty != null) {
+            readTier.put(id, dirty);
+        }
     }
 
     /** Flush {@code id} if dirty, then drop it from the read tier — the save-on-quit step. */

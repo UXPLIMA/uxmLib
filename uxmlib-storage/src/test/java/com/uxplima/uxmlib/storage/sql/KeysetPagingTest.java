@@ -106,4 +106,31 @@ class KeysetPagingTest {
         assertThatThrownBy(() -> sql.forEachByKey("players", "id", 0, row -> row.getLong(1), id -> {}))
                 .isInstanceOf(IllegalArgumentException.class);
     }
+
+    @Test
+    void onANonUniqueKeyColumnRowsTyingOnAPageBoundaryAreSkipped() {
+        // Pins the documented precondition: keyColumn MUST be unique. The cursor advances with `key > ?`, so
+        // when duplicate keys straddle a page boundary the ties on the next page are dropped silently. This
+        // is by design and the Javadoc warns of it; the test makes the limitation visible rather than letting
+        // a future change quietly alter the behaviour.
+        sql.execute("CREATE TABLE scores (player TEXT NOT NULL, bucket INTEGER NOT NULL)");
+        List<StatementBinder> binders = new ArrayList<>();
+        // bucket values: 1,2,2,3,4 — the page of size 2 ends on bucket=2, so the second bucket=2 is skipped.
+        int[] buckets = {1, 2, 2, 3, 4};
+        for (int i = 0; i < buckets.length; i++) {
+            int bucket = buckets[i];
+            String player = "p" + i;
+            binders.add(ps -> {
+                ps.setString(1, player);
+                ps.setLong(2, bucket);
+            });
+        }
+        sql.batch("INSERT INTO scores (player, bucket) VALUES (?, ?)", binders);
+
+        List<Long> seen = new ArrayList<>();
+        sql.forEachByKey("scores", "bucket", 2, row -> row.getLong("bucket"), seen::add);
+
+        // The duplicate bucket=2 that lands on the next page after the boundary is dropped: 5 rows, 4 seen.
+        assertThat(seen).containsExactly(1L, 2L, 3L, 4L);
+    }
 }

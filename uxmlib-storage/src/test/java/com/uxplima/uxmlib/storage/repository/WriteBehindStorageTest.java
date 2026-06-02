@@ -1,6 +1,7 @@
 package com.uxplima.uxmlib.storage.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -157,5 +158,56 @@ class WriteBehindStorageTest {
         storage.flushAll();
         storage.invalidate("a"); // now clean, drop it
         assertThat(storage.cached("a")).isEmpty();
+    }
+
+    /** A backend whose first {@code save} throws, then succeeds — models a transient DB hiccup. */
+    static final class FlakyBackend implements StorageProvider<String, User> {
+        private final Map<String, User> store = new LinkedHashMap<>();
+        boolean failNextSave;
+        int writes;
+
+        @Override
+        public Optional<User> findById(String id) {
+            return Optional.ofNullable(store.get(id));
+        }
+
+        @Override
+        public List<User> findAll() {
+            return new ArrayList<>(store.values());
+        }
+
+        @Override
+        public void save(User entity) {
+            if (failNextSave) {
+                failNextSave = false;
+                throw new IllegalStateException("transient backend failure");
+            }
+            writes++;
+            store.put(entity.id(), entity);
+        }
+
+        @Override
+        public boolean deleteById(String id) {
+            return store.remove(id) != null;
+        }
+    }
+
+    @Test
+    void flushKeepsTheStagedWriteDirtyWhenTheBackendThrows() {
+        FlakyBackend backend = new FlakyBackend();
+        backend.failNextSave = true;
+        WriteBehindStorage<String, User> storage =
+                WriteBehindStorage.builder(backend, User::id).build();
+        storage.save(new User("u1", 7));
+
+        // The save throws, but the dirty write must survive for the next flush (durability of write-behind).
+        assertThatThrownBy(() -> storage.flush("u1")).isInstanceOf(IllegalStateException.class);
+        assertThat(storage.dirtyCount()).isEqualTo(1);
+        assertThat(storage.cached("u1")).get().extracting(User::score).isEqualTo(7);
+
+        // Retry now succeeds and clears the dirty flag.
+        assertThat(storage.flush("u1")).isTrue();
+        assertThat(storage.dirtyCount()).isZero();
+        assertThat(backend.findById("u1")).get().extracting(User::score).isEqualTo(7);
     }
 }

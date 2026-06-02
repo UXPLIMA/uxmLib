@@ -57,6 +57,16 @@ class SyncMessageTest {
     }
 
     @Test
+    void decodeRejectsANearMaxLengthHeaderWithoutOverflowing() {
+        // channelStart + Integer.MAX_VALUE overflows to a negative int; a naive `channelEnd > length` check
+        // would slip past and then throw StringIndexOutOfBounds. The overrun guard must catch it as a clean
+        // IllegalArgumentException instead.
+        assertThatThrownBy(() -> SyncMessage.decode(Integer.MAX_VALUE + "\nx"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("overruns");
+    }
+
+    @Test
     void constructorRejectsNulls() {
         assertThatThrownBy(() -> new SyncMessage(nullString(), "p")).isInstanceOf(NullPointerException.class);
         assertThatThrownBy(() -> new SyncMessage("c", nullString())).isInstanceOf(NullPointerException.class);

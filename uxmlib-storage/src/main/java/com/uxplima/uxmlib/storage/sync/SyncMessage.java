@@ -43,10 +43,13 @@ public record SyncMessage(String channel, String payload) {
         }
         int channelLength = parseLength(frame.substring(0, separator));
         int channelStart = separator + 1;
-        int channelEnd = channelStart + channelLength;
-        if (channelEnd > frame.length()) {
+        // Compare against the remaining length without computing channelStart + channelLength: a hostile
+        // near-MAX_VALUE length header would overflow that sum to a negative int and slip past a naive
+        // `channelEnd > length` check, then throw StringIndexOutOfBounds instead of this clean rejection.
+        if (channelLength > frame.length() - channelStart) {
             throw new IllegalArgumentException("declared channel length overruns the frame");
         }
+        int channelEnd = channelStart + channelLength;
         return new SyncMessage(frame.substring(channelStart, channelEnd), frame.substring(channelEnd));
     }
 
