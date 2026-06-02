@@ -64,4 +64,56 @@ class SelectBuilderTest {
         Query q = SelectBuilder.from("players").where("name", "like", "Steve%").build();
         assertThat(q.sql()).isEqualTo("SELECT * FROM players WHERE name LIKE ?");
     }
+
+    @Test
+    void rendersAnInClauseWithOnePlaceholderPerValue() {
+        Query q = SelectBuilder.from("players")
+                .whereIn("world", "world", "world_nether")
+                .build();
+        assertThat(q.sql()).isEqualTo("SELECT * FROM players WHERE world IN (?, ?)");
+        assertThat(q.parameters()).containsExactly("world", "world_nether");
+    }
+
+    @Test
+    void rejectsAnEmptyInClause() {
+        assertThatThrownBy(() -> SelectBuilder.from("players").whereIn("world"))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void rendersAnOrGroupInParentheses() {
+        Query q = SelectBuilder.from("players")
+                .where("active", true)
+                .whereAny(group -> group.eq("name", "Steve").eq("name", "Alex"))
+                .build();
+        assertThat(q.sql()).isEqualTo("SELECT * FROM players WHERE active = ? AND (name = ? OR name = ?)");
+        assertThat(q.parameters()).containsExactly(true, "Steve", "Alex");
+    }
+
+    @Test
+    void rejectsAnEmptyOrGroup() {
+        assertThatThrownBy(() -> SelectBuilder.from("players").whereAny(group -> {}))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void rendersCaseInsensitiveLike() {
+        Query q = SelectBuilder.from("players")
+                .whereLikeIgnoreCase("name", "steve%")
+                .build();
+        assertThat(q.sql()).isEqualTo("SELECT * FROM players WHERE LOWER(name) LIKE LOWER(?)");
+        assertThat(q.parameters()).containsExactly("steve%");
+    }
+
+    @Test
+    void rendersLimitAndOffset() {
+        Query q =
+                SelectBuilder.from("players").orderBy("id").limit(10).offset(20).build();
+        assertThat(q.sql()).isEqualTo("SELECT * FROM players ORDER BY id ASC LIMIT 10 OFFSET 20");
+    }
+
+    @Test
+    void rejectsANegativeOffset() {
+        assertThatThrownBy(() -> SelectBuilder.from("players").offset(-1)).isInstanceOf(IllegalArgumentException.class);
+    }
 }

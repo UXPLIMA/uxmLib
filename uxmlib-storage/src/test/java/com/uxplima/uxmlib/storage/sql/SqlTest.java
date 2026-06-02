@@ -29,6 +29,7 @@ class SqlTest {
                 .build();
         sql = new Sql(database);
         sql.execute("CREATE TABLE players (id INTEGER PRIMARY KEY, name TEXT NOT NULL)");
+        sql.execute("CREATE TABLE accounts (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL)");
     }
 
     @AfterEach
@@ -65,6 +66,73 @@ class SqlTest {
         Optional<String> found =
                 sql.queryFirst("SELECT name FROM players WHERE id = ?", ps -> ps.setInt(1, 7), row -> row.getString(1));
         assertThat(found).contains("Alex");
+    }
+
+    @Test
+    void insertReturningKeyHandsBackTheGeneratedId() {
+        long first = sql.insertReturningKey("INSERT INTO accounts (name) VALUES (?)", ps -> ps.setString(1, "Steve"));
+        long second = sql.insertReturningKey("INSERT INTO accounts (name) VALUES (?)", ps -> ps.setString(1, "Alex"));
+        assertThat(first).isEqualTo(1L);
+        assertThat(second).isEqualTo(2L);
+
+        Optional<String> name = sql.queryFirst(
+                "SELECT name FROM accounts WHERE id = ?", ps -> ps.setLong(1, second), row -> row.getString(1));
+        assertThat(name).contains("Alex");
+    }
+
+    @Test
+    void richSelectBuilderRunsAgainstSqlite() {
+        insertPlayer(1, "Steve");
+        insertPlayer(2, "Alex");
+        insertPlayer(3, "Notch");
+
+        List<String> in = sql.query(
+                SelectBuilder.from("players")
+                        .columns("name")
+                        .whereIn("name", "Steve", "Notch")
+                        .orderBy("id")
+                        .build(),
+                row -> row.getString("name"));
+        assertThat(in).containsExactly("Steve", "Notch");
+
+        List<String> anyOf = sql.query(
+                SelectBuilder.from("players")
+                        .whereAny(group -> group.eq("name", "Steve").eq("name", "Alex"))
+                        .orderBy("id")
+                        .build(),
+                row -> row.getString("name"));
+        assertThat(anyOf).containsExactly("Steve", "Alex");
+
+        List<String> like = sql.query(
+                SelectBuilder.from("players")
+                        .whereLikeIgnoreCase("name", "steve")
+                        .build(),
+                row -> row.getString("name"));
+        assertThat(like).containsExactly("Steve");
+
+        List<String> paged = sql.query(
+                SelectBuilder.from("players")
+                        .columns("name")
+                        .orderBy("id")
+                        .limit(1)
+                        .offset(1)
+                        .build(),
+                row -> row.getString("name"));
+        assertThat(paged).containsExactly("Alex");
+    }
+
+    private void insertPlayer(int id, String name) {
+        sql.update("INSERT INTO players (id, name) VALUES (?, ?)", ps -> {
+            ps.setInt(1, id);
+            ps.setString(2, name);
+        });
+    }
+
+    @Test
+    void insertReturningKeyWrapsSqlErrors() {
+        assertThatThrownBy(
+                        () -> sql.insertReturningKey("INSERT INTO nope (name) VALUES (?)", ps -> ps.setString(1, "x")))
+                .isInstanceOf(StorageException.class);
     }
 
     @Test

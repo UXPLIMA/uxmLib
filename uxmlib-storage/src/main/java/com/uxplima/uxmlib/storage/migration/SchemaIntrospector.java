@@ -91,7 +91,7 @@ public final class SchemaIntrospector {
         String add = "ALTER TABLE " + table + " ADD COLUMN " + column + " " + columnType;
         return switch (database.dialect()) {
             case SQLITE, MYSQL, GENERIC -> add;
-            case POSTGRES -> "ALTER TABLE " + table + " ADD COLUMN IF NOT EXISTS " + column + " " + columnType;
+            case POSTGRES, H2 -> "ALTER TABLE " + table + " ADD COLUMN IF NOT EXISTS " + column + " " + columnType;
         };
     }
 

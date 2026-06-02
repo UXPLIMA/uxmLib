@@ -4,7 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.sql.Connection;
+import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 
 import org.junit.jupiter.api.Test;
 
@@ -51,5 +53,34 @@ class DatabaseBuilderTest {
     @Test
     void rejectsInvalidPoolSize() {
         assertThatThrownBy(() -> Database.builder().maxPoolSize(0)).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void appliesADefaultSqliteBusyTimeout() throws SQLException {
+        try (Database db = Database.builder().sqliteInMemory().build()) {
+            assertThat(readBusyTimeout(db)).isPositive();
+        }
+    }
+
+    @Test
+    void appliesAConfiguredSqliteBusyTimeout() throws SQLException {
+        try (Database db =
+                Database.builder().sqliteInMemory().busyTimeoutMs(7500).build()) {
+            assertThat(readBusyTimeout(db)).isEqualTo(7500);
+        }
+    }
+
+    @Test
+    void rejectsANegativeBusyTimeout() {
+        assertThatThrownBy(() -> Database.builder().busyTimeoutMs(-1)).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    private static int readBusyTimeout(Database db) throws SQLException {
+        try (Connection conn = db.connection();
+                Statement statement = conn.createStatement();
+                ResultSet rows = statement.executeQuery("PRAGMA busy_timeout")) {
+            assertThat(rows.next()).isTrue();
+            return rows.getInt(1);
+        }
     }
 }

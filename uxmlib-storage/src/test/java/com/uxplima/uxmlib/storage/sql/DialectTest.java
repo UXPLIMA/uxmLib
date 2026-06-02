@@ -17,7 +17,19 @@ class DialectTest {
         assertThat(Dialect.fromJdbcUrl("jdbc:mysql://host/db")).isEqualTo(Dialect.MYSQL);
         assertThat(Dialect.fromJdbcUrl("jdbc:mariadb://host/db")).isEqualTo(Dialect.MYSQL);
         assertThat(Dialect.fromJdbcUrl("jdbc:postgresql://host/db")).isEqualTo(Dialect.POSTGRES);
-        assertThat(Dialect.fromJdbcUrl("jdbc:h2:mem:test")).isEqualTo(Dialect.GENERIC);
+        assertThat(Dialect.fromJdbcUrl("jdbc:h2:mem:test")).isEqualTo(Dialect.H2);
+        assertThat(Dialect.fromJdbcUrl("jdbc:h2:./data/store")).isEqualTo(Dialect.H2);
+    }
+
+    @Test
+    void h2UsesMergeIntoKey() {
+        assertThat(Dialect.H2.upsert("players", "uuid", COLUMNS))
+                .isEqualTo("MERGE INTO players (uuid, name, coins) KEY(uuid) VALUES (?, ?, ?)");
+    }
+
+    @Test
+    void h2MergeHandlesAnIdOnlyTable() {
+        assertThat(Dialect.H2.upsert("t", "id", List.of("id"))).isEqualTo("MERGE INTO t (id) KEY(id) VALUES (?)");
     }
 
     @Test

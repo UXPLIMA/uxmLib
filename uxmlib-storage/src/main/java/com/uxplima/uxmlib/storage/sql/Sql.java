@@ -118,6 +118,32 @@ public final class Sql {
         }
     }
 
+    /**
+     * Run an INSERT and return the auto-generated key it produced (typically an auto-increment id), via
+     * {@link java.sql.Statement#RETURN_GENERATED_KEYS}. Works across SQLite, H2, MySQL/MariaDB and Postgres
+     * — the portable JDBC path that avoids a dialect-specific {@code RETURNING} clause in the caller's SQL.
+     *
+     * @throws IllegalStateException if the statement runs but the driver reports no generated key
+     * @throws StorageException if the insert fails
+     */
+    public long insertReturningKey(String sql, StatementBinder binder) {
+        Objects.requireNonNull(sql, "sql");
+        Objects.requireNonNull(binder, "binder");
+        try (Connection conn = database.connection();
+                PreparedStatement statement = conn.prepareStatement(sql, java.sql.Statement.RETURN_GENERATED_KEYS)) {
+            binder.bind(statement);
+            statement.executeUpdate();
+            try (ResultSet keys = statement.getGeneratedKeys()) {
+                if (!keys.next()) {
+                    throw new IllegalStateException("insert produced no generated key: " + sql);
+                }
+                return keys.getLong(1);
+            }
+        } catch (SQLException failure) {
+            throw new StorageException("insert failed: " + sql, failure);
+        }
+    }
+
     /** Run a parameterless statement (typically DDL). */
     public void execute(String sql) {
         update(sql, StatementBinder.NONE);

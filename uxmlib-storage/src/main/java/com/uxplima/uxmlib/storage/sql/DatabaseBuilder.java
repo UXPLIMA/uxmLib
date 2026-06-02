@@ -18,11 +18,16 @@ public final class DatabaseBuilder {
     // SQLite is single-writer; a file database must serialise writes through one pooled connection.
     private static final int SQLITE_POOL_SIZE = 1;
 
+    // A busy connection waits this long for the lock before giving up, materially cutting SQLITE_BUSY under
+    // bursty writes. SQLite's own default is 0 (fail immediately); five seconds is a calm, safe baseline.
+    private static final int DEFAULT_BUSY_TIMEOUT_MS = 5_000;
+
     private @Nullable String jdbcUrl;
     private @Nullable String username;
     private @Nullable String password;
     private int maxPoolSize = 10;
     private long connectionTimeoutMs = 5_000L;
+    private int busyTimeoutMs = DEFAULT_BUSY_TIMEOUT_MS;
     private String poolName = "uxmlib-pool";
     private boolean sqlite;
 
@@ -80,6 +85,18 @@ public final class DatabaseBuilder {
         return this;
     }
 
+    /**
+     * How long a SQLite connection waits for the database lock before failing with {@code SQLITE_BUSY}, in
+     * milliseconds ({@code 0} disables the wait). Ignored by network backends. Defaults to five seconds.
+     */
+    public DatabaseBuilder busyTimeoutMs(int millis) {
+        if (millis < 0) {
+            throw new IllegalArgumentException("busyTimeoutMs must be >= 0");
+        }
+        this.busyTimeoutMs = millis;
+        return this;
+    }
+
     /** The Hikari pool name (shown in thread names and metrics). */
     public DatabaseBuilder poolName(String name) {
         this.poolName = Objects.requireNonNull(name, "name");
@@ -108,8 +125,11 @@ public final class DatabaseBuilder {
             // WAL + NORMAL sync is the standard durable-but-fast setup for an embedded single-writer file.
             config.addDataSourceProperty("journal_mode", "WAL");
             config.addDataSourceProperty("synchronous", "NORMAL");
+            // Wait for the lock instead of failing instantly, smoothing SQLITE_BUSY under bursty writes.
+            config.addDataSourceProperty("busy_timeout", Integer.toString(busyTimeoutMs));
         } else {
             config.setMaximumPoolSize(maxPoolSize);
+            applyPreparedStatementCache(config);
         }
         HikariDataSource dataSource = new HikariDataSource(config);
         try {
@@ -119,5 +139,17 @@ public final class DatabaseBuilder {
             dataSource.close();
             throw failure;
         }
+    }
+
+    /**
+     * Turn on server-side prepared-statement caching for network backends. These are the MySQL/MariaDB
+     * connector property names; other drivers ignore unknown properties, so this is a free win where it
+     * applies and harmless where it does not.
+     */
+    private static void applyPreparedStatementCache(HikariConfig config) {
+        config.addDataSourceProperty("cachePrepStmts", "true");
+        config.addDataSourceProperty("prepStmtCacheSize", "250");
+        config.addDataSourceProperty("prepStmtCacheSqlLimit", "2048");
+        config.addDataSourceProperty("useServerPrepStmts", "true");
     }
 }

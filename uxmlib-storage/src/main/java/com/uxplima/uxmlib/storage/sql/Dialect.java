@@ -9,12 +9,14 @@ import java.util.stream.Collectors;
 /**
  * The SQL backend a {@link Database} speaks, inferred from its JDBC URL. Used to emit backend-correct SQL
  * where the dialects diverge — most importantly the insert-or-update (upsert) statement, which
- * SQLite/Postgres spell with {@code ON CONFLICT} and MySQL/MariaDB with {@code ON DUPLICATE KEY}.
+ * SQLite/Postgres spell with {@code ON CONFLICT}, MySQL/MariaDB with {@code ON DUPLICATE KEY}, and H2 with
+ * {@code MERGE INTO ... KEY(...)}.
  */
 public enum Dialect {
     SQLITE,
     MYSQL,
     POSTGRES,
+    H2,
     GENERIC;
 
     /** The dialect for {@code jdbcUrl} (read from its {@code jdbc:<backend>:} prefix), {@link #GENERIC} if unknown. */
@@ -30,6 +32,9 @@ public enum Dialect {
         if (url.startsWith("jdbc:postgresql:") || url.startsWith("jdbc:postgres:")) {
             return POSTGRES;
         }
+        if (url.startsWith("jdbc:h2:")) {
+            return H2;
+        }
         return GENERIC;
     }
 
@@ -44,11 +49,14 @@ public enum Dialect {
         Objects.requireNonNull(idColumn, "idColumn");
         Objects.requireNonNull(columns, "columns");
         String placeholders = String.join(", ", Collections.nCopies(columns.size(), "?"));
-        String insert = "INSERT INTO " + table + " (" + String.join(", ", columns) + ") VALUES (" + placeholders + ")";
+        String columnList = String.join(", ", columns);
+        String insert = "INSERT INTO " + table + " (" + columnList + ") VALUES (" + placeholders + ")";
         List<String> updates = columns.stream().filter(c -> !c.equals(idColumn)).toList();
         return switch (this) {
             case SQLITE, POSTGRES -> insert + onConflict(idColumn, updates);
             case MYSQL -> insert + onDuplicateKey(updates, idColumn);
+            case H2 -> "MERGE INTO " + table + " (" + columnList + ") KEY(" + idColumn + ") VALUES (" + placeholders
+                    + ")";
             case GENERIC -> throw new UnsupportedOperationException(
                     "no portable upsert for this JDBC backend; override Repository.save()");
         };
