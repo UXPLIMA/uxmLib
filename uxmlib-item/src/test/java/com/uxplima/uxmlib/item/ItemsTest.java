@@ -47,4 +47,24 @@ class ItemsTest {
 
         assertThat(player.getInventory().contains(Material.DIAMOND, 5)).isTrue();
     }
+
+    @Test
+    void schedulerAwareGiveHopsToTheEntityRegionBeforeMutating() {
+        PlayerMock player = server.addPlayer();
+        java.util.concurrent.atomic.AtomicReference<org.bukkit.entity.Entity> hoppedTo =
+                new java.util.concurrent.atomic.AtomicReference<>();
+        com.uxplima.uxmlib.scheduler.Scheduler scheduler = new ItemInlineScheduler() {
+            @Override
+            public com.uxplima.uxmlib.scheduler.TaskHandle entity(org.bukkit.entity.Entity entity, Runnable task) {
+                hoppedTo.set(entity);
+                task.run();
+                return super.async(() -> {});
+            }
+        };
+
+        Items.give(scheduler, player, new ItemStack(Material.DIAMOND, 5));
+
+        assertThat(hoppedTo.get()).isSameAs(player);
+        assertThat(player.getInventory().contains(Material.DIAMOND, 5)).isTrue();
+    }
 }

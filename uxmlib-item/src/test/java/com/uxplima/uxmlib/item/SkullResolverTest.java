@@ -125,6 +125,54 @@ class SkullResolverTest {
     }
 
     @Test
+    void negativeResultIsRefetchedOnceItsTtlLapses() {
+        AtomicLong clock = new AtomicLong(0);
+        Map<String, SkullData.ByTexture> known = new HashMap<>();
+        CountingCompleter completer = new CountingCompleter(known);
+        SkullResolver resolver = new SkullResolver(
+                new ItemInlineScheduler(),
+                completer,
+                RateLimiter.of(100, Duration.ofMinutes(1)),
+                64,
+                Duration.ofMinutes(5),
+                clock::get);
+
+        // The first lookup misses and the empty result is cached; an immediate repeat is served from cache.
+        assertThat(resolver.resolveName("late").join()).isEmpty();
+        assertThat(resolver.resolveName("late").join()).isEmpty();
+        assertThat(completer.calls).hasValue(1);
+
+        // The account now exists, but the cached miss is still inside its TTL, so no re-fetch yet.
+        known.put("late", NOTCH);
+        assertThat(resolver.resolveName("late").join()).isEmpty();
+        assertThat(completer.calls).hasValue(1);
+
+        // Past the TTL the stale miss is dropped and the next lookup re-fetches and finds the texture.
+        clock.set(Duration.ofMinutes(5).toMillis());
+        assertThat(resolver.resolveName("late").join()).contains(NOTCH);
+        assertThat(completer.calls).hasValue(2);
+    }
+
+    @Test
+    void positiveResultIsNotExpiredByTheNegativeTtl() {
+        AtomicLong clock = new AtomicLong(0);
+        CountingCompleter completer = new CountingCompleter(new HashMap<>(Map.of("notch", NOTCH)));
+        SkullResolver resolver = new SkullResolver(
+                new ItemInlineScheduler(),
+                completer,
+                RateLimiter.of(100, Duration.ofMinutes(1)),
+                64,
+                Duration.ofMinutes(5),
+                clock::get);
+
+        assertThat(resolver.resolveName("notch").join()).contains(NOTCH);
+        clock.set(Duration.ofHours(1).toMillis());
+        assertThat(resolver.resolveName("notch").join()).contains(NOTCH);
+
+        assertThat(completer.calls).hasValue(1);
+    }
+
+    @Test
     void rejectsBlankName() {
         SkullResolver resolver = resolver(new CountingCompleter(Map.of()));
         assertThatThrownBy(() -> resolver.resolveName(" ")).isInstanceOf(IllegalArgumentException.class);

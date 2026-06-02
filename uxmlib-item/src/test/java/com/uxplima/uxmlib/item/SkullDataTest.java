@@ -61,6 +61,21 @@ class SkullDataTest {
     }
 
     @Test
+    void parseFallsThroughToNameForLongBase64ShapedNonTexture() {
+        // 64 base64-shaped chars that decode to bytes without a "textures" key: not a head texture, so it
+        // must NOT be accepted as ByTexture (which would render a blank head) and instead read as a name.
+        String notATexture = "QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5MTIzNDU2Nzg5MDEy";
+        SkullData parsed = SkullData.parse(notATexture);
+        assertThat(parsed).isInstanceOf(SkullData.ByName.class);
+    }
+
+    @Test
+    void parseRoutesA32HexTokenToAUuidNotAName() {
+        String undashed = "0123456789abcdef0123456789abcdef";
+        assertThat(SkullData.parse(undashed)).isInstanceOf(SkullData.ByUuid.class);
+    }
+
+    @Test
     void parseRejectsBlank() {
         assertThatThrownBy(() -> SkullData.parse("  ")).isInstanceOf(IllegalArgumentException.class);
     }

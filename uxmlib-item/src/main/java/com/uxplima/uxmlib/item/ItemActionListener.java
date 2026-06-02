@@ -1,6 +1,7 @@
 package com.uxplima.uxmlib.item;
 
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.inventory.PrepareItemCraftEvent;
@@ -20,8 +21,12 @@ import org.bukkit.inventory.ItemStack;
  */
 public final class ItemActionListener implements Listener {
 
-    /** Suppress the recipe result when any matrix item is flagged {@link ItemAction#CRAFT}. */
-    @EventHandler
+    /**
+     * Suppress the recipe result when any matrix item is flagged {@link ItemAction#CRAFT}. Runs at
+     * {@link EventPriority#HIGHEST} so the result is nulled after any earlier listener that completes a recipe,
+     * leaving the smallest window for another plugin to re-set a result we mean to block.
+     */
+    @EventHandler(priority = EventPriority.HIGHEST)
     public void onPrepareCraft(PrepareItemCraftEvent event) {
         for (ItemStack ingredient : event.getInventory().getMatrix()) {
             if (ItemBlockerType.isBlocked(ingredient, ItemAction.CRAFT)) {

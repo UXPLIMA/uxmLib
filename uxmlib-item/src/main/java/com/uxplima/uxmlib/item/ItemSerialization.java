@@ -18,6 +18,12 @@ import org.bukkit.inventory.ItemStack;
  * version, then the server's data version — so a future reader can recognise the format, branch on the
  * version, and (later) migrate an older blob across Minecraft upgrades. Reading is back-compatible: a blob
  * written before the header existed (raw Paper bytes, no magic) still loads.
+ *
+ * <p>The format carries no length or checksum, so the legacy fall-back is a best-effort heuristic, not a
+ * guarantee: a header-less blob is recognised purely by the absence of the {@code UXMI} magic. In the
+ * astronomically unlikely event a raw Paper blob happens to begin with those exact four bytes it is treated
+ * as headered; if its fifth byte is then not a format version this reader knows, the read fails fast rather
+ * than silently mis-decoding. Treat the magic as a strong-but-not-absolute signal.
  */
 public final class ItemSerialization {
 

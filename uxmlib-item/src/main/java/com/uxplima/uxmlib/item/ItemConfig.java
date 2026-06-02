@@ -117,8 +117,19 @@ public final class ItemConfig {
     private static void applyEnchants(ConfigurationNode node, ItemBuilder builder) {
         for (var entry : node.node("enchants").childrenMap().entrySet()) {
             String key = String.valueOf(entry.getKey());
-            int level = entry.getValue().getInt();
-            builder.enchant(Items.enchantment(key.toLowerCase(Locale.ROOT)), level);
+            int level = entry.getValue().getInt(-1);
+            if (level < 1) {
+                throw new IllegalArgumentException("enchant '" + key + "' needs a level >= 1");
+            }
+            builder.enchant(enchantment(key), level);
+        }
+    }
+
+    private static org.bukkit.enchantments.Enchantment enchantment(String key) {
+        try {
+            return Items.enchantment(key.toLowerCase(Locale.ROOT));
+        } catch (RuntimeException unknown) {
+            throw new IllegalArgumentException("unknown enchant: " + key, unknown);
         }
     }
 

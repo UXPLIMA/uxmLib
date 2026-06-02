@@ -14,7 +14,7 @@ import com.uxplima.uxmlib.scheduler.TaskHandle;
  * test thread. Only the async family is used here; the region/entity families throw if touched so a test that
  * leans on them fails loudly rather than silently doing nothing.
  */
-final class ItemInlineScheduler implements Scheduler {
+class ItemInlineScheduler implements Scheduler {
 
     private static TaskHandle noHandle() {
         return new TaskHandle() {

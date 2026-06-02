@@ -72,9 +72,11 @@ public sealed interface SkullData permits SkullData.ByUuid, SkullData.ByName, Sk
 
     /**
      * Route a single string to the right variant: a skin {@code http(s)} URL becomes a texture envelope,
-     * a (dashed or undashed) UUID becomes {@link ByUuid}, a long base64 blob becomes {@link ByTexture},
-     * and anything else is treated as a player {@link ByName name}. Lets config/menu authors paste any
-     * skull form into one field.
+     * a (dashed or undashed) 32-hex / dashed-36 token becomes {@link ByUuid} (it is always read as an
+     * account id, never a name), a long base64 blob that decodes to a {@code textures} envelope becomes
+     * {@link ByTexture}, and anything else is treated as a player {@link ByName name}. A 60+ character
+     * base64-shaped token that does <em>not</em> decode to a textures envelope falls through to a name
+     * rather than producing a blank head. Lets config/menu authors paste any skull form into one field.
      *
      * @throws IllegalArgumentException if {@code input} is blank
      */
@@ -123,6 +125,9 @@ public sealed interface SkullData permits SkullData.ByUuid, SkullData.ByName, Sk
     }
 
     // A texture value is a long run of base64 characters; a player name (max 16 chars) can never reach 60.
+    // The shape gate is necessary but not sufficient: a 60+ char base64-shaped token that is not actually a
+    // textures envelope would otherwise render as a blank head, so we also decode and confirm the payload is
+    // the JSON Mojang uses (a top-level "textures" key) before accepting it as a texture.
     private static boolean isBase64Texture(String value) {
         if (value.length() < 60) {
             return false;
@@ -139,7 +144,16 @@ public sealed interface SkullData permits SkullData.ByUuid, SkullData.ByName, Sk
                 return false;
             }
         }
-        return true;
+        return decodesToTextureEnvelope(value);
+    }
+
+    private static boolean decodesToTextureEnvelope(String value) {
+        try {
+            String decoded = new String(Base64.getDecoder().decode(value), StandardCharsets.UTF_8);
+            return decoded.contains("\"textures\"");
+        } catch (IllegalArgumentException notBase64) {
+            return false;
+        }
     }
 
     private static String dash(String undashed) {

@@ -14,6 +14,8 @@ import org.bukkit.persistence.PersistentDataContainer;
 import io.papermc.paper.registry.RegistryAccess;
 import io.papermc.paper.registry.RegistryKey;
 
+import com.uxplima.uxmlib.scheduler.Scheduler;
+
 /**
  * Registry lookups for the types that lost their static constants in Paper 1.21. {@link Enchantment} and
  * {@link Attribute} are now registry entries, so {@code Enchantment.SHARPNESS} no longer compiles; these
@@ -74,6 +76,11 @@ public final class Items {
     /**
      * Give {@code items} to {@code player}, dropping anything that does not fit at the player's feet so a
      * full inventory never silently swallows a reward.
+     *
+     * <p>This mutates the player's inventory and the world, so it <strong>must</strong> run on the region
+     * thread that owns {@code player} (the main thread on Paper, the entity's region thread on Folia). It does
+     * no scheduling of its own; call it from a region-correct context, or use
+     * {@link #give(Scheduler, Player, ItemStack...)} from anywhere to hop there first.
      */
     public static void give(Player player, ItemStack... items) {
         Objects.requireNonNull(player, "player");
@@ -81,5 +88,19 @@ public final class Items {
         for (ItemStack leftover : player.getInventory().addItem(items).values()) {
             player.getWorld().dropItemNaturally(player.getLocation(), leftover);
         }
+    }
+
+    /**
+     * Give {@code items} to {@code player} on the player's own region thread, hopping there via
+     * {@code scheduler} first so the call is safe from any thread (including an async pool). The drop-on-full
+     * behaviour matches {@link #give(Player, ItemStack...)}; the task is dropped if the player has logged off
+     * by the time it runs.
+     */
+    public static void give(Scheduler scheduler, Player player, ItemStack... items) {
+        Objects.requireNonNull(scheduler, "scheduler");
+        Objects.requireNonNull(player, "player");
+        Objects.requireNonNull(items, "items");
+        ItemStack[] copy = items.clone();
+        scheduler.entity(player, () -> give(player, copy));
     }
 }

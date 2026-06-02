@@ -170,4 +170,31 @@ class ItemConfigTest {
 
         assertThat(item.getAmount()).isEqualTo(1);
     }
+
+    @Test
+    void rejectsAnEnchantWithoutANumericLevelWithAConfigAwareMessage() throws Exception {
+        ConfigurationNode node = hocon(
+                """
+                material = DIAMOND_SWORD
+                enchants { sharpness = "five" }
+                """);
+
+        assertThatThrownBy(() -> ItemConfig.load(node))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("sharpness")
+                .hasMessageContaining("level");
+    }
+
+    @Test
+    void rejectsAnUnknownEnchantKeyByName() throws Exception {
+        ConfigurationNode node = hocon(
+                """
+                material = DIAMOND_SWORD
+                enchants { not_a_real_enchant = 3 }
+                """);
+
+        assertThatThrownBy(() -> ItemConfig.load(node))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("not_a_real_enchant");
+    }
 }

@@ -7,6 +7,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.LongSupplier;
 
 import com.uxplima.uxmlib.scheduler.Scheduler;
 
@@ -17,19 +18,25 @@ import com.uxplima.uxmlib.scheduler.Scheduler;
  * {@link Scheduler#async}; callers get a {@link CompletableFuture} and never block a server thread.
  *
  * <p>The cache is a bounded, access-ordered LRU keyed by the lowercased name or UUID string, and it caches
- * <em>misses</em> too (negative caching): an unknown name resolves to an empty {@link Optional} that is
- * remembered, so repeated lookups of a non-existent player do not each cost a network call. Concurrent
- * lookups of the same key share one in-flight future (single-flight) rather than each firing a fetch.
+ * <em>misses</em> too (negative caching): an unknown name resolves to an empty {@link Optional}. A negative
+ * entry is remembered only for a short TTL (a few minutes by default), so a name that did not exist (or a
+ * transient outage that returned no textures) is re-fetched once the TTL lapses rather than being pinned in
+ * the cache until LRU pressure evicts it. Positive results never expire. Concurrent lookups of the same key
+ * share one in-flight future (single-flight) rather than each firing a fetch.
  *
  * <p>When the limiter has no permit left a lookup resolves to empty without caching, so a later call (once
  * the window slides) can still succeed.
  */
 public final class SkullResolver {
 
+    private static final Duration DEFAULT_NEGATIVE_TTL = Duration.ofMinutes(5);
+
     private final Scheduler scheduler;
     private final ProfileCompleter completer;
     private final RateLimiter limiter;
-    private final Map<String, CompletableFuture<Optional<SkullData>>> cache;
+    private final long negativeTtlMillis;
+    private final LongSupplier clock;
+    private final Map<String, Entry> cache;
 
     /** A resolver backed by the live Paper completer, 1024 cached entries and 600 lookups/minute. */
     public static SkullResolver create(Scheduler scheduler) {
@@ -44,12 +51,36 @@ public final class SkullResolver {
      * @param maxEntries the LRU cache bound (least-recently-used entries are evicted past it)
      */
     public SkullResolver(Scheduler scheduler, ProfileCompleter completer, RateLimiter limiter, int maxEntries) {
+        this(scheduler, completer, limiter, maxEntries, DEFAULT_NEGATIVE_TTL, System::currentTimeMillis);
+    }
+
+    /**
+     * @param scheduler the library scheduler; the completer runs on its async pool
+     * @param completer the (blocking) name/uuid → texture lookup
+     * @param limiter caps how fast lookups hit the completer
+     * @param maxEntries the LRU cache bound (least-recently-used entries are evicted past it)
+     * @param negativeTtl how long a remembered miss stays cached before it is re-fetched
+     * @param clock the source of the current time (epoch millis); lets a test drive the TTL with a fake clock
+     */
+    public SkullResolver(
+            Scheduler scheduler,
+            ProfileCompleter completer,
+            RateLimiter limiter,
+            int maxEntries,
+            Duration negativeTtl,
+            LongSupplier clock) {
         this.scheduler = Objects.requireNonNull(scheduler, "scheduler");
         this.completer = Objects.requireNonNull(completer, "completer");
         this.limiter = Objects.requireNonNull(limiter, "limiter");
+        Objects.requireNonNull(negativeTtl, "negativeTtl");
+        this.clock = Objects.requireNonNull(clock, "clock");
         if (maxEntries < 1) {
             throw new IllegalArgumentException("maxEntries must be >= 1");
         }
+        if (negativeTtl.isNegative() || negativeTtl.isZero()) {
+            throw new IllegalArgumentException("negativeTtl must be > 0");
+        }
+        this.negativeTtlMillis = negativeTtl.toMillis();
         this.cache = boundedLru(maxEntries);
     }
 
@@ -84,15 +115,28 @@ public final class SkullResolver {
 
     private CompletableFuture<Optional<SkullData>> resolve(String key) {
         synchronized (cache) {
-            CompletableFuture<Optional<SkullData>> cached = cache.get(key);
-            if (cached != null) {
-                return cached;
+            Entry cached = cache.get(key);
+            if (cached != null && !isExpiredNegative(cached)) {
+                return cached.future();
             }
             CompletableFuture<Optional<SkullData>> pending = new CompletableFuture<>();
-            cache.put(key, pending);
+            cache.put(key, new Entry(pending, clock.getAsLong()));
             scheduler.async(() -> fetchInto(key, pending));
             return pending;
         }
+    }
+
+    // A negative entry expires once its remembered miss is older than the TTL, so the next lookup re-fetches.
+    // A positive (present) result, and any still-in-flight future, never expire this way.
+    private boolean isExpiredNegative(Entry entry) {
+        CompletableFuture<Optional<SkullData>> future = entry.future();
+        if (!future.isDone() || future.isCompletedExceptionally()) {
+            return false;
+        }
+        if (future.getNow(Optional.empty()).isPresent()) {
+            return false;
+        }
+        return clock.getAsLong() - entry.storedAt() >= negativeTtlMillis;
     }
 
     // Runs on the async pool. On a rate-limit miss the entry is dropped so a later window can retry; any
@@ -118,12 +162,15 @@ public final class SkullResolver {
         }
     }
 
-    private static Map<String, CompletableFuture<Optional<SkullData>>> boundedLru(int maxEntries) {
+    private static Map<String, Entry> boundedLru(int maxEntries) {
         return new LinkedHashMap<>(16, 0.75f, true) {
             @Override
-            protected boolean removeEldestEntry(Map.Entry<String, CompletableFuture<Optional<SkullData>>> eldest) {
+            protected boolean removeEldestEntry(Map.Entry<String, Entry> eldest) {
                 return size() > maxEntries;
             }
         };
     }
+
+    // A cached future plus the wall-clock millis it was stored, so a negative result can age out.
+    private record Entry(CompletableFuture<Optional<SkullData>> future, long storedAt) {}
 }
