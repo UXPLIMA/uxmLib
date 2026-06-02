@@ -36,6 +36,7 @@ final class CommandExecutors {
             Object handler,
             Method method,
             List<ArgBinder.ParamArg> args,
+            List<FlagModel> flags,
             ParamResolvers resolvers,
             String commandPath,
             Scheduler scheduler) {
@@ -50,7 +51,7 @@ final class CommandExecutors {
             }
             Object[] callArgs;
             try {
-                callArgs = ArgBinder.bind(ctx, method, args, resolvers);
+                callArgs = ArgBinder.bind(ctx, method, args, flags, resolvers);
             } catch (IllegalArgumentException badArgument) {
                 // A resolver or validator rejected the input (an offline player, an out-of-range value). Reply
                 // with its message rather than letting it surface as a server error.

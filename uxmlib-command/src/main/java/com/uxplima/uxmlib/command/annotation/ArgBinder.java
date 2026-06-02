@@ -2,7 +2,9 @@ package com.uxplima.uxmlib.command.annotation;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 
@@ -26,20 +28,68 @@ final class ArgBinder {
     /** One {@code @Arg} parameter resolved to its resolver and source parameter. */
     record ParamArg(String name, Arg arg, ParamResolver<?> resolver, Parameter parameter) {}
 
-    /** Build the argument array for {@code method} from {@code ctx}. */
+    /** Build the argument array for {@code method} from {@code ctx}, including any parsed flags. */
     static Object[] bind(
-            CommandContext<CommandSourceStack> ctx, Method method, List<ParamArg> args, ParamResolvers resolvers) {
+            CommandContext<CommandSourceStack> ctx,
+            Method method,
+            List<ParamArg> args,
+            List<FlagModel> flags,
+            ParamResolvers resolvers) {
         Parameter[] params = method.getParameters();
         Object[] callArgs = new Object[params.length];
+        Flags parsedFlags = flags.isEmpty() ? null : parsedFlags(ctx);
+        Map<Parameter, FlagModel> flagByParam = flagByParam(flags);
         int argIndex = 0;
         for (int i = 0; i < params.length; i++) {
-            if (params[i].isAnnotationPresent(Arg.class)) {
+            Parameter param = params[i];
+            FlagModel flag = flagByParam.get(param);
+            if (flag != null) {
+                callArgs[i] = bindFlag(ctx, flag, parsedFlags);
+            } else if (param.isAnnotationPresent(Arg.class)) {
                 callArgs[i] = resolveArg(ctx, args.get(argIndex++), resolvers);
             } else {
-                callArgs[i] = inject(ctx, params[i], resolvers);
+                callArgs[i] = inject(ctx, param, resolvers);
             }
         }
         return callArgs;
+    }
+
+    private static Map<Parameter, FlagModel> flagByParam(List<FlagModel> flags) {
+        Map<Parameter, FlagModel> map = new HashMap<>();
+        for (FlagModel flag : flags) {
+            map.put(flag.parameter(), flag);
+        }
+        return map;
+    }
+
+    /** The parsed flags for this dispatch, or an empty result when the optional flags node was not reached. */
+    private static Flags parsedFlags(CommandContext<CommandSourceStack> ctx) {
+        if (hasArgument(ctx, "flags")) {
+            return ctx.getArgument("flags", Flags.class);
+        }
+        return new Flags(Map.of(), Map.of());
+    }
+
+    /**
+     * Bind one flag/switch parameter from the parsed {@code flags}. A switch yields its presence boolean; a
+     * value flag's raw token is handed to its resolver via a synthetic single-argument context so the same
+     * resolver an {@code @Arg} uses parses it. An omitted value flag yields the parameter type's zero value.
+     */
+    private static @Nullable Object bindFlag(
+            CommandContext<CommandSourceStack> ctx, FlagModel flag, @Nullable Flags flags) {
+        Flags resolved = flags == null ? new Flags(Map.of(), Map.of()) : flags;
+        if (!flag.isValueFlag()) {
+            return resolved.isSet(flag.name());
+        }
+        String raw = resolved.value(flag.name());
+        if (raw == null) {
+            return zeroValue(flag.parameter().getType());
+        }
+        ParamResolver<?> resolver = flag.resolver();
+        if (resolver == null) {
+            throw new CommandParseException("value flag '" + flag.name() + "' has no resolver");
+        }
+        return FlagValues.resolve(resolver, ctx, flag.name(), raw);
     }
 
     private static Object inject(CommandContext<CommandSourceStack> ctx, Parameter param, ParamResolvers resolvers) {
