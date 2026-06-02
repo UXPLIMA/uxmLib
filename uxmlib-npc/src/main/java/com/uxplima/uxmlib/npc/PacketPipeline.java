@@ -29,7 +29,7 @@ import org.jspecify.annotations.Nullable;
  * reason about. It never throws on a missing channel — a player whose channel cannot be resolved (e.g. a mock
  * player under test) simply yields {@code false} from {@link #inject} / {@link #isInjected}.
  */
-public final class PacketPipeline {
+public class PacketPipeline {
 
     /** The vanilla handler our duplex handler sits immediately after; stable across 1.21.x. */
     public static final String DEFAULT_ANCHOR = "decoder";
@@ -72,7 +72,8 @@ public final class PacketPipeline {
         return channel.isPresent() && inject(channel.orElseThrow(), player.getUniqueId());
     }
 
-    private boolean inject(Channel channel, UUID owner) {
+    // Package-private channel seam: lets EmbeddedChannel-based tests drive the real splice without a live server.
+    boolean inject(Channel channel, UUID owner) {
         ChannelPipeline pipeline = channel.pipeline();
         if (pipeline.get(handlerName) != null) {
             return true; // already injected; idempotent
@@ -92,7 +93,7 @@ public final class PacketPipeline {
         return channel.isPresent() && eject(channel.orElseThrow());
     }
 
-    private boolean eject(Channel channel) {
+    boolean eject(Channel channel) {
         ChannelPipeline pipeline = channel.pipeline();
         if (pipeline.get(handlerName) == null) {
             return false;
@@ -124,7 +125,7 @@ public final class PacketPipeline {
         return channel.map(this::reorder).orElse(PipelineWatchdog.Decision.MISSING);
     }
 
-    private PipelineWatchdog.Decision reorder(Channel channel) {
+    PipelineWatchdog.Decision reorder(Channel channel) {
         ChannelPipeline pipeline = channel.pipeline();
         List<String> names = pipeline.names();
         PipelineWatchdog.Decision decision = watchdog.evaluate(names);
@@ -134,17 +135,48 @@ public final class PacketPipeline {
         return decision;
     }
 
+    /**
+     * Move our handler back to directly after the anchor. Because {@link PacketInterceptor} is intentionally
+     * not {@code @Sharable}, Netty forbids re-adding any instance that has ever been added — and a non-sharable
+     * handler is even poisoned by a failed add (its multiplicity check runs before the anchor lookup throws).
+     * So every add attempt uses a brand-new {@link PacketInterceptor#freshCopy() copy}.
+     *
+     * <p>The move is non-atomic (remove then re-add), so if the anchor vanishes in the gap — another plugin
+     * mutating the pipeline concurrently — the re-add at the anchor fails. We must never leave the handler
+     * dropped: on that failure we splice a fresh copy at the tail so interception stays active rather than
+     * silently disabled.
+     */
     private void applyReorder(ChannelPipeline pipeline) {
+        @Nullable ChannelHandler handler = pipeline.get(handlerName);
+        if (!(handler instanceof PacketInterceptor interceptor)) {
+            return;
+        }
+        pipeline.remove(handlerName);
         try {
-            @Nullable ChannelHandler handler = pipeline.get(handlerName);
-            if (handler == null) {
-                return;
-            }
-            pipeline.remove(handlerName);
-            pipeline.addAfter(DEFAULT_ANCHOR, handlerName, handler);
-        } catch (NoSuchElementException raced) {
-            // The anchor or our handler vanished mid-reorder (another plugin mutating concurrently). The next
-            // watchdog pass re-evaluates from scratch, so dropping this one is safe.
+            reanchor(pipeline, interceptor.freshCopy());
+        } catch (NoSuchElementException anchorGone) {
+            restoreAfterFailedReorder(pipeline, interceptor);
+        }
+    }
+
+    /**
+     * Splice a copy back in immediately after the anchor. Package-private (not private) so a test can
+     * intercept the exact remove-then-re-add window and simulate a concurrent plugin deleting the anchor; in
+     * production it is a single {@code addAfter}.
+     */
+    void reanchor(ChannelPipeline pipeline, PacketInterceptor handler) {
+        pipeline.addAfter(DEFAULT_ANCHOR, handlerName, handler);
+    }
+
+    /** The anchor disappeared between remove and re-add; put a fresh copy back so our handler is never dropped. */
+    private void restoreAfterFailedReorder(ChannelPipeline pipeline, PacketInterceptor source) {
+        if (pipeline.get(handlerName) != null) {
+            return; // a concurrent inject already re-added it; nothing to restore.
+        }
+        try {
+            pipeline.addAfter(DEFAULT_ANCHOR, handlerName, source.freshCopy());
+        } catch (NoSuchElementException stillGone) {
+            pipeline.addLast(handlerName, source.freshCopy());
         }
     }
 

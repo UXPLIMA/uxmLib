@@ -45,6 +45,15 @@ public final class PacketInterceptor extends ChannelDuplexHandler {
         this.faultSink = Objects.requireNonNull(faultSink, "faultSink");
     }
 
+    /**
+     * A fresh, not-yet-added copy of this handler bound to the same owner/registry/sink. A reorder must remove
+     * and re-add the handler, but this type is intentionally not {@code @Sharable}, so Netty forbids re-adding
+     * the same instance ({@code checkMultiplicity}). Re-anchoring therefore splices in this fresh copy.
+     */
+    PacketInterceptor freshCopy() {
+        return new PacketInterceptor(registry, ownerId, faultSink);
+    }
+
     @Override
     public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
         if (passes(PacketDirection.OUTBOUND, msg)) {
