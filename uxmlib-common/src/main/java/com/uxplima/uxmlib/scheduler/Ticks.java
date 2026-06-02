@@ -13,6 +13,9 @@ public final class Ticks {
     /** Milliseconds in one server tick. */
     public static final long MILLIS_PER_TICK = 50L;
 
+    /** One server tick as a {@link Duration}; the natural period for a per-tick timer. */
+    public static final Duration ONE_TICK = Duration.ofMillis(MILLIS_PER_TICK);
+
     private Ticks() {}
 
     /**
