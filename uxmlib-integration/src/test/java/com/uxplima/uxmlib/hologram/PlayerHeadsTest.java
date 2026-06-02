@@ -42,4 +42,16 @@ class PlayerHeadsTest {
     void rejectsABlankTexture() {
         assertThatThrownBy(() -> PlayerHeads.fromTexture("  ")).isInstanceOf(IllegalArgumentException.class);
     }
+
+    @Test
+    void buildsAPlayerHeadFromASkinUrl() {
+        ItemStack head = PlayerHeads.fromSkinUrl("http://textures.minecraft.net/texture/abc123");
+        assertThat(head.getType()).isEqualTo(Material.PLAYER_HEAD);
+        assertThat(head.getItemMeta()).isInstanceOf(SkullMeta.class);
+    }
+
+    @Test
+    void rejectsABlankSkinUrl() {
+        assertThatThrownBy(() -> PlayerHeads.fromSkinUrl(" ")).isInstanceOf(IllegalArgumentException.class);
+    }
 }

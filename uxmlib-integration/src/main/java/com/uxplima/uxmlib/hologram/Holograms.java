@@ -55,6 +55,11 @@ public final class Holograms {
         return spawnItem(location, PlayerHeads.fromTexture(texture));
     }
 
+    /** Spawn a floating player head showing the skin at a {@code textures.minecraft.net} URL. */
+    public static ItemDisplay spawnPlayerHeadSkinUrl(Location location, String skinUrl) {
+        return spawnItem(location, PlayerHeads.fromSkinUrl(skinUrl));
+    }
+
     /** Spawn a floating block display at {@code location}. Must run on that location's region thread. */
     public static BlockDisplay spawnBlock(Location location, BlockData block) {
         Objects.requireNonNull(location, "location");
@@ -177,5 +182,60 @@ public final class Holograms {
             Markers.stamp(entity);
         });
         return new DisplayHologram(display);
+    }
+
+    /**
+     * Spawn a mixed-line hologram (text, item, and block lines together) at {@code location}, one native
+     * {@code Display} per line, auto-stacked top-down from the anchor by each line's gap. Must run on that
+     * location's region thread; despawn the whole column with {@link MixedHologram#remove()}.
+     */
+    public static MixedHologram spawnMixed(MixedHologramSpec spec, Location location) {
+        Objects.requireNonNull(spec, "spec");
+        Objects.requireNonNull(location, "location");
+        org.bukkit.World world = Objects.requireNonNull(location.getWorld(), "location world");
+        List<HologramLine> lines = spec.lines();
+        List<Double> offsets = spec.stackOffsets();
+        List<Display> parts = new ArrayList<>(lines.size());
+        for (int i = 0; i < lines.size(); i++) {
+            Location at = location.clone().add(0, offsets.get(i), 0);
+            parts.add(spawnLine(world, lines.get(i), at, spec.appearance()));
+        }
+        return new MixedHologram(parts);
+    }
+
+    private static Display spawnLine(org.bukkit.World world, HologramLine line, Location at, Appearance appearance) {
+        return switch (line) {
+            case HologramLine.TextLine text -> spawnTextLine(world, text, at, appearance);
+            case HologramLine.ItemLine item -> spawnItem(at, item.item());
+            case HologramLine.BlockLine block -> spawnBlock(at, block.block());
+        };
+    }
+
+    private static Display spawnTextLine(
+            org.bukkit.World world, HologramLine.TextLine line, Location at, Appearance appearance) {
+        return world.spawn(at, TextDisplay.class, entity -> {
+            entity.text(line.text());
+            appearance.applyTo(entity);
+            Markers.stamp(entity);
+        });
+    }
+
+    /**
+     * Create a {@link PerViewerHologram} anchored at {@code location} with {@code appearance}. Each viewer's
+     * private {@code TextDisplay} is spawned viewer-restricted (invisible by default) and stamped, so it is
+     * shown only to its owner and is swept like any other hologram. Set the renderer with
+     * {@link PerViewerHologram#setText} and drive updates through your scheduler.
+     */
+    public static PerViewerHologram perViewer(Location location, Appearance appearance) {
+        Objects.requireNonNull(location, "location");
+        Objects.requireNonNull(appearance, "appearance");
+        org.bukkit.World world = Objects.requireNonNull(location.getWorld(), "location world");
+        return new PerViewerHologram(
+                at -> world.spawn(at, TextDisplay.class, entity -> {
+                    entity.setVisibleByDefault(false);
+                    appearance.applyTo(entity);
+                    Markers.stamp(entity);
+                }),
+                location);
     }
 }

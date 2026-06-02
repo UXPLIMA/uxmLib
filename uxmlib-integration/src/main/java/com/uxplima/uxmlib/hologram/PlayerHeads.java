@@ -38,6 +38,15 @@ final class PlayerHeads {
         return withProfile(profile);
     }
 
+    /**
+     * A head showing the skin at {@code skinUrl} (a {@code textures.minecraft.net} URL). The URL is wrapped
+     * into the base64 {@code textures} envelope by {@link SkinTextures}, so this is just a convenience over
+     * {@link #fromTexture(String)} for callers that hold a bare URL rather than a pre-encoded blob.
+     */
+    static ItemStack fromSkinUrl(String skinUrl) {
+        return fromTexture(SkinTextures.encode(skinUrl));
+    }
+
     private static ItemStack withProfile(PlayerProfile profile) {
         ItemStack head = new ItemStack(Material.PLAYER_HEAD);
         SkullMeta meta = (SkullMeta) Objects.requireNonNull(head.getItemMeta(), "skull meta");

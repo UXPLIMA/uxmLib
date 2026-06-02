@@ -24,6 +24,12 @@ import com.uxplima.uxmlib.scheduler.Scheduler;
 public final class GuiListener implements Listener {
 
     private final ClickGuard clickGuard = new ClickGuard();
+    private final GuiClickLog clickLog = new GuiClickLog();
+
+    /** The audit log of recent accepted clicks across every menu, for debugging a misbehaving menu. */
+    public GuiClickLog clickLog() {
+        return clickLog;
+    }
 
     @EventHandler
     public void onClick(InventoryClickEvent event) {
@@ -38,6 +44,7 @@ public final class GuiListener implements Listener {
         if (!clickGuard.accept(player)) {
             return; // spam-click within the debounce window: keep the cancel, drop the action
         }
+        clickLog.record(gui, event); // the one audit-log call per accepted click
         Scheduler scheduler = installedScheduler();
         if (scheduler == null) {
             gui.dispatchClick(event);

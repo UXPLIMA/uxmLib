@@ -91,6 +91,17 @@ public interface Gui extends InventoryHolder {
     void closeAll();
 
     /**
+     * Force the menu to stay open: a client-driven close (the player pressing Escape) reopens it on the next
+     * tick, so a menu demanding input cannot be dismissed by closing it. A deliberate {@link #close} or
+     * {@link #closeAll} through the API still closes it. Needs the Scheduler-aware {@link Guis#install} to
+     * perform the reopen. Returns this menu.
+     */
+    Gui preventClose(boolean prevent);
+
+    /** Whether this menu reopens itself when a viewer tries to close it (see {@link #preventClose}). */
+    boolean preventsClose();
+
+    /**
      * Change the menu title. Bukkit titles are fixed at inventory creation, so this rebuilds the backing
      * inventory and reopens it for anyone currently viewing — call sparingly (not every tick).
      */

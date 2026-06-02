@@ -76,6 +76,37 @@ class PaginatedGuiTest {
     }
 
     @Test
+    void staticDecorationOverridesPaginatedContentInTheSameSlot() {
+        // Slots 0..2 are content; pin a decoration into slot 1 and it must win — page items flow around it.
+        PaginatedGui gui =
+                Guis.paginated().rows(1).contentSlots(List.of(0, 1, 2)).build();
+        ItemStack decoration = new ItemStack(Material.BARRIER);
+        ItemStack a = new ItemStack(Material.DIAMOND);
+        ItemStack b = new ItemStack(Material.EMERALD);
+        gui.addPageItem(GuiItem.display(a));
+        gui.addPageItem(GuiItem.display(b));
+        gui.set(1, GuiItem.display(decoration)); // decorate a content slot
+
+        gui.render();
+
+        assertThat(gui.getInventory().getItem(0)).isEqualTo(a);
+        assertThat(gui.getInventory().getItem(1)).isEqualTo(decoration); // decoration kept, not overwritten
+        assertThat(gui.getInventory().getItem(2)).isEqualTo(b); // page item flowed past the decoration
+    }
+
+    @Test
+    void decoratedContentSlotShrinksThePageWindow() {
+        // Two content slots with one decorated leaves a single usable slot, so three items need three pages.
+        PaginatedGui gui = Guis.paginated().rows(1).contentSlots(List.of(0, 1)).build();
+        gui.set(1, GuiItem.display(new ItemStack(Material.BARRIER)));
+        for (int i = 0; i < 3; i++) {
+            gui.addPageItem(item());
+        }
+
+        assertThat(gui.pageCount()).isEqualTo(3); // ceil(3/1) with only slot 0 usable
+    }
+
+    @Test
     void defaultContentSlotsLeaveTheBottomRowFree() {
         PaginatedGui gui = Guis.paginated().rows(3).build();
         // 3 rows: content = first 2 rows = 18 slots.

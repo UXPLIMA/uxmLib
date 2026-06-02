@@ -80,6 +80,15 @@ public final class Guis {
         return listener != null;
     }
 
+    /**
+     * The audit log of recent menu clicks, present once {@link #install} has run, for debugging a
+     * misbehaving menu (read it from an admin command). {@code null} before install or after uninstall.
+     */
+    public static @org.jspecify.annotations.Nullable GuiClickLog clickLog() {
+        GuiListener installed = listener;
+        return installed == null ? null : installed.clickLog();
+    }
+
     /** The animation registry, present only when {@link #install(Plugin, com.uxplima.uxmlib.scheduler.Scheduler)} was used. */
     static @org.jspecify.annotations.Nullable GuiRegistry registry() {
         return registry;

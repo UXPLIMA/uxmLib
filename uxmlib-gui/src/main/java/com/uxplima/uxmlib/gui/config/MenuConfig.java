@@ -3,10 +3,10 @@ package com.uxplima.uxmlib.gui.config;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 
-import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 
 import net.kyori.adventure.text.Component;
@@ -16,8 +16,9 @@ import com.uxplima.uxmlib.gui.InteractionModifier;
 import com.uxplima.uxmlib.gui.SimpleGui;
 import com.uxplima.uxmlib.gui.item.GuiAction;
 import com.uxplima.uxmlib.gui.item.GuiItem;
-import com.uxplima.uxmlib.item.ItemBuilder;
 import com.uxplima.uxmlib.text.Text;
+import com.uxplima.uxmlib.text.message.MessageCatalog;
+import org.jspecify.annotations.Nullable;
 import org.spongepowered.configurate.ConfigurationNode;
 import org.spongepowered.configurate.serialize.SerializationException;
 
@@ -71,16 +72,42 @@ public final class MenuConfig {
      * named condition passes for the viewer; a {@code locks} list lets the named interactions through.
      */
     public static SimpleGui load(ConfigurationNode node, MenuActions actions, MenuConditions conditions) {
+        return load(node, actions, conditions, null);
+    }
+
+    /**
+     * As {@link #load(ConfigurationNode, MenuActions, MenuConditions)}, but with an i18n {@link MessageCatalog}
+     * so an icon may draw its name/lore from a lang file by key (a {@code name-key}/{@code lore-key} field)
+     * rather than inline its display text — translation then lives in the lang file, the layout in the menu
+     * config. Keyed text resolves against the catalog's default locale at build time.
+     *
+     * <p>Before reading, the node is run through {@link #migrate} so a config written with older key names is
+     * upgraded in place to the current ones, so an upgrade needs no hand-editing.
+     */
+    public static SimpleGui load(
+            ConfigurationNode node, MenuActions actions, MenuConditions conditions, @Nullable MessageCatalog catalog) {
         Objects.requireNonNull(node, "node");
         Objects.requireNonNull(actions, "actions");
         Objects.requireNonNull(conditions, "conditions");
+        migrate(node);
         Component title = Text.mini(node.node("title").getString(""));
         int rows = node.node("rows").getInt(determineRows(node));
         SimpleGui gui = Guis.gui().title(title).rows(rows).build();
         applyLocks(gui, node.node("locks"));
-        Map<Character, GuiItem> legend = readLegend(node.node("items"), actions, conditions);
+        Locale locale = catalog == null ? Locale.getDefault() : catalog.defaultLocale();
+        Map<Character, GuiItem> legend = readLegend(node.node("items"), actions, conditions, catalog, locale);
         gui.filler().pattern(readMask(node.node("mask")), legend);
         return gui;
+    }
+
+    /**
+     * Rewrite known legacy key names in {@code node} to their current names, in place, so a config saved
+     * against an older release loads without hand-editing. Idempotent: a node already on the current names
+     * is unchanged. Exposed so a caller can migrate a tree once and persist it before reading.
+     */
+    public static void migrate(ConfigurationNode node) {
+        Objects.requireNonNull(node, "node");
+        MenuConfigMigration.apply(node);
     }
 
     private static void applyLocks(SimpleGui gui, ConfigurationNode locksNode) {
@@ -111,7 +138,11 @@ public final class MenuConfig {
     }
 
     private static Map<Character, GuiItem> readLegend(
-            ConfigurationNode itemsNode, MenuActions actions, MenuConditions conditions) {
+            ConfigurationNode itemsNode,
+            MenuActions actions,
+            MenuConditions conditions,
+            @Nullable MessageCatalog catalog,
+            Locale locale) {
         Map<Character, GuiItem> legend = new HashMap<>();
         for (Map.Entry<Object, ? extends ConfigurationNode> entry :
                 itemsNode.childrenMap().entrySet()) {
@@ -119,30 +150,49 @@ public final class MenuConfig {
             if (key.isEmpty()) {
                 continue;
             }
-            legend.put(key.charAt(0), readItem(entry.getValue(), actions, conditions));
+            legend.put(key.charAt(0), readItem(entry.getValue(), actions, conditions, catalog, locale));
         }
         return legend;
     }
 
-    private static GuiItem readItem(ConfigurationNode itemNode, MenuActions actions, MenuConditions conditions) {
+    private static GuiItem readItem(
+            ConfigurationNode itemNode,
+            MenuActions actions,
+            MenuConditions conditions,
+            @Nullable MessageCatalog catalog,
+            Locale locale) {
         ConfigurationNode statesNode = itemNode.node("states");
         if (!statesNode.empty()) {
-            return readStateful(statesNode, actions, conditions);
+            return readStateful(itemNode, statesNode, actions, conditions, catalog, locale);
         }
-        ItemStack icon = buildIcon(itemNode);
+        ItemStack icon = IconOptions.read(itemNode).toItem(catalog, locale);
         GuiAction action = resolveAction(itemNode, actions);
         return action == GuiAction.None.INSTANCE ? GuiItem.display(icon) : new GuiItem.Static(icon, action);
     }
 
-    private static GuiItem readStateful(ConfigurationNode statesNode, MenuActions actions, MenuConditions conditions) {
+    /**
+     * A stateful item's states each overlay their differences on a base icon spec declared alongside them, so
+     * a variant repeats only the fields it changes (see {@link IconOptions#combine}). The base is the item
+     * node's own icon fields (everything except the {@code states} subtree).
+     */
+    private static GuiItem readStateful(
+            ConfigurationNode itemNode,
+            ConfigurationNode statesNode,
+            MenuActions actions,
+            MenuConditions conditions,
+            @Nullable MessageCatalog catalog,
+            Locale locale) {
+        IconOptions base = IconOptions.read(itemNode);
         List<MenuConditions.NamedState> states = new ArrayList<>();
         for (Map.Entry<Object, ? extends ConfigurationNode> entry :
                 statesNode.childrenMap().entrySet()) {
             String name = String.valueOf(entry.getKey());
             ConfigurationNode stateNode = entry.getValue();
             String conditionName = stateNode.node("condition").getString("always");
+            ItemStack icon =
+                    IconOptions.combine(base, IconOptions.read(stateNode)).toItem(catalog, locale);
             states.add(new MenuConditions.NamedState(
-                    name, conditions.require(conditionName), buildIcon(stateNode), resolveAction(stateNode, actions)));
+                    name, conditions.require(conditionName), icon, resolveAction(stateNode, actions)));
         }
         return MenuConditions.statefulOf(states);
     }
@@ -159,32 +209,6 @@ public final class MenuConfig {
         return new GuiAction.Run(action);
     }
 
-    private static ItemStack buildIcon(ConfigurationNode itemNode) {
-        Material material = parseMaterial(itemNode.node("material").getString("STONE"));
-        ItemBuilder builder = ItemBuilder.of(material);
-        String name = itemNode.node("name").getString();
-        if (name != null) {
-            builder.name(Text.mini(name));
-        }
-        List<Component> lore = readLore(itemNode.node("lore"));
-        if (!lore.isEmpty()) {
-            builder.lore(lore);
-        }
-        int amount = itemNode.node("amount").getInt(1);
-        if (amount > 1) {
-            builder.amount(amount);
-        }
-        return builder.build();
-    }
-
-    private static List<Component> readLore(ConfigurationNode loreNode) {
-        List<Component> lore = new ArrayList<>();
-        for (String line : readStringList(loreNode)) {
-            lore.add(Text.mini(line));
-        }
-        return lore;
-    }
-
     private static List<String> readStringList(ConfigurationNode node) {
         try {
             List<String> values = node.getList(String.class);
@@ -193,13 +217,5 @@ public final class MenuConfig {
             // A scalar where a list is expected is simply treated as absent.
             return List.of();
         }
-    }
-
-    private static Material parseMaterial(String raw) {
-        Material material = Material.matchMaterial(raw);
-        if (material == null) {
-            throw new IllegalArgumentException("unknown material in menu config: " + raw);
-        }
-        return material;
     }
 }

@@ -56,4 +56,40 @@ class StorageGuiTest {
         assertThat(read[5]).isNotNull();
         assertThat(read[5].getType()).isEqualTo(Material.EMERALD);
     }
+
+    @Test
+    void addItemStoresWhatFitsAndReturnsNoLeftover() {
+        StorageGui gui = Guis.storage().rows(1).build();
+
+        var leftover = gui.addItem(new ItemStack(Material.DIAMOND, 4));
+
+        assertThat(leftover).isEmpty();
+        assertThat(gui.getInventory().contains(Material.DIAMOND, 4)).isTrue();
+    }
+
+    @Test
+    void addItemReturnsTheOverflowThatDidNotFit() {
+        // A single empty slot fits one full stack; the rest must come back as leftover, not be dropped.
+        StorageGui gui = Guis.storage().rows(1).build();
+        ItemStack[] seed = new ItemStack[9];
+        for (int slot = 1; slot < 9; slot++) {
+            seed[slot] = new ItemStack(Material.STONE, 1); // every slot but 0 is occupied by another type
+        }
+        gui.setContents(seed);
+
+        var leftover = gui.addItem(new ItemStack(Material.DIAMOND, 128));
+
+        assertThat(leftover).hasSize(1);
+        ItemStack remainder = java.util.Objects.requireNonNull(leftover.get(0));
+        assertThat(remainder.getType()).isEqualTo(Material.DIAMOND);
+        assertThat(remainder.getAmount()).isEqualTo(128 - Material.DIAMOND.getMaxStackSize());
+    }
+
+    @Test
+    @SuppressWarnings("NullAway")
+    void addItemRejectsANullEntry() {
+        StorageGui gui = Guis.storage().rows(1).build();
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> gui.addItem((ItemStack) null))
+                .isInstanceOf(NullPointerException.class);
+    }
 }

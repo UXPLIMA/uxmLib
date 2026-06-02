@@ -1,5 +1,8 @@
 package com.uxplima.uxmlib.gui;
 
+import java.util.Map;
+import java.util.Objects;
+
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 
@@ -38,11 +41,26 @@ public final class StorageGui extends AbstractGui {
 
     /** Seed the storage slots with {@code items} (index = slot); a {@code null} entry leaves a slot empty. */
     public void setContents(@Nullable ItemStack[] items) {
-        java.util.Objects.requireNonNull(items, "items");
+        Objects.requireNonNull(items, "items");
         Inventory inv = getInventory();
         for (int slot = 0; slot < size(); slot++) {
             ItemStack stack = slot < items.length ? items[slot] : null;
             inv.setItem(slot, stack == null ? null : stack.clone());
         }
+    }
+
+    /**
+     * Stow {@code items} into the storage slots, stacking onto existing stacks first and then filling empty
+     * slots, exactly as Bukkit's {@link Inventory#addItem} does. Returns the leftover that did not fit, keyed
+     * by the index of the argument it came from — an empty map means everything was stored. Overflow is
+     * handed back to the caller rather than dropped, so a vault deposit can bounce the remainder to the
+     * player instead of vanishing it.
+     */
+    public Map<Integer, ItemStack> addItem(ItemStack... items) {
+        Objects.requireNonNull(items, "items");
+        for (ItemStack item : items) {
+            Objects.requireNonNull(item, "item");
+        }
+        return getInventory().addItem(items);
     }
 }

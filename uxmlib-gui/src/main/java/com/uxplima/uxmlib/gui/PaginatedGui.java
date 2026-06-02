@@ -1,8 +1,10 @@
 package com.uxplima.uxmlib.gui;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 import net.kyori.adventure.text.Component;
 
@@ -21,6 +23,10 @@ public final class PaginatedGui extends AbstractGui {
 
     private final List<GuiItem> pageItems = new ArrayList<>();
     private final List<Integer> contentSlots;
+    // Content slots a caller pinned a fixed decoration onto with set(): these win over paged content, so the
+    // page projection skips them. Filled only by external set() calls, never by the page render itself.
+    private final Set<Integer> decoratedSlots = new HashSet<>();
+    private boolean renderingPage;
     private int page;
 
     PaginatedGui(Component title, int rows, List<Integer> contentSlots) {
@@ -35,6 +41,28 @@ public final class PaginatedGui extends AbstractGui {
             }
         }
         this.contentSlots = List.copyOf(contentSlots);
+    }
+
+    /**
+     * Place {@code item} at {@code slot}. A {@code set} into a content slot pins a fixed decoration there
+     * that overrides the paged content: the page projection then leaves that slot alone and pages around it,
+     * so a navigation arrow or separator dropped into the content region wins over a list item. Pinning is
+     * tracked only for direct caller {@code set}s; the page render's own writes do not register a decoration.
+     */
+    @Override
+    public void set(int slot, GuiItem item) {
+        if (!renderingPage) {
+            decoratedSlots.add(slot);
+        }
+        super.set(slot, item);
+    }
+
+    @Override
+    public void remove(int slot) {
+        if (!renderingPage) {
+            decoratedSlots.remove(slot);
+        }
+        super.remove(slot);
     }
 
     /** Append an item to the paged list. Call {@link #open} or {@link #render} to show it. */
@@ -71,8 +99,19 @@ public final class PaginatedGui extends AbstractGui {
 
     /** The total number of pages (at least one). */
     public int pageCount() {
-        int perPage = contentSlots.size();
+        int perPage = freeContentSlots();
         return Math.max(1, (pageItems.size() + perPage - 1) / perPage);
+    }
+
+    /** Content slots a page can actually use — the total minus any pinned decoration (at least one). */
+    private int freeContentSlots() {
+        int free = 0;
+        for (int slot : contentSlots) {
+            if (!decoratedSlots.contains(slot)) {
+                free++;
+            }
+        }
+        return Math.max(1, free);
     }
 
     /** Advance one page if there is one, re-rendering the content slots. */
@@ -103,18 +142,30 @@ public final class PaginatedGui extends AbstractGui {
         super.open(viewer);
     }
 
-    /** Project the current page's window of items into the content slots. */
+    /**
+     * Project the current page's window of items into the content slots, paging around any pinned
+     * decoration: a decorated content slot is skipped, so the decoration stays put and a page item flows to
+     * the next free slot instead of being overwritten.
+     */
     public void render() {
-        int perPage = contentSlots.size();
+        int perPage = freeContentSlots();
         int start = page * perPage;
-        for (int i = 0; i < perPage; i++) {
-            int slot = contentSlots.get(i);
-            int index = start + i;
-            if (index < pageItems.size()) {
-                set(slot, pageItems.get(index));
-            } else {
-                remove(slot);
+        int index = start;
+        renderingPage = true;
+        try {
+            for (int slot : contentSlots) {
+                if (decoratedSlots.contains(slot)) {
+                    continue; // a fixed decoration owns this slot; leave it untouched
+                }
+                if (index < pageItems.size()) {
+                    set(slot, pageItems.get(index));
+                } else {
+                    remove(slot);
+                }
+                index++;
             }
+        } finally {
+            renderingPage = false;
         }
     }
 }
