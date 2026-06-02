@@ -230,9 +230,9 @@ public final class Guis {
 
         private static List<Integer> defaultContentSlots(int rows) {
             // Every slot except the bottom row, which is left free for navigation buttons.
-            int contentRows = rows > 1 ? rows - 1 : rows;
+            int capacity = GuiLayout.adaptivePageSize(rows);
             List<Integer> slots = new ArrayList<>();
-            for (int slot = 0; slot < contentRows * 9; slot++) {
+            for (int slot = 0; slot < capacity; slot++) {
                 slots.add(slot);
             }
             return slots;

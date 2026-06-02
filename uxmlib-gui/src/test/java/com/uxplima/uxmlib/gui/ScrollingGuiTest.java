@@ -79,6 +79,27 @@ class ScrollingGuiTest {
     }
 
     @Test
+    void clampsAtTheFirstWindow() {
+        ScrollingGui gui = verticalWith(54, 3);
+        assertThat(gui.offset()).isZero();
+        gui.scrollPrevious(); // nothing before the first window
+        assertThat(gui.offset()).isZero();
+    }
+
+    @Test
+    void clampsAtTheLastWindowAndTheLastPartialRowStaysReachable() {
+        // 50 items over 9 columns = 6 content rows (the last only partly full); a 3-row window stops at 3.
+        ScrollingGui gui = verticalWith(50, 3);
+        assertThat(gui.maxOffset()).isEqualTo(3);
+        for (int i = 0; i < 50; i++) {
+            gui.scrollNext();
+        }
+        assertThat(gui.offset()).isEqualTo(gui.maxOffset());
+        gui.scrollNext(); // already at the last window
+        assertThat(gui.offset()).isEqualTo(gui.maxOffset());
+    }
+
+    @Test
     void horizontalScrollUsesColumns() {
         ScrollingGui gui = Guis.scrolling(ScrollType.HORIZONTAL).rows(3).build();
         for (int i = 0; i < 60; i++) {

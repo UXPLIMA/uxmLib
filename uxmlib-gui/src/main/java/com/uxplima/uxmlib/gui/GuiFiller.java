@@ -30,6 +30,22 @@ public final class GuiFiller {
         return this;
     }
 
+    /**
+     * Fill every slot by cycling through {@code items} (A, B, A, B, …) across the menu's true capacity, so a
+     * two-tone glass border or a striped background is one call. Sizes off {@link Gui#size()}, so it is
+     * correct on a non-chest {@link GuiType} menu (a hopper has five slots, not nine).
+     */
+    public GuiFiller fill(java.util.List<GuiItem> items) {
+        Objects.requireNonNull(items, "items");
+        if (items.isEmpty()) {
+            throw new IllegalArgumentException("items must not be empty");
+        }
+        for (int slot = 0; slot < gui.size(); slot++) {
+            gui.set(slot, items.get(slot % items.size()));
+        }
+        return this;
+    }
+
     /** Put {@code item} in every slot that is currently empty. */
     public GuiFiller fillEmpty(GuiItem item) {
         Objects.requireNonNull(item, "item");

@@ -10,6 +10,7 @@ import org.bukkit.inventory.ItemStack;
 import com.uxplima.uxmlib.gui.config.MenuConditions;
 import com.uxplima.uxmlib.gui.item.GuiAction;
 import com.uxplima.uxmlib.gui.item.GuiItem;
+import com.uxplima.uxmlib.gui.item.RenderContext;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -75,6 +76,59 @@ class MenuConditionsTest {
         assertThat(java.util.Objects.requireNonNull(gui.getInventory().getItem(0))
                         .getType())
                 .isEqualTo(Material.REDSTONE);
+    }
+
+    @Test
+    void parseResolvesABareNameToTheRegisteredCondition() {
+        MenuConditions conditions = new MenuConditions();
+        conditions.register("starts-a", ctx -> ctx.viewer().getName().startsWith("A"));
+
+        Player alex = MockBukkit.getMock().addPlayer("Alex");
+        Player steve = MockBukkit.getMock().addPlayer("Steve");
+        SimpleGui gui = Guis.gui().rows(1).build();
+
+        var predicate = conditions.parse("starts-a");
+        assertThat(predicate.test(new RenderContext(alex, gui, 0))).isTrue();
+        assertThat(predicate.test(new RenderContext(steve, gui, 0))).isFalse();
+    }
+
+    @Test
+    void parseNegatesWithALeadingBang() {
+        MenuConditions conditions = new MenuConditions();
+        conditions.register("starts-a", ctx -> ctx.viewer().getName().startsWith("A"));
+
+        Player alex = MockBukkit.getMock().addPlayer("Alex");
+        SimpleGui gui = Guis.gui().rows(1).build();
+
+        assertThat(conditions.parse("!starts-a").test(new RenderContext(alex, gui, 0)))
+                .isFalse();
+    }
+
+    @Test
+    void parseCombinesWithAndOr() {
+        MenuConditions conditions = new MenuConditions();
+        conditions.register("starts-a", ctx -> ctx.viewer().getName().startsWith("A"));
+        conditions.register("len-4", ctx -> ctx.viewer().getName().length() == 4);
+
+        Player alex = MockBukkit.getMock().addPlayer("Alex"); // starts A, length 4
+        Player steve = MockBukkit.getMock().addPlayer("Steve"); // neither
+        SimpleGui gui = Guis.gui().rows(1).build();
+
+        assertThat(conditions.parse("starts-a && len-4").test(new RenderContext(alex, gui, 0)))
+                .isTrue();
+        assertThat(conditions.parse("starts-a && len-4").test(new RenderContext(steve, gui, 0)))
+                .isFalse();
+        assertThat(conditions.parse("starts-a || len-4").test(new RenderContext(alex, gui, 0)))
+                .isTrue();
+        assertThat(conditions.parse("starts-a || len-4").test(new RenderContext(steve, gui, 0)))
+                .isFalse();
+    }
+
+    @Test
+    void parseRejectsAnUnknownTermAndBlankExpression() {
+        MenuConditions conditions = new MenuConditions();
+        assertThatThrownBy(() -> conditions.parse("nope")).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> conditions.parse("   ")).isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test

@@ -54,6 +54,58 @@ public final class MenuConditions {
     }
 
     /**
+     * Parse a small condition expression from a config file into a closure once, at registration, so a click
+     * does no parsing. The grammar is deliberately tiny: a bare {@code name} resolves to the registered
+     * condition; a leading {@code !} negates it; {@code a && b} requires both and {@code a || b} requires
+     * either (no precedence beyond left-to-right, no nesting — keep complex logic in code-registered
+     * conditions). Whitespace around tokens is ignored. Reusable by {@code MenuConfig} to turn a menu item's
+     * {@code condition: ...} line into a {@link Predicate} without re-implementing the lookup.
+     */
+    public Predicate<RenderContext> parse(String expression) {
+        Objects.requireNonNull(expression, "expression");
+        String trimmed = expression.trim();
+        if (trimmed.isEmpty()) {
+            throw new IllegalArgumentException("condition expression must not be blank");
+        }
+        if (trimmed.contains("&&")) {
+            return combine(trimmed, "&&", true);
+        }
+        if (trimmed.contains("||")) {
+            return combine(trimmed, "||", false);
+        }
+        return atom(trimmed);
+    }
+
+    private Predicate<RenderContext> combine(String expression, String operator, boolean all) {
+        Predicate<RenderContext> combined = null;
+        int start = 0;
+        // Walk operator boundaries by hand rather than String.split, which Error Prone flags for its
+        // surprising trailing-empty behaviour and which would not preserve an explicit empty term to reject.
+        while (start <= expression.length()) {
+            int next = expression.indexOf(operator, start);
+            int end = next < 0 ? expression.length() : next;
+            Predicate<RenderContext> term =
+                    atom(expression.substring(start, end).trim());
+            combined = combined == null ? term : (all ? combined.and(term) : combined.or(term));
+            if (next < 0) {
+                break;
+            }
+            start = next + operator.length();
+        }
+        return Objects.requireNonNull(combined, "combined");
+    }
+
+    private Predicate<RenderContext> atom(String token) {
+        if (token.isEmpty()) {
+            throw new IllegalArgumentException("empty condition term");
+        }
+        if (token.startsWith("!")) {
+            return require(token.substring(1).trim()).negate();
+        }
+        return require(token);
+    }
+
+    /**
      * One ordered state of a multi-state menu item: its operator-facing {@code name} (for diagnostics), the
      * {@code condition} that selects it, the {@code icon} it shows, and the {@code action} run on click.
      */

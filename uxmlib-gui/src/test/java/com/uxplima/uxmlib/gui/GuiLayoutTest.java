@@ -128,6 +128,65 @@ class GuiLayoutTest {
     }
 
     @Test
+    void adaptivePageSizeReservesTheNavRowOnTallMenus() {
+        assertThat(GuiLayout.adaptivePageSize(1)).isEqualTo(9); // one row stays all content
+        assertThat(GuiLayout.adaptivePageSize(3)).isEqualTo(18); // bottom row reserved -> 2 content rows
+        assertThat(GuiLayout.adaptivePageSize(6)).isEqualTo(45);
+    }
+
+    @Test
+    void adaptivePageSizeNeverDropsBelowOne() {
+        assertThat(GuiLayout.clampPageSize(0)).isEqualTo(1);
+        assertThat(GuiLayout.clampPageSize(-5)).isEqualTo(1);
+        assertThat(GuiLayout.clampPageSize(7)).isEqualTo(7);
+    }
+
+    @Test
+    void fillCapacityUsesTheTrueTypeSizeNotNineWideRows() {
+        assertThat(GuiLayout.fillCapacity(GuiType.HOPPER)).isEqualTo(5);
+        assertThat(GuiLayout.fillCapacity(GuiType.DISPENSER)).isEqualTo(9);
+        assertThat(GuiLayout.fillCapacity(GuiType.DROPPER)).isEqualTo(9);
+    }
+
+    @Test
+    void adaptiveSlotsPicksTheLargestLayoutNotExceedingTheCount() {
+        var layouts = GuiLayout.singleRowLayouts();
+        assertThat(GuiLayout.adaptiveSlots(1, layouts)).containsExactly(4); // one item centres
+        assertThat(GuiLayout.adaptiveSlots(3, layouts)).containsExactly(3, 4, 5); // a tidy row
+        assertThat(GuiLayout.adaptiveSlots(99, layouts)).containsExactly(2, 3, 4, 5, 6); // clamp to widest
+    }
+
+    @Test
+    void adaptiveSlotsFallsBackToTheSmallestLayoutBelowEveryKey() {
+        var layouts = GuiLayout.singleRowLayouts();
+        assertThat(GuiLayout.adaptiveSlots(0, layouts)).containsExactly(4); // below key 1 -> smallest
+    }
+
+    @Test
+    void fillUsesTheTrueCapacityOfANonChestMenu() {
+        // A hopper is five slots wide; fill must touch exactly those, not assume nine.
+        SimpleGui hopper = Guis.typed(GuiType.HOPPER).build();
+        hopper.filler().fill(item(Material.GRAY_STAINED_GLASS_PANE));
+        for (int slot = 0; slot < 5; slot++) {
+            assertThat(hopper.getItem(slot)).isNotNull();
+        }
+        assertThat(hopper.size()).isEqualTo(5);
+    }
+
+    @Test
+    void alternatingFillCyclesAcrossTheEmptySlots() {
+        SimpleGui gui = Guis.gui().rows(1).build();
+        GuiItem a = item(Material.BLACK_STAINED_GLASS_PANE);
+        GuiItem b = item(Material.WHITE_STAINED_GLASS_PANE);
+        gui.filler().fill(java.util.List.of(a, b));
+
+        assertThat(gui.getItem(0)).isSameAs(a);
+        assertThat(gui.getItem(1)).isSameAs(b);
+        assertThat(gui.getItem(2)).isSameAs(a);
+        assertThat(gui.getItem(8)).isSameAs(a); // 9 slots: indices 0..8, even -> a
+    }
+
+    @Test
     void defaultClickFiresOnEmptySlots() {
         SimpleGui gui = Guis.gui().rows(1).build();
         boolean[] ran = {false};
