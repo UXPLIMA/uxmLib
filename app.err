@@ -1,0 +1,6 @@
+error: uxmlib-item/src/main/java/com/uxplima/uxmlib/item/ItemMigrations.java: does not exist in index
+error: cannot read the current contents of 'uxmlib-item/src/main/java/com/uxplima/uxmlib/item/ItemMigrations.java'
+Falling back to direct application...
+error: uxmlib-item/src/test/java/com/uxplima/uxmlib/item/ItemMigrationsTest.java: does not exist in index
+error: cannot read the current contents of 'uxmlib-item/src/test/java/com/uxplima/uxmlib/item/ItemMigrationsTest.java'
+Falling back to direct application...
