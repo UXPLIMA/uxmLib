@@ -47,6 +47,7 @@ class SignPromptTest {
         SignPrompt prompt = new SignPrompt();
         PlayerMock player = server.addPlayer();
         Block block = player.getLocation().getBlock();
+        block.setType(Material.AIR, false); // deterministic clean start, independent of test order / world state
         Material original = block.getType();
 
         openIgnoringEditor(prompt, player);
@@ -64,6 +65,8 @@ class SignPromptTest {
         PlayerMock b = server.addPlayer();
         Block blockA = a.getLocation().getBlock();
         Block blockB = b.getLocation().getBlock();
+        blockA.setType(Material.AIR, false); // deterministic clean start, independent of test order / world state
+        blockB.setType(Material.AIR, false);
         Material originalA = blockA.getType();
         Material originalB = blockB.getType();
 
