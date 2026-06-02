@@ -22,6 +22,8 @@ import com.uxplima.uxmlib.storage.StorageException;
  */
 public final class Sql {
 
+    private static final System.Logger LOG = System.getLogger(Sql.class.getName());
+
     private final Database database;
 
     public Sql(Database database) {
@@ -63,6 +65,42 @@ public final class Sql {
     public <T> Optional<T> queryFirst(String sql, StatementBinder binder, RowMapper<T> mapper) {
         List<T> results = query(sql, binder, mapper);
         return results.isEmpty() ? Optional.empty() : Optional.of(results.get(0));
+    }
+
+    /**
+     * Run a query and map every row, but tolerate a malformed row: when {@code mapper} throws on a single row
+     * (a renamed key, a value that no longer parses), that row is logged and skipped instead of aborting the
+     * whole load. Returns the rows that mapped cleanly plus how many were skipped, so one corrupt record never
+     * kills an entire load. A failure of the query itself (the connection, the statement, advancing the cursor)
+     * still aborts as a {@link StorageException} — only a per-row mapper exception is recoverable.
+     */
+    public <T> LoadResult<T> queryResilient(String sql, StatementBinder binder, RowMapper<T> mapper) {
+        Objects.requireNonNull(sql, "sql");
+        Objects.requireNonNull(binder, "binder");
+        Objects.requireNonNull(mapper, "mapper");
+        try (Connection conn = database.connection();
+                PreparedStatement statement = conn.prepareStatement(sql)) {
+            binder.bind(statement);
+            try (ResultSet rows = statement.executeQuery()) {
+                return mapResilient(rows, mapper, sql);
+            }
+        } catch (SQLException failure) {
+            throw new StorageException("resilient query failed: " + sql, failure);
+        }
+    }
+
+    private static <T> LoadResult<T> mapResilient(ResultSet rows, RowMapper<T> mapper, String sql) throws SQLException {
+        List<T> results = new ArrayList<>();
+        int skipped = 0;
+        while (rows.next()) {
+            try {
+                results.add(mapper.map(rows));
+            } catch (RuntimeException badRow) {
+                skipped++;
+                LOG.log(System.Logger.Level.WARNING, "skipped a malformed row during load: " + sql, badRow);
+            }
+        }
+        return new LoadResult<>(results, skipped);
     }
 
     /** Run a query off-thread on {@code executor}; the future completes with the mapped rows. */
