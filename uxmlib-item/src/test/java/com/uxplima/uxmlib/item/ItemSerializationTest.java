@@ -60,4 +60,60 @@ class ItemSerializationTest {
         assertThatThrownBy(() -> ItemSerialization.fromBytes(new byte[] {1, 2, 3, 4}))
                 .isInstanceOf(IllegalArgumentException.class);
     }
+
+    @Test
+    void stampsAMagicHeaderOnTheBytes() {
+        byte[] bytes = ItemSerialization.toBytes(ItemBuilder.of(Material.STONE).build());
+
+        // The first four bytes are the "UXMI" magic; the fifth is the format version.
+        assertThat(new byte[] {bytes[0], bytes[1], bytes[2], bytes[3]})
+                .isEqualTo("UXMI".getBytes(java.nio.charset.StandardCharsets.US_ASCII));
+        assertThat(bytes[4]).isEqualTo((byte) 1);
+    }
+
+    @Test
+    void readsAHeaderlessLegacyBlobForBackCompat() {
+        ItemStack original = ItemBuilder.of(Material.GOLD_INGOT).amount(5).build();
+
+        // A blob produced before the header existed: raw Paper bytes, no magic.
+        byte[] legacy = original.serializeAsBytes();
+        ItemStack restored = ItemSerialization.fromBytes(legacy);
+
+        assertThat(restored.getType()).isEqualTo(Material.GOLD_INGOT);
+        assertThat(restored.getAmount()).isEqualTo(5);
+    }
+
+    @Test
+    void readsAHeaderlessLegacyBase64ForBackCompat() {
+        ItemStack original = ItemBuilder.of(Material.EMERALD).amount(2).build();
+
+        String legacy = java.util.Base64.getEncoder().encodeToString(original.serializeAsBytes());
+        ItemStack restored = ItemSerialization.fromBase64(legacy);
+
+        assertThat(restored.getType()).isEqualTo(Material.EMERALD);
+        assertThat(restored.getAmount()).isEqualTo(2);
+    }
+
+    @Test
+    void exposesTheStampedDataVersionFromAHeaderedBlob() {
+        byte[] bytes = ItemSerialization.toBytes(ItemBuilder.of(Material.STONE).build());
+
+        assertThat(ItemSerialization.dataVersionOf(bytes)).isPresent();
+    }
+
+    @Test
+    void reportsNoStampedDataVersionForALegacyBlob() {
+        byte[] legacy = ItemBuilder.of(Material.STONE).build().serializeAsBytes();
+
+        assertThat(ItemSerialization.dataVersionOf(legacy)).isEmpty();
+    }
+
+    @Test
+    void rejectsAHeaderWithAnUnknownFormatVersion() {
+        byte[] good = ItemSerialization.toBytes(ItemBuilder.of(Material.STONE).build());
+        byte[] tampered = good.clone();
+        tampered[4] = (byte) 99; // a format version this reader does not understand
+
+        assertThatThrownBy(() -> ItemSerialization.fromBytes(tampered)).isInstanceOf(IllegalArgumentException.class);
+    }
 }
