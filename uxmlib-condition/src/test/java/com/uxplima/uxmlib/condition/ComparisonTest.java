@@ -1,0 +1,100 @@
+package com.uxplima.uxmlib.condition;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+
+/** Pure evaluator coverage: every operator, numeric vs string fallback, and malformed input behaviour. */
+class ComparisonTest {
+
+    @ParameterizedTest
+    @CsvSource({
+        // numeric equality, including different textual forms of the same number
+        "EQUAL, 1, 1, true",
+        "EQUAL, 1.0, 1, true",
+        "EQUAL, 1, 2, false",
+        "NOT_EQUAL, 1, 2, true",
+        "NOT_EQUAL, 1.0, 1, false",
+        // ordering, numeric
+        "GREATER, 10, 9, true",
+        "GREATER, 9, 10, false",
+        "GREATER, 5, 5, false",
+        "GREATER_OR_EQUAL, 5, 5, true",
+        "GREATER_OR_EQUAL, 4, 5, false",
+        "LESS, 9, 10, true",
+        "LESS, 10, 9, false",
+        "LESS_OR_EQUAL, 5, 5, true",
+        "LESS_OR_EQUAL, 6, 5, false",
+    })
+    void numericComparisons(Operator operator, String left, String right, boolean expected) {
+        assertThat(Comparison.of(operator).test(left, right)).isEqualTo(expected);
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+        // both sides non-numeric -> string equality for ==/!=
+        "EQUAL, world, world, true",
+        "EQUAL, world, nether, false",
+        "NOT_EQUAL, world, nether, true",
+        "NOT_EQUAL, world, world, false",
+    })
+    void stringEqualityWhenNotNumeric(Operator operator, String left, String right, boolean expected) {
+        assertThat(Comparison.of(operator).test(left, right)).isEqualTo(expected);
+    }
+
+    @Test
+    void stringEqualityIsCaseSensitive() {
+        assertThat(Comparison.of(Operator.EQUAL).test("World", "world")).isFalse();
+    }
+
+    @Test
+    void surroundingWhitespaceIsTrimmedForStringEquality() {
+        assertThat(Comparison.of(Operator.EQUAL).test("  world ", "world")).isTrue();
+    }
+
+    @Test
+    void mixedNumericAndStringFallsBackToStringEquality() {
+        // one side numeric, the other not: not both numbers, so == compares as strings ("10" != "ten")
+        assertThat(Comparison.of(Operator.EQUAL).test("10", "ten")).isFalse();
+        assertThat(Comparison.of(Operator.NOT_EQUAL).test("10", "ten")).isTrue();
+    }
+
+    @Test
+    void orderingOperatorWithNonNumericOperandIsFalseNeverThrows() {
+        assertThat(Comparison.of(Operator.GREATER).test("abc", "10")).isFalse();
+        assertThat(Comparison.of(Operator.LESS_OR_EQUAL).test("10", "abc")).isFalse();
+        assertThat(Comparison.of(Operator.GREATER_OR_EQUAL).test("foo", "bar")).isFalse();
+    }
+
+    @Test
+    void emptyOperandIsTreatedAsNonNumeric() {
+        // an empty resolved placeholder must not parse as a number and must not throw
+        assertThat(Comparison.of(Operator.GREATER).test("", "5")).isFalse();
+        assertThat(Comparison.of(Operator.EQUAL).test("", "")).isTrue();
+    }
+
+    @Test
+    void parseSplitsOnLongestOperatorFirst() {
+        Comparison.ParsedComparison parsed = Comparison.parse("%player_health% >= 10");
+        assertThat(parsed.comparison().operator()).isEqualTo(Operator.GREATER_OR_EQUAL);
+        assertThat(parsed.left()).isEqualTo("%player_health%");
+        assertThat(parsed.right()).isEqualTo("10");
+    }
+
+    @Test
+    void parseEvaluatesLiteralOperands() {
+        assertThat(Comparison.parse("10 >= 5").evaluate()).isTrue();
+        assertThat(Comparison.parse("foo == foo").evaluate()).isTrue();
+        assertThat(Comparison.parse("3 < 2").evaluate()).isFalse();
+    }
+
+    @Test
+    void parseRejectsExpressionWithoutOperator() {
+        assertThatThrownBy(() -> Comparison.parse("just text"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("no comparison operator");
+    }
+}

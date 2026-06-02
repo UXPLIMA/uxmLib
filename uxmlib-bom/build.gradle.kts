@@ -14,6 +14,7 @@ dependencies {
         api(project(":uxmlib-integration"))
         api(project(":uxmlib-hud"))
         api(project(":uxmlib-update"))
+        api(project(":uxmlib-condition"))
     }
 }
 

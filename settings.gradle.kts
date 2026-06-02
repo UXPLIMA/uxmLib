@@ -21,5 +21,6 @@ include(
     ":uxmlib-integration",
     ":uxmlib-hud",
     ":uxmlib-update",
+    ":uxmlib-condition",
     ":uxmlib-all",
 )
