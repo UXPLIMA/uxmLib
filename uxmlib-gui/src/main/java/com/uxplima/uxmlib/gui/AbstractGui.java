@@ -33,6 +33,7 @@ abstract class AbstractGui implements Gui {
     private final int size;
     private final @Nullable GuiType type;
     private final Map<Integer, GuiItem> items = new HashMap<>();
+    private final java.util.List<SlotAnimation> animations = new java.util.ArrayList<>();
     private @Nullable Inventory inventory;
     private @Nullable Consumer<InventoryCloseEvent> closeHandler;
     private @Nullable Consumer<InventoryOpenEvent> openHandler;
@@ -119,6 +120,16 @@ abstract class AbstractGui implements Gui {
     }
 
     @Override
+    public void addAnimation(SlotAnimation animation) {
+        animations.add(Objects.requireNonNull(animation, "animation"));
+        // Apply the first frame at once if the menu is already showing, so it does not wait a tick to appear.
+        Inventory inv = inventory;
+        if (inv != null) {
+            animation.advance(ticks, new InventorySink(inv, items));
+        }
+    }
+
+    @Override
     public Gui allow(InteractionModifier modifier) {
         allowed.add(Objects.requireNonNull(modifier, "modifier"));
         return this;
@@ -193,7 +204,7 @@ abstract class AbstractGui implements Gui {
     }
 
     final boolean hasAnimatedContent() {
-        return items.values().stream().anyMatch(GuiItem.Animated.class::isInstance);
+        return !animations.isEmpty() || items.values().stream().anyMatch(GuiItem.Animated.class::isInstance);
     }
 
     @Override
@@ -204,6 +215,7 @@ abstract class AbstractGui implements Gui {
         if (viewer instanceof org.bukkit.entity.Player player) {
             GuiRender.renderAll(inv, this, items, player);
         }
+        advanceAnimations(inv);
         viewer.openInventory(inv);
     }
 
@@ -344,6 +356,18 @@ abstract class AbstractGui implements Gui {
         Player viewer = GuiRender.firstViewer(inv);
         if (viewer != null) {
             GuiRender.renderDynamic(inv, this, items, viewer);
+        }
+        advanceAnimations(inv);
+    }
+
+    /** Advance every attached overlay one step, painting only the slots its diff changed. */
+    private void advanceAnimations(Inventory inv) {
+        if (animations.isEmpty()) {
+            return;
+        }
+        InventorySink sink = new InventorySink(inv, items);
+        for (SlotAnimation animation : animations) {
+            animation.advance(ticks, sink);
         }
     }
 

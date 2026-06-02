@@ -59,6 +59,13 @@ public interface Gui extends InventoryHolder {
     /** A helper for filling borders, rows, columns, or the empty slots of this menu. */
     GuiFiller filler();
 
+    /**
+     * Attach a moving-highlight {@link SlotAnimation} (border walk, marching ants, sweep) that advances on
+     * this menu's tick clock. The overlay paints only into free slots and clears only what it lit, so it
+     * never clobbers a button you placed. Needs the Scheduler-aware {@link Guis#install} to actually tick.
+     */
+    void addAnimation(SlotAnimation animation);
+
     /** Allow {@code modifier} (an interaction the menu would otherwise cancel). Returns this menu. */
     Gui allow(InteractionModifier modifier);
 

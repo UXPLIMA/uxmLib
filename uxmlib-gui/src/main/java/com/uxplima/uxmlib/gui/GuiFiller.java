@@ -162,6 +162,15 @@ public final class GuiFiller {
         return this;
     }
 
+    /**
+     * The slots of the outer border of a {@code width}×{@code height} grid in clockwise order from the top
+     * left, rotated to start {@code offset} slots along the ring. The ordered ring a "walk a highlight around
+     * the edge" animation needs; delegates to {@link SlotPattern#orderedBorderSlots}.
+     */
+    public static java.util.List<Integer> orderedBorderSlots(int width, int height, int offset) {
+        return SlotPattern.orderedBorderSlots(width, height, offset);
+    }
+
     private int rows() {
         return gui.size() / WIDTH;
     }
