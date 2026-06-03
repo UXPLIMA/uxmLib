@@ -14,4 +14,5 @@ dependencies {
     testImplementation(libs.paper.api)
     testImplementation(libs.bundles.adventure)
     testImplementation(libs.mockbukkit)
+    testImplementation(libs.jqwik)
 }
