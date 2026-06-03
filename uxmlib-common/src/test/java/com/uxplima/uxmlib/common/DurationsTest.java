@@ -69,6 +69,32 @@ class DurationsTest {
     }
 
     @Test
+    void approximatesToTheSingleLargestWholeUnit() {
+        // Largest whole unit, truncated (not rounded): 90m -> "1h", never "2h". The coarse counterpart of
+        // format(), for "5m ago"-style relative displays where one unit reads better than "1h 30m".
+        assertThat(Durations.approximate(Duration.ofSeconds(5))).isEqualTo("5s");
+        assertThat(Durations.approximate(Duration.ofSeconds(59))).isEqualTo("59s");
+        assertThat(Durations.approximate(Duration.ofSeconds(60))).isEqualTo("1m");
+        assertThat(Durations.approximate(Duration.ofMinutes(59))).isEqualTo("59m");
+        assertThat(Durations.approximate(Duration.ofMinutes(90))).isEqualTo("1h");
+        assertThat(Durations.approximate(Duration.ofHours(23))).isEqualTo("23h");
+        assertThat(Durations.approximate(Duration.ofHours(24))).isEqualTo("1d");
+        assertThat(Durations.approximate(Duration.ofDays(7))).isEqualTo("7d");
+    }
+
+    @Test
+    void approximateFloorsZeroSubSecondAndNegativeToZeroSeconds() {
+        assertThat(Durations.approximate(Duration.ZERO)).isEqualTo("0s");
+        assertThat(Durations.approximate(Duration.ofMillis(500))).isEqualTo("0s");
+        assertThat(Durations.approximate(Duration.ofSeconds(-5))).isEqualTo("0s");
+    }
+
+    @Test
+    void approximateRejectsNull() {
+        assertThatNullPointerException().isThrownBy(() -> Durations.approximate(null));
+    }
+
+    @Test
     void formatsOmittingZeroUnits() {
         assertThat(Durations.format(Duration.ofMinutes(90))).isEqualTo("1h 30m");
         assertThat(Durations.format(Duration.ofSeconds(3661))).isEqualTo("1h 1m 1s");

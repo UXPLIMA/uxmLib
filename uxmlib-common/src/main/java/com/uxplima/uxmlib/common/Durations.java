@@ -61,6 +61,27 @@ public final class Durations {
         return Optional.of(Duration.ofMillis(millis));
     }
 
+    /**
+     * Render {@code duration} as its single largest whole unit, truncated — {@code 90m -> "1h"} (never
+     * {@code "2h"}), {@code 5s -> "5s"}, {@code 7d -> "7d"}. Zero, sub-second and negative durations are
+     * {@code "0s"}. This is the coarse counterpart of {@link #format(Duration)} (which lists every non-zero
+     * unit), for relative displays like {@code "5m ago"} where one unit reads better than {@code "1h 30m"}.
+     */
+    public static String approximate(Duration duration) {
+        Objects.requireNonNull(duration, "duration");
+        long seconds = Math.max(0L, duration.toSeconds());
+        if (seconds < 60L) {
+            return seconds + "s";
+        }
+        if (seconds < 3_600L) {
+            return seconds / 60L + "m";
+        }
+        if (seconds < 86_400L) {
+            return seconds / 3_600L + "h";
+        }
+        return seconds / 86_400L + "d";
+    }
+
     /** Render {@code duration} as {@code "1d 2h 3m 4s"}, omitting zero units ({@code "0s"} for zero). */
     public static String format(Duration duration) {
         Objects.requireNonNull(duration, "duration");
