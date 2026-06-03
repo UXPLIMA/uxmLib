@@ -17,17 +17,29 @@ import com.zaxxer.hikari.HikariDataSource;
  */
 public final class Database implements AutoCloseable {
 
-    private final HikariDataSource dataSource;
+    private final DataSource dataSource;
     private final Dialect dialect;
+    private final boolean owned;
 
-    Database(HikariDataSource dataSource, Dialect dialect) {
+    Database(DataSource dataSource, Dialect dialect, boolean owned) {
         this.dataSource = Objects.requireNonNull(dataSource, "dataSource");
         this.dialect = Objects.requireNonNull(dialect, "dialect");
+        this.owned = owned;
     }
 
     /** Start configuring a database; SQLite is the default backend. */
     public static DatabaseBuilder builder() {
         return new DatabaseBuilder();
+    }
+
+    /**
+     * Wrap a {@link DataSource} the caller owns and manages so its queries can run through this library's
+     * {@link Sql} / {@link TxSql} helpers and builders. The adopted handle does <em>not</em> own the pool:
+     * {@link #close()} is a no-op, leaving the lifecycle to whoever created the DataSource. {@code dialect}
+     * must match the backend, since it drives upsert and other dialect-specific SQL.
+     */
+    public static Database adopt(DataSource dataSource, Dialect dialect) {
+        return new Database(dataSource, dialect, false);
     }
 
     /** Borrow a pooled connection. The caller closes it to return it to the pool. */
@@ -79,9 +91,9 @@ public final class Database implements AutoCloseable {
         return dialect;
     }
 
-    /** Whether the pool has been shut down. */
+    /** Whether the pool has been shut down (always false for an adopted, non-Hikari, or external DataSource). */
     public boolean isClosed() {
-        return dataSource.isClosed();
+        return dataSource instanceof HikariDataSource hikari && hikari.isClosed();
     }
 
     /**
@@ -99,11 +111,14 @@ public final class Database implements AutoCloseable {
         }
     }
 
-    /** Shut the pool down, closing all idle connections. Safe to call more than once. */
+    /**
+     * Shut the pool down, closing all idle connections. Safe to call more than once. A no-op for an adopted
+     * handle ({@link #adopt}) — that pool belongs to its creator.
+     */
     @Override
     public void close() {
-        if (!dataSource.isClosed()) {
-            dataSource.close();
+        if (owned && dataSource instanceof HikariDataSource hikari && !hikari.isClosed()) {
+            hikari.close();
         }
     }
 }

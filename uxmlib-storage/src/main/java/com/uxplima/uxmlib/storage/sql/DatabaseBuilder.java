@@ -170,7 +170,7 @@ public final class DatabaseBuilder {
         }
         HikariDataSource dataSource = new HikariDataSource(config);
         try {
-            return new Database(dataSource, Dialect.fromJdbcUrl(url));
+            return new Database(dataSource, Dialect.fromJdbcUrl(url), true);
         } catch (RuntimeException failure) {
             // Don't leak the just-opened pool if wrapping it fails for any reason.
             dataSource.close();
