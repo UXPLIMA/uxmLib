@@ -165,7 +165,12 @@ final class ArgBinder {
             CommandContext<CommandSourceStack> ctx, ParamArg pa, Class<?> type) {
         if (pa.arg().optional() && !hasArgument(ctx, pa.name())) {
             String def = pa.arg().def();
-            return def.isEmpty() ? zeroValue(type) : Defaults.parse(type, def);
+            if (!def.isEmpty()) {
+                return Defaults.parse(type, def);
+            }
+            // An omitted optional String binds to "" (its natural zero, like 0 for int) rather than null, so a
+            // consumer can test it with isEmpty() without a NullPointerException. Other types fall to zeroValue.
+            return type == String.class ? "" : zeroValue(type);
         }
         return pa.resolver().resolve(ctx, pa.name());
     }

@@ -2,9 +2,14 @@ package com.uxplima.uxmlib.command.annotation;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
+import org.bukkit.command.CommandSender;
 
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 
+import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.tree.CommandNode;
 import com.mojang.brigadier.tree.LiteralCommandNode;
 import com.uxplima.uxmlib.command.Sender;
@@ -68,5 +73,31 @@ class OptionalArgsTest {
         assertThatThrownBy(() -> AnnotatedCommands.buildNode(new GreedyNotLast()))
                 .isInstanceOf(CommandParseException.class)
                 .hasMessageContaining("greedy");
+    }
+
+    @Command(name = "optstr")
+    static class OptionalStringCommand {
+        String captured = "UNSET";
+
+        @Subcommand("go")
+        void go(Sender sender, @Arg(value = "x", optional = true) String x) {
+            captured = x;
+        }
+    }
+
+    @Test
+    void omittedOptionalStringBindsToEmptyNotNull() throws Exception {
+        OptionalStringCommand handler = new OptionalStringCommand();
+        LiteralCommandNode<CommandSourceStack> node = AnnotatedCommands.buildNode(handler);
+        CommandDispatcher<CommandSourceStack> dispatcher = new CommandDispatcher<>();
+        dispatcher.getRoot().addChild(node);
+        CommandSender sender = mock(CommandSender.class);
+        CommandSourceStack source = mock(CommandSourceStack.class);
+        when(source.getSender()).thenReturn(sender);
+
+        // Omitting the optional String must bind "" (so a consumer's isEmpty() check is NPE-free), not null.
+        dispatcher.execute("optstr go", source);
+
+        assertThat(handler.captured).isEqualTo("");
     }
 }
