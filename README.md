@@ -173,6 +173,11 @@ Material icon = config.getNode("ui", Settings.class, fallback).icon();   // code
 ConfigProperty<Integer> live = config.intProperty("homes.limit", 3);
 live.onChange(value -> rebuildLimits(value));   // fires on reload when the value changes
 config.reload();
+
+// Or map a whole file onto one @ConfigSerializable record, hot-reloaded as an atomic snapshot:
+RecordConfig<Settings> settings = new RecordConfig<>(dataFolder.resolve("settings.conf"), Settings.class, Settings::new);
+Settings current = settings.current();   // cached snapshot — cheap on the hot path
+settings.reload();                       // swaps in the new value, or keeps the prior one on a parse error
 ```
 
 ### Storage
