@@ -122,7 +122,7 @@ final class BrigadierRenderer {
             ArgBinder.ParamArg pa = args.get(i);
             RequiredArgumentBuilder<CommandSourceStack, ?> builder =
                     Cmd.argument(pa.name(), pa.resolver().argumentType(pa.arg(), pa.parameter()));
-            Suggestions.apply(builder, pa.view(), pa.resolver());
+            Suggestions.apply(builder, pa.view(), pa.resolver(), resolvers);
             if (tail == null) {
                 builder.executes(executor);
             } else {

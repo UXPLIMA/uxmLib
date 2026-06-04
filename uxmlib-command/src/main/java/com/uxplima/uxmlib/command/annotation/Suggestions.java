@@ -25,8 +25,11 @@ final class Suggestions {
     private Suggestions() {}
 
     static void apply(
-            RequiredArgumentBuilder<CommandSourceStack, ?> builder, AnnotatedView view, ParamResolver<?> resolver) {
-        List<SuggestionSource> sources = sourcesFor(view, resolver);
+            RequiredArgumentBuilder<CommandSourceStack, ?> builder,
+            AnnotatedView view,
+            ParamResolver<?> resolver,
+            ParamResolvers resolvers) {
+        List<SuggestionSource> sources = sourcesFor(view, resolver, resolvers);
         if (sources.isEmpty()) {
             return;
         }
@@ -34,9 +37,22 @@ final class Suggestions {
         builder.suggests(chain::suggest);
     }
 
-    /** The ordered suggestion sources for a parameter: explicit provider, static list, then resolver. */
-    private static List<SuggestionSource> sourcesFor(AnnotatedView view, ParamResolver<?> resolver) {
+    /**
+     * The ordered suggestion sources for a parameter: a named registered instance ({@code @SuggestUsing}), an
+     * explicit provider class ({@code @SuggestWith}), a static list ({@code @Suggest}), then the resolver's own.
+     */
+    private static List<SuggestionSource> sourcesFor(
+            AnnotatedView view, ParamResolver<?> resolver, ParamResolvers resolvers) {
         List<SuggestionSource> sources = new ArrayList<>();
+        SuggestUsing suggestUsing = view.get(SuggestUsing.class);
+        if (suggestUsing != null) {
+            SuggestionSource named = resolvers.suggestionSource(suggestUsing.value());
+            if (named == null) {
+                throw new CommandParseException("@SuggestUsing(\"" + suggestUsing.value()
+                        + "\") names no SuggestionSource registered on the ParamResolvers");
+            }
+            sources.add(named);
+        }
         SuggestWith suggestWith = view.get(SuggestWith.class);
         if (suggestWith != null) {
             sources.add(instantiate(suggestWith.value()));

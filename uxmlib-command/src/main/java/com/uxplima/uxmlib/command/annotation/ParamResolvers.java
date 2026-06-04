@@ -21,6 +21,7 @@ public final class ParamResolvers {
     private final List<ParamResolver.Factory> factories = new ArrayList<>();
     private final Map<Class<?>, List<ParameterValidator<?>>> validatorsByType = new HashMap<>();
     private final Map<Class<?>, ContextParameter<?>> contextByType = new HashMap<>();
+    private final Map<String, SuggestionSource> suggestionSources = new HashMap<>();
     private final List<CommandCondition> conditions = new ArrayList<>();
     private Cooldowns cooldowns = new Cooldowns();
     private Replacers replacers = Replacers.none();
@@ -68,6 +69,22 @@ public final class ParamResolvers {
         Objects.requireNonNull(validator, "validator");
         validatorsByType.computeIfAbsent(type, ignored -> new ArrayList<>()).add(validator);
         return this;
+    }
+
+    /**
+     * Register a tab-completion {@code source} under {@code key}, referenced from an {@code @Arg} parameter via
+     * {@code @}{@link SuggestUsing}. Unlike {@code @}{@link SuggestWith} (which reflects a no-arg provider
+     * class), the source is a fully-constructed instance, so it can close over a consumer's ports. Replaces any
+     * source already registered under that key. Returns this for chaining.
+     */
+    public ParamResolvers suggestions(String key, SuggestionSource source) {
+        suggestionSources.put(Objects.requireNonNull(key, "key"), Objects.requireNonNull(source, "source"));
+        return this;
+    }
+
+    /** The {@link SuggestionSource} registered under {@code key}, or {@code null} if none is. */
+    @Nullable SuggestionSource suggestionSource(String key) {
+        return suggestionSources.get(key);
     }
 
     /**
