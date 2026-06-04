@@ -7,7 +7,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
- * A semantic version with a pre-release ladder, used to decide whether a {@link Release} is newer than the
+ * A semantic version with a pre-release ladder, used to decide whether a published release is newer than the
  * running build. Parsing is lenient about the shapes real projects publish: an optional {@code v} prefix,
  * missing minor/patch (treated as zero), extra numeric segments beyond the third (a build number, e.g.
  * {@code 1.2.3.4}, kept and compared rather than truncated), a {@code -SNAPSHOT}/{@code -rc.1} pre-release
