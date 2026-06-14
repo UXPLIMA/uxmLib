@@ -25,6 +25,9 @@ import org.jspecify.annotations.Nullable;
  */
 public record TabEntry(UUID id, Component displayName, int listOrder, @Nullable TabSkin skin, @Nullable String name) {
 
+    /** Mojang caps a {@code GameProfile} name at 16 characters; a longer one makes the profile ctor throw. */
+    private static final int MAX_PROFILE_NAME_LENGTH = 16;
+
     public TabEntry {
         Objects.requireNonNull(id, "id");
         Objects.requireNonNull(displayName, "displayName");
@@ -36,11 +39,26 @@ public record TabEntry(UUID id, Component displayName, int listOrder, @Nullable 
     }
 
     /**
+     * A synthetic "filler" row backed by no real player: a fresh random id and an empty profile name, so it
+     * never collides with an online player or trips the 16-char profile-name limit. On 1.21.2+ clients the
+     * tab list sorts purely by {@link #listOrder}, so an empty name positions the slot fine.
+     *
+     * @param listOrder the sort key the client uses to order this row
+     * @param displayName the component shown for the row
+     * @param skin the custom skin texture, or {@code null} for none
+     */
+    public static TabEntry filler(int listOrder, Component displayName, @Nullable TabSkin skin) {
+        return new TabEntry(UUID.randomUUID(), displayName, listOrder, skin, "");
+    }
+
+    /**
      * The {@code GameProfile} name to use for this entry: the explicit {@link #name} when set, otherwise the
      * id rendered as a string. A profile always needs a name; the client never displays it (the display name
-     * does), so the id string is a safe, stable fallback.
+     * does), so the id string is a safe, stable fallback. The result is capped to {@value #MAX_PROFILE_NAME_LENGTH}
+     * characters so a long name (or the id fallback) can never reach the profile ctor and throw.
      */
     public String profileName() {
-        return name != null ? name : id.toString();
+        String resolved = name != null ? name : id.toString();
+        return resolved.length() <= MAX_PROFILE_NAME_LENGTH ? resolved : resolved.substring(0, MAX_PROFILE_NAME_LENGTH);
     }
 }

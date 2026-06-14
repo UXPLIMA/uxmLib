@@ -15,11 +15,12 @@ class TabEntryTest {
     private static final UUID ID = UUID.fromString("00000000-0000-0000-0000-0000000000aa");
 
     @Test
-    void profileNameDefaultsToTheIdStringWhenNameIsNull() {
+    void profileNameDefaultsToTheIdStringCappedAtSixteenWhenNameIsNull() {
         TabEntry entry = new TabEntry(ID, Component.text("hi"), 0, null, null);
 
         assertThat(entry.name()).isNull();
-        assertThat(entry.profileName()).isEqualTo(ID.toString());
+        assertThat(entry.profileName()).isEqualTo(ID.toString().substring(0, 16));
+        assertThat(entry.profileName()).hasSize(16);
     }
 
     @Test
@@ -27,6 +28,37 @@ class TabEntryTest {
         TabEntry entry = new TabEntry(ID, Component.text("hi"), 0, null, "Steve");
 
         assertThat(entry.profileName()).isEqualTo("Steve");
+    }
+
+    @Test
+    void profileNameTruncatesANameLongerThanSixteen() {
+        TabEntry entry = new TabEntry(ID, Component.text("hi"), 0, null, "a_seventeen_chars");
+
+        assertThat(entry.name()).hasSize(17);
+        assertThat(entry.profileName()).isEqualTo("a_seventeen_char");
+        assertThat(entry.profileName()).hasSize(16);
+    }
+
+    @Test
+    void fillerMintsARandomIdAndAValidEmptyProfileName() {
+        Component name = Component.text("spacer");
+        TabSkin skin = new TabSkin("base64", "sig");
+        TabEntry entry = TabEntry.filler(7, name, skin);
+
+        assertThat(entry.id()).isNotNull();
+        assertThat(entry.displayName()).isEqualTo(name);
+        assertThat(entry.listOrder()).isEqualTo(7);
+        assertThat(entry.skin()).isEqualTo(skin);
+        assertThat(entry.profileName()).isEmpty();
+        assertThat(entry.profileName().length()).isLessThanOrEqualTo(16);
+    }
+
+    @Test
+    void fillerMintsAUniqueIdEachCall() {
+        TabEntry first = TabEntry.filler(0, Component.text("a"), null);
+        TabEntry second = TabEntry.filler(0, Component.text("a"), null);
+
+        assertThat(first.id()).isNotEqualTo(second.id());
     }
 
     @Test
@@ -39,7 +71,7 @@ class TabEntryTest {
         assertThat(entry.listOrder()).isZero();
         assertThat(entry.skin()).isNull();
         assertThat(entry.name()).isNull();
-        assertThat(entry.profileName()).isEqualTo(ID.toString());
+        assertThat(entry.profileName()).isEqualTo(ID.toString().substring(0, 16));
     }
 
     @Test
