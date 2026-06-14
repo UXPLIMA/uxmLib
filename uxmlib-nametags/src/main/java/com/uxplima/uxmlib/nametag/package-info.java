@@ -6,8 +6,12 @@
  * packets are constructed against the Mojang-mapped dev bundle and quarantined to a single NMS class, while
  * the channel/send plumbing is reused from {@code uxmlib-npc}.
  *
- * <p>This package currently holds only the build wiring and is otherwise empty; the port, the renderer
- * logic, and the NMS packet builder land in later milestones. Treat every type here as unstable API.
+ * <p>This package holds the pure value types ({@link com.uxplima.uxmlib.nametag.Appearance},
+ * {@link com.uxplima.uxmlib.nametag.PerViewerText}, {@link com.uxplima.uxmlib.nametag.Billboard},
+ * {@link com.uxplima.uxmlib.nametag.Alignment}), the {@link com.uxplima.uxmlib.nametag.NametagPackets} port
+ * (the NMS seam), and the {@link com.uxplima.uxmlib.nametag.NametagRenderer} that drives a single per-viewer
+ * line. The NMS packet builder behind the port lands in a later milestone. Treat every type here as unstable
+ * API.
  */
 @NullMarked
 package com.uxplima.uxmlib.nametag;

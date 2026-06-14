@@ -21,7 +21,11 @@ dependencies {
     // a compileOnly dependency pinned to the version the server ships. Infra dep; the consumer never shades it.
     compileOnly(libs.netty.transport)
 
+    // The dev bundle is kept off the test classpath (see below), so the plain Paper API and Adventure are
+    // brought in directly for the MockBukkit-driven tests; Paper API also supplies JOML's Vector3f.
     testImplementation(libs.mockbukkit)
+    testImplementation(libs.paper.api)
+    testImplementation(libs.bundles.adventure)
     testImplementation(libs.bundles.testing)
     testImplementation(libs.netty.transport)
 }
