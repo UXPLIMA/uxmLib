@@ -18,6 +18,7 @@ dependencies {
     api(project(":uxmlib-update"))
     api(project(":uxmlib-condition"))
     api(project(":uxmlib-npc"))
+    api(project(":uxmlib-packet"))
     api(project(":uxmlib-nametags"))
     compileOnly(libs.paper.api)
 

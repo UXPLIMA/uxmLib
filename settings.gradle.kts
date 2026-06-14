@@ -24,6 +24,7 @@ include(
     ":uxmlib-update",
     ":uxmlib-condition",
     ":uxmlib-npc",
+    ":uxmlib-packet",
     ":uxmlib-nametags",
     ":uxmlib-all",
 )

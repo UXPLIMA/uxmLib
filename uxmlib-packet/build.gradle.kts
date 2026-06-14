@@ -4,13 +4,13 @@ plugins {
     alias(libs.plugins.paperweight.userdev)
 }
 
-// A from-scratch, MIT-clean per-viewer nametag renderer. The packet objects are built against the
-// Mojang-mapped dev bundle and quarantined to a single NMS class; everything else stays pure. The Netty
-// plumbing (channel resolve, packet send) is reused from uxmlib-npc, so this module depends on it.
+// The shared, MIT-clean packet foundation: the generic Mojang-mapped machinery (Adventure -> vanilla component
+// conversion, bundle building, the stream-codec buffer trick, the guarded accessor reflection, the entity-id
+// allocator) that more than one packet feature needs. The nametag renderer was the first consumer; the tablist
+// renderer is the second. NMS is quarantined to the small helper classes here, mirroring uxmlib-nametags. The
+// Netty plumbing (channel resolve, packet send) comes from uxmlib-npc.
 dependencies {
-    api(project(":uxmlib-common"))
     api(project(":uxmlib-npc"))
-    api(project(":uxmlib-packet"))
 
     // The Mojang-mapped dev bundle supplies the Paper API *and* the server internals (net.minecraft,
     // org.bukkit.craftbukkit) the packet construction needs; it replaces the plain paper-api compile
@@ -33,7 +33,7 @@ dependencies {
 
 // Keep the Mojang-mapped dev bundle off the test classpath. MockBukkit drives the plugin against the plain
 // Paper API, and the full server's static initializers throw if their classes leak onto the unit-test
-// runtime. compileOnly alone is what the renderer needs — net.minecraft is provided by the live server.
+// runtime. compileOnly alone is what the helpers need — net.minecraft is provided by the live server.
 paperweight {
     addServerDependencyTo.set(listOf(configurations.compileOnly.get()))
 }
