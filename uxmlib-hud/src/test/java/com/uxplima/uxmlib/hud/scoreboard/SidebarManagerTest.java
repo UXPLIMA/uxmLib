@@ -2,8 +2,10 @@ package com.uxplima.uxmlib.hud.scoreboard;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.ArrayList;
 import java.util.List;
 
+import org.bukkit.entity.Player;
 import org.bukkit.scoreboard.DisplaySlot;
 import org.bukkit.scoreboard.Objective;
 import org.bukkit.scoreboard.Scoreboard;
@@ -126,6 +128,37 @@ class SidebarManagerTest {
         assertThat(manager.count()).isZero();
         assertThat(manager.get(player.getUniqueId())).isNull();
     }
+
+    @Test
+    void boardSwitchCallbackFiresWithTheNewBoardOnCreate() {
+        PlayerMock player = server.addPlayer();
+        List<Switch> switches = new ArrayList<>();
+        manager.onBoardSwitch((p, b) -> switches.add(new Switch(p, b)));
+
+        manager.create(player, c("Title"));
+
+        assertThat(switches).hasSize(1);
+        assertThat(switches.get(0).player()).isSameAs(player);
+        assertThat(switches.get(0).board()).isSameAs(player.getScoreboard());
+    }
+
+    @Test
+    void boardSwitchCallbackFiresWithTheRestoredBoardOnRemove() {
+        PlayerMock player = server.addPlayer();
+        Scoreboard before = player.getScoreboard();
+        manager.create(player, c("Title"));
+        List<Switch> switches = new ArrayList<>();
+        manager.onBoardSwitch((p, b) -> switches.add(new Switch(p, b)));
+
+        manager.remove(player);
+
+        assertThat(switches).hasSize(1);
+        assertThat(switches.get(0).player()).isSameAs(player);
+        assertThat(switches.get(0).board()).isSameAs(before);
+        assertThat(player.getScoreboard()).isSameAs(before);
+    }
+
+    private record Switch(Player player, Scoreboard board) {}
 
     @Test
     void rejectsMoreLinesThanTheMaximum() {

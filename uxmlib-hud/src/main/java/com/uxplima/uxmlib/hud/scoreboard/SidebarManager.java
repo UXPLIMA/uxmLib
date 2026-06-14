@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.BiConsumer;
 
 import org.bukkit.entity.Player;
 import org.bukkit.scoreboard.Scoreboard;
@@ -24,6 +25,12 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>Quit cleanup is wired by registering a {@link SidebarListener} (it forwards each quitting player's UUID
  * to {@link #forget}); the manager itself stays free of Bukkit event plumbing.
+ *
+ * <p>A consumer that keeps its own state on whatever board the player currently has — say a team that hides
+ * the player's name — can register a callback via {@link #onBoardSwitch}; it fires with the player and their
+ * now-effective board after every switch (show and restore alike), so the consumer can re-apply that state on
+ * the fresh board. Switching boards resets the client team registry, so without this the consumer's state on
+ * the old board would silently disappear.
  */
 public final class SidebarManager {
 
@@ -31,6 +38,7 @@ public final class SidebarManager {
     private final @Nullable Scheduler scheduler;
     private final Map<UUID, Sidebar> active = new ConcurrentHashMap<>();
     private final Map<UUID, Scoreboard> prior = new ConcurrentHashMap<>();
+    private BiConsumer<Player, Scoreboard> boardSwitch = SidebarManager::ignore;
 
     public SidebarManager(ScoreboardManager scoreboards) {
         this(scoreboards, null);
@@ -43,6 +51,15 @@ public final class SidebarManager {
     public SidebarManager(ScoreboardManager scoreboards, @Nullable Scheduler scheduler) {
         this.scoreboards = Objects.requireNonNull(scoreboards, "scoreboards");
         this.scheduler = scheduler;
+    }
+
+    /**
+     * Register a callback fired after every board switch with the player and their now-effective board. Pass it
+     * the player and the board they have once the switch settles, so the callback can re-apply board-scoped
+     * state (a team, an objective) the switch would otherwise have dropped. Replaces any prior callback.
+     */
+    public void onBoardSwitch(BiConsumer<Player, Scoreboard> callback) {
+        this.boardSwitch = Objects.requireNonNull(callback, "callback");
     }
 
     /** Create, show and track a sidebar with {@code title} for {@code player}, replacing any prior one. */
@@ -59,6 +76,7 @@ public final class SidebarManager {
         Sidebar sidebar = new Sidebar(player, scoreboards.getNewScoreboard(), title);
         active.put(id, sidebar);
         sidebar.show();
+        boardSwitch.accept(player, player.getScoreboard());
         return sidebar;
     }
 
@@ -99,6 +117,7 @@ public final class SidebarManager {
         Scoreboard restore = prior.remove(id);
         if (restore != null) {
             player.setScoreboard(restore);
+            boardSwitch.accept(player, player.getScoreboard());
         }
     }
 
@@ -145,6 +164,9 @@ public final class SidebarManager {
         }
         return scheduler;
     }
+
+    /** The default callback when none is registered: a switch goes unobserved. */
+    private static void ignore(Player player, Scoreboard board) {}
 
     private static void requirePositive(Duration duration) {
         Objects.requireNonNull(duration, "duration");
