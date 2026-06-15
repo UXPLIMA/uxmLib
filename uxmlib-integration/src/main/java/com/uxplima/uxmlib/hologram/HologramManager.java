@@ -24,6 +24,7 @@ import org.bukkit.plugin.Plugin;
 public final class HologramManager {
 
     private final Set<Hologram> tracked = ConcurrentHashMap.newKeySet();
+    private final Set<ModelHologram> trackedModels = ConcurrentHashMap.newKeySet();
     private final List<HologramLifecycle> lifecycles = new CopyOnWriteArrayList<>();
 
     /** Install the built-in lifecycle that keeps the tracked-hologram viewer caches honest. */
@@ -45,6 +46,20 @@ public final class HologramManager {
         return hologram;
     }
 
+    /** Spawn {@code builder} at {@code location} and track the resulting item/block hologram. */
+    public ModelHologram spawn(Holograms.ModelBuilder<?> builder, Location location) {
+        Objects.requireNonNull(builder, "builder");
+        Objects.requireNonNull(location, "location");
+        return track(builder.spawnAt(location));
+    }
+
+    /** Track an item or block hologram spawned elsewhere so {@link #removeAll()} will despawn it too. */
+    public ModelHologram track(ModelHologram hologram) {
+        Objects.requireNonNull(hologram, "hologram");
+        trackedModels.add(hologram);
+        return hologram;
+    }
+
     /** Despawn one tracked hologram now and stop tracking it. */
     public void remove(Hologram hologram) {
         Objects.requireNonNull(hologram, "hologram");
@@ -53,9 +68,17 @@ public final class HologramManager {
         }
     }
 
-    /** How many holograms are currently tracked. */
+    /** Despawn one tracked item or block hologram now and stop tracking it. */
+    public void remove(ModelHologram hologram) {
+        Objects.requireNonNull(hologram, "hologram");
+        if (trackedModels.remove(hologram)) {
+            hologram.remove();
+        }
+    }
+
+    /** How many holograms are currently tracked (text, item and block together). */
     public int count() {
-        return tracked.size();
+        return tracked.size() + trackedModels.size();
     }
 
     /**
@@ -116,10 +139,13 @@ public final class HologramManager {
         }
     }
 
-    /** Drop {@code viewer} from every tracked hologram's allowed-viewer set. */
+    /** Drop {@code viewer} from every tracked hologram's allowed-viewer set (text, item and block). */
     public void invalidateViewer(UUID viewer) {
         Objects.requireNonNull(viewer, "viewer");
         for (Hologram hologram : tracked) {
+            hologram.forgetViewer(viewer);
+        }
+        for (ModelHologram hologram : trackedModels) {
             hologram.forgetViewer(viewer);
         }
     }
@@ -146,12 +172,16 @@ public final class HologramManager {
         }
     }
 
-    /** Despawn every tracked hologram and clear the set. Call this from {@code onDisable}. */
+    /** Despawn every tracked hologram (text, item and block) and clear the sets. Call from {@code onDisable}. */
     public void removeAll() {
         for (Hologram hologram : tracked) {
             hologram.remove();
         }
         tracked.clear();
+        for (ModelHologram hologram : trackedModels) {
+            hologram.remove();
+        }
+        trackedModels.clear();
     }
 
     /**

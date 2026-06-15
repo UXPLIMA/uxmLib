@@ -32,6 +32,24 @@ public final class Holograms {
     }
 
     /**
+     * Start configuring a managed {@link ItemHologram} showing {@code item}. The builder carries the
+     * {@link Display}-shared appearance (billboard, glow, view range, brightness, scale, rotation, transform) —
+     * the text-only properties do not apply to an item display — and {@link ModelBuilder#spawnAt(Location)}s the
+     * live, viewer-controllable hologram.
+     */
+    public static ItemBuilder item(ItemStack item) {
+        return new ItemBuilder(Objects.requireNonNull(item, "item"));
+    }
+
+    /**
+     * Start configuring a managed {@link BlockHologram} showing {@code block}. The builder carries the
+     * {@link Display}-shared appearance and {@link ModelBuilder#spawnAt(Location)}s the live hologram.
+     */
+    public static BlockBuilder block(BlockData block) {
+        return new BlockBuilder(Objects.requireNonNull(block, "block"));
+    }
+
+    /**
      * Spawn a floating item display at {@code location}. Must run on that location's region thread; the
      * returned {@link ItemDisplay} is the live entity (remove it with {@link org.bukkit.entity.Entity#remove()}).
      */
@@ -237,5 +255,129 @@ public final class Holograms {
                     Markers.stamp(entity);
                 }),
                 location);
+    }
+
+    /**
+     * The shared fluent base for the item and block builders: the {@link Display}-wide appearance setters that
+     * apply to every display type (billboard, glow, view range, brightness, scale, rotation, transform). The
+     * text-only setters (background, line width, shadow, see-through, opacity) are intentionally absent — they
+     * have no meaning for an item or block display. Each setter returns {@code this} typed as the concrete
+     * builder so a chain stays fluent.
+     *
+     * @param <B> the concrete builder type, returned by every setter for fluent chaining
+     */
+    public abstract static sealed class ModelBuilder<B extends ModelBuilder<B>> permits ItemBuilder, BlockBuilder {
+        Appearance appearance = Appearance.DEFAULT;
+
+        ModelBuilder() {}
+
+        abstract B self();
+
+        /** How the display faces the viewer; {@link Display.Billboard#CENTER} (always faces) by default. */
+        public B billboard(Display.Billboard billboard) {
+            appearance = appearance.withBillboard(Objects.requireNonNull(billboard, "billboard"));
+            return self();
+        }
+
+        /** Give the model a glowing outline in {@code color}. */
+        public B glow(Color color) {
+            appearance = appearance.withGlow(Objects.requireNonNull(color, "color"));
+            return self();
+        }
+
+        /** Set how far away the hologram stays visible (a view-range multiplier). */
+        public B viewRange(float range) {
+            appearance = appearance.withViewRange(range);
+            return self();
+        }
+
+        /** Override the block/sky light levels the model is rendered at. */
+        public B brightness(Display.Brightness brightness) {
+            appearance = appearance.withBrightness(Objects.requireNonNull(brightness, "brightness"));
+            return self();
+        }
+
+        /** Scale the hologram uniformly (1.0 = default size). */
+        public B scale(float factor) {
+            appearance = appearance.withTransform(transformOrNone().withScale(factor));
+            return self();
+        }
+
+        /** Rotate the hologram {@code degrees} about the vertical axis. */
+        public B rotation(float degrees) {
+            appearance = appearance.withTransform(transformOrNone().withYaw(degrees));
+            return self();
+        }
+
+        /** Set the full scale-and-rotation transform at once. */
+        public B transform(Transform transform) {
+            appearance = appearance.withTransform(Objects.requireNonNull(transform, "transform"));
+            return self();
+        }
+
+        /** The accumulated appearance, for inspection or reuse in a test. */
+        public Appearance appearance() {
+            return appearance;
+        }
+
+        private Transform transformOrNone() {
+            Transform current = appearance.transform();
+            return current == null ? Transform.NONE : current;
+        }
+
+        /** Spawn the hologram at {@code location}. Must run on that location's region thread. */
+        public abstract ModelHologram spawnAt(Location location);
+    }
+
+    /** Fluent builder for an {@link ItemHologram}'s content and {@link Display}-shared appearance. */
+    public static final class ItemBuilder extends ModelBuilder<ItemBuilder> {
+        private final ItemStack item;
+
+        ItemBuilder(ItemStack item) {
+            this.item = item;
+        }
+
+        @Override
+        ItemBuilder self() {
+            return this;
+        }
+
+        @Override
+        public ItemHologram spawnAt(Location location) {
+            Objects.requireNonNull(location, "location");
+            org.bukkit.World world = Objects.requireNonNull(location.getWorld(), "location world");
+            ItemDisplay display = world.spawn(location, ItemDisplay.class, entity -> {
+                entity.setItemStack(item);
+                appearance.applyToDisplay(entity);
+                Markers.stamp(entity);
+            });
+            return new ItemHologram(display);
+        }
+    }
+
+    /** Fluent builder for a {@link BlockHologram}'s content and {@link Display}-shared appearance. */
+    public static final class BlockBuilder extends ModelBuilder<BlockBuilder> {
+        private final BlockData block;
+
+        BlockBuilder(BlockData block) {
+            this.block = block;
+        }
+
+        @Override
+        BlockBuilder self() {
+            return this;
+        }
+
+        @Override
+        public BlockHologram spawnAt(Location location) {
+            Objects.requireNonNull(location, "location");
+            org.bukkit.World world = Objects.requireNonNull(location.getWorld(), "location world");
+            BlockDisplay display = world.spawn(location, BlockDisplay.class, entity -> {
+                entity.setBlock(block);
+                appearance.applyToDisplay(entity);
+                Markers.stamp(entity);
+            });
+            return new BlockHologram(display);
+        }
     }
 }

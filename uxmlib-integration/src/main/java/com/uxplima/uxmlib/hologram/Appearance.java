@@ -169,13 +169,9 @@ public record Appearance(
 
     /** Apply every set field to {@code display}, leaving unset (null/false) fields at Paper's default. */
     void applyTo(TextDisplay display) {
-        display.setBillboard(billboard);
+        applyToDisplay(display);
         display.setSeeThrough(seeThrough);
         display.setShadowed(textShadow);
-        if (glow != null) {
-            display.setGlowing(true);
-            display.setGlowColorOverride(glow);
-        }
         if (background != null) {
             display.setBackgroundColor(background);
         }
@@ -184,6 +180,20 @@ public record Appearance(
         }
         if (lineWidth != null) {
             display.setLineWidth(lineWidth);
+        }
+    }
+
+    /**
+     * Apply the fields every {@link Display} shares — billboard, glow, view range, brightness and transform —
+     * to {@code display}, leaving the text-only fields (background, opacity, line width, shadow, see-through)
+     * untouched. An item or block display has no text, so only this subset applies to it; {@link #applyTo}
+     * layers the text-only fields on top for a {@link TextDisplay}.
+     */
+    void applyToDisplay(org.bukkit.entity.Display display) {
+        display.setBillboard(billboard);
+        if (glow != null) {
+            display.setGlowing(true);
+            display.setGlowColorOverride(glow);
         }
         if (viewRange != null) {
             display.setViewRange(viewRange);
