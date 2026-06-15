@@ -200,6 +200,15 @@ public final class NmsNpcPackets implements NpcPackets {
     }
 
     @Override
+    public Object glowColorRemove(String teamName) {
+        Objects.requireNonNull(teamName, "teamName");
+        // The remove packet carries only the team name off the team object, so a throwaway one suffices; the
+        // client drops the named team if it has it and ignores the packet otherwise.
+        PlayerTeam team = new PlayerTeam(new Scoreboard(), teamName);
+        return ClientboundSetPlayerTeamPacket.createRemovePacket(team);
+    }
+
+    @Override
     public Object bundle(List<Object> packets) {
         return Bundles.of(packets);
     }

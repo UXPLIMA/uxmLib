@@ -143,6 +143,15 @@ class NpcPacketsContractTest {
     }
 
     @Test
+    void glowColorRemoveCarriesTheTeamName() {
+        FakeNpcPackets packets = new FakeNpcPackets();
+
+        FakeNpcPackets.GlowColorRemove removed = (FakeNpcPackets.GlowColorRemove) packets.glowColorRemove("guide");
+
+        assertThat(removed.teamName()).isEqualTo("guide");
+    }
+
+    @Test
     void everyNamedColorNamesAChatFormatting() {
         // The NMS impl maps a NamedColor onto ChatFormatting by name; this proves each constant has a counterpart
         // so the by-name mapping never throws at render time. The 16 ChatFormatting colour names are fixed by the
@@ -190,6 +199,8 @@ class NpcPacketsContractTest {
         record Glow(int entityId, boolean glowing) {}
 
         record GlowColor(String teamName, String memberName, @Nullable NamedColor color) {}
+
+        record GlowColorRemove(String teamName) {}
 
         record Bundle(List<Object> packets) {}
 
@@ -251,6 +262,11 @@ class NpcPacketsContractTest {
         @Override
         public Object glowColor(String teamName, String memberName, @Nullable NamedColor color) {
             return new GlowColor(teamName, memberName, color);
+        }
+
+        @Override
+        public Object glowColorRemove(String teamName) {
+            return new GlowColorRemove(teamName);
         }
 
         @Override

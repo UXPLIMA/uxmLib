@@ -88,6 +88,17 @@ public interface NpcPackets {
      */
     Object glowColor(String teamName, String memberName, @Nullable NamedColor color);
 
+    /**
+     * Build the scoreboard-team packet that removes the glow-colour team {@code teamName} from the client. A team
+     * created by {@link #glowColor} is client-side state that outlives the entity — despawning the fake player does
+     * not drop it — so a viewer who no longer sees the NPC, or sees it stop glowing, must be sent this to clear the
+     * orphaned team (otherwise the colour can later bind to a real player who happens to share the seated name).
+     * Removing a team the client never had is a harmless no-op, so this is safe to send on every despawn path.
+     *
+     * @param teamName the team name to remove (the same name {@link #glowColor} created)
+     */
+    Object glowColorRemove(String teamName);
+
     /** Wrap several already-built packets into one bundle so a tab-add + spawn arrives as one atomic frame. */
     Object bundle(List<Object> packets);
 
