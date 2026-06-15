@@ -95,6 +95,21 @@ class NpcPacketsContractTest {
     }
 
     @Test
+    void spawnEntityCarriesTheTypeKeyAndEntityUuid() {
+        FakeNpcPackets packets = new FakeNpcPackets();
+        UUID entityUuid = UUID.randomUUID();
+        int entityId = packets.allocateEntityId();
+
+        FakeNpcPackets.SpawnEntity spawn = (FakeNpcPackets.SpawnEntity)
+                packets.spawnEntity(entityId, entityUuid, "minecraft:villager", 1.0, 2.0, 3.0, 90.0f, 0.0f);
+
+        assertThat(spawn.entityId()).isEqualTo(entityId);
+        assertThat(spawn.entityUuid()).isEqualTo(entityUuid);
+        assertThat(spawn.entityTypeKey()).isEqualTo("minecraft:villager");
+        assertThat(spawn.yaw()).isEqualTo(90.0f);
+    }
+
+    @Test
     void bundleCopiesItsInput() {
         FakeNpcPackets packets = new FakeNpcPackets();
         List<Object> input = new ArrayList<>();
@@ -186,6 +201,16 @@ class NpcPacketsContractTest {
 
         record Spawn(int entityId, UUID profileId, double x, double y, double z, float yaw, float pitch) {}
 
+        record SpawnEntity(
+                int entityId,
+                UUID entityUuid,
+                String entityTypeKey,
+                double x,
+                double y,
+                double z,
+                float yaw,
+                float pitch) {}
+
         record HeadLook(int entityId, float yaw) {}
 
         record BodyLook(int entityId, float yaw, float pitch) {}
@@ -227,6 +252,19 @@ class NpcPacketsContractTest {
         @Override
         public Object spawnPlayer(int entityId, UUID profileId, double x, double y, double z, float yaw, float pitch) {
             return new Spawn(entityId, profileId, x, y, z, yaw, pitch);
+        }
+
+        @Override
+        public Object spawnEntity(
+                int entityId,
+                UUID entityUuid,
+                String entityTypeKey,
+                double x,
+                double y,
+                double z,
+                float yaw,
+                float pitch) {
+            return new SpawnEntity(entityId, entityUuid, entityTypeKey, x, y, z, yaw, pitch);
         }
 
         @Override

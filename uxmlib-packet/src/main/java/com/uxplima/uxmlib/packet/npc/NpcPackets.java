@@ -43,9 +43,24 @@ public interface NpcPackets {
     /**
      * Build the entity-spawn packet for a fake player at {@code x,y,z} facing {@code yaw}/{@code pitch}. The
      * spawn UUID is {@code profileId} so the client links the skin from the matching player-info entry; the
-     * head is aimed at {@code yaw} too, matching the body's initial facing.
+     * head is aimed at {@code yaw} too, matching the body's initial facing. This is the {@code PLAYER}
+     * specialisation of {@link #spawnEntity}: the player path needs the profile id as the spawn UUID so the
+     * skin binds, whereas a mob carries an opaque entity UUID with no profile behind it.
      */
     Object spawnPlayer(int entityId, UUID profileId, double x, double y, double z, float yaw, float pitch);
+
+    /**
+     * Build the entity-spawn packet for a mob NPC of {@code entityTypeKey} (a namespaced or plain entity-type
+     * key, e.g. {@code "minecraft:villager"} or {@code "villager"}) at {@code x,y,z} facing {@code yaw}/{@code
+     * pitch}. Unlike {@link #spawnPlayer} there is no player-info entry: a mob spawns straight through the spawn
+     * packet, so {@code entityUuid} is just the opaque entity UUID (no profile, no skin binding). The same
+     * generic add-entity builder backs both methods; this one resolves the server entity type from the key.
+     *
+     * @throws IllegalArgumentException if {@code entityTypeKey} resolves to no known entity type. The caller is
+     *     expected to validate the type before calling, so this is a defensive guard rather than a routine path.
+     */
+    Object spawnEntity(
+            int entityId, UUID entityUuid, String entityTypeKey, double x, double y, double z, float yaw, float pitch);
 
     /** Build a head-rotation packet that aims only the NPC's head at {@code yaw}. */
     Object headLook(int entityId, float yaw);

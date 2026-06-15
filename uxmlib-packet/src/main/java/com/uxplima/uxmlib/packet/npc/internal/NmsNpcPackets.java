@@ -26,6 +26,7 @@ import com.uxplima.uxmlib.packet.npc.NamedColor;
 import com.uxplima.uxmlib.packet.npc.NpcPackets;
 import com.uxplima.uxmlib.packet.tablist.TabSkin;
 import net.minecraft.ChatFormatting;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.protocol.game.ClientboundAddEntityPacket;
 import net.minecraft.network.protocol.game.ClientboundMoveEntityPacket;
 import net.minecraft.network.protocol.game.ClientboundPlayerInfoRemovePacket;
@@ -40,6 +41,7 @@ import net.minecraft.network.protocol.game.ClientboundSetPlayerTeamPacket;
 import net.minecraft.network.protocol.game.ClientboundTeleportEntityPacket;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.PositionMoveRotation;
@@ -60,12 +62,15 @@ import org.jspecify.annotations.Nullable;
  * server's own mappings at load. Two construction notes that are easy to get wrong:
  *
  * <ul>
- *   <li><b>Spawning a player.</b> Since 1.20.2 there is no separate add-player packet; a fake player spawns
- *       through {@code ClientboundAddEntityPacket} with {@code EntityType.PLAYER}. The spawn UUID must equal
- *       the profile id from the player-info ADD entry, or the client will not link the skin to the entity.
- *       That public constructor packs the raw degree rotations itself (via {@code Mth.packDegrees}), so spawn
- *       passes raw floats; the standalone look and teleport packets instead take a pre-packed byte, which
- *       {@link ByteAngle} produces with the same {@code floor} math so the two stay in step.
+ *   <li><b>Spawning an entity.</b> Since 1.20.2 there is no separate add-player packet; every NPC — a fake
+ *       player or a mob — spawns through {@code ClientboundAddEntityPacket}, so both spawn methods share one
+ *       builder that differs only in the {@code EntityType} and the spawn UUID. A fake player passes {@code
+ *       EntityType.PLAYER} and the profile id as the spawn UUID, which must equal the id from the player-info
+ *       ADD entry or the client will not link the skin to the entity; a mob passes the type resolved from the
+ *       entity-type registry and an opaque entity UUID with no skin to bind. That public constructor packs the
+ *       raw degree rotations itself (via {@code Mth.packDegrees}), so spawn passes raw floats; the standalone
+ *       look and teleport packets instead take a pre-packed byte, which {@link ByteAngle} produces with the same
+ *       {@code floor} math so the two stay in step.
  *   <li><b>Head rotation.</b> {@code ClientboundRotateHeadPacket} exposes only an {@code Entity}-bound public
  *       constructor and a private buffer one, so it is built through its public stream codec exactly like the
  *       passenger packet in {@code NmsNametagPackets} — write the wire form (entity id, head-yaw byte), decode.
@@ -135,10 +140,49 @@ public final class NmsNpcPackets implements NpcPackets {
     @Override
     public Object spawnPlayer(int entityId, UUID profileId, double x, double y, double z, float yaw, float pitch) {
         Objects.requireNonNull(profileId, "profileId");
-        // The spawn UUID is the profile id so the client links the skin; the ctor packs the raw degrees itself,
-        // and the head yaw matches the body yaw so the NPC faces one way on spawn.
-        return new ClientboundAddEntityPacket(
-                entityId, profileId, x, y, z, pitch, yaw, EntityType.PLAYER, 0, Vec3.ZERO, yaw);
+        // The spawn UUID is the profile id so the client links the skin; the head yaw matches the body yaw so the
+        // NPC faces one way on spawn. PLAYER is the specialisation of the generic add-entity build below.
+        return addEntity(entityId, profileId, EntityType.PLAYER, x, y, z, yaw, pitch);
+    }
+
+    @Override
+    public Object spawnEntity(
+            int entityId, UUID entityUuid, String entityTypeKey, double x, double y, double z, float yaw, float pitch) {
+        Objects.requireNonNull(entityUuid, "entityUuid");
+        Objects.requireNonNull(entityTypeKey, "entityTypeKey");
+        // A mob has no player-info entry, so entityUuid is just the opaque spawn UUID. Resolve the server entity
+        // type from the key off the entity-type registry; an unresolved key is a guard failure (the plugin
+        // validates first).
+        return addEntity(entityId, entityUuid, resolveType(entityTypeKey), x, y, z, yaw, pitch);
+    }
+
+    /**
+     * The generic {@code ClientboundAddEntityPacket} builder both spawn methods share. The public constructor
+     * packs the raw degree rotations itself (via {@code Mth.packDegrees}), so it takes raw floats; data is 0 and
+     * the delta movement zero for a static NPC, and the head yaw matches the body yaw so the NPC faces one way on
+     * spawn.
+     */
+    private static ClientboundAddEntityPacket addEntity(
+            int entityId, UUID spawnUuid, EntityType<?> type, double x, double y, double z, float yaw, float pitch) {
+        return new ClientboundAddEntityPacket(entityId, spawnUuid, x, y, z, pitch, yaw, type, 0, Vec3.ZERO, yaw);
+    }
+
+    /**
+     * Resolve a namespaced-or-plain entity-type key to the server {@link EntityType}. {@code "villager"} is
+     * defaulted to the {@code minecraft} namespace; an unparseable or unknown key resolves to nothing and is
+     * rejected, matching the port's documented guard.
+     */
+    private static EntityType<?> resolveType(String entityTypeKey) {
+        Identifier id = entityTypeKey.indexOf(Identifier.NAMESPACE_SEPARATOR) < 0
+                ? Identifier.withDefaultNamespace(entityTypeKey)
+                : Identifier.tryParse(entityTypeKey);
+        EntityType<?> type = id == null
+                ? null
+                : BuiltInRegistries.ENTITY_TYPE.getOptional(id).orElse(null);
+        if (type == null) {
+            throw new IllegalArgumentException("Unknown entity type key: " + entityTypeKey);
+        }
+        return type;
     }
 
     @Override
