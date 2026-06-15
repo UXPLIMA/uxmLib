@@ -1,0 +1,65 @@
+package com.uxplima.uxmlib.packet.npc;
+
+import java.util.List;
+import java.util.UUID;
+
+import org.bukkit.entity.Player;
+
+import com.uxplima.uxmlib.packet.tablist.TabSkin;
+import org.jspecify.annotations.Nullable;
+
+/**
+ * The seam between pure NPC logic and the NMS packet construction for a fake-player NPC. Every packet crosses
+ * this boundary as an opaque {@link Object}, so this interface — and everything that depends on it — carries no
+ * {@code net.minecraft} reference and stays unit-testable against a fake. The single implementation that builds
+ * the real Mojang-mapped packets against the dev bundle lives behind this port in {@code npc.internal}.
+ *
+ * <p>A fake-player NPC is shown to a client in a fixed sequence: first a player-info entry carrying the name
+ * and skin so the client knows how to render the body, then the entity spawn at a position and rotation, then
+ * the look packets that aim its head and body. The client links the skin to the spawned entity because the
+ * spawn UUID equals the player-info entry's profile id — so the spawn must reuse the same {@code profileId}.
+ * The caller typically removes the player-info entry from the visible tab a moment after spawning (a short
+ * delay so the client has parsed the entry); {@link #tabRemove(UUID)} builds that removal. Each method returns
+ * one built packet; {@link #send(Player, Object)} writes it to a viewer's connection, so the same packet can be
+ * sent to many viewers without rebuilding it.
+ */
+public interface NpcPackets {
+
+    /** Allocate a fake-entity id from the shared server counter; it never collides with a real entity. */
+    int allocateEntityId();
+
+    /**
+     * Build a player-info ADD packet that seats a fully-controlled profile (name, and the skin as a
+     * {@code textures} property when present) so the client can render the NPC's body. The entry is marked
+     * listed; the caller removes it from the visible tab shortly after the spawn with {@link #tabRemove(UUID)}.
+     */
+    Object tabAdd(UUID profileId, String name, @Nullable TabSkin skin);
+
+    /** Build a player-info REMOVE packet that drops {@code profileId} from the tab list. */
+    Object tabRemove(UUID profileId);
+
+    /**
+     * Build the entity-spawn packet for a fake player at {@code x,y,z} facing {@code yaw}/{@code pitch}. The
+     * spawn UUID is {@code profileId} so the client links the skin from the matching player-info entry; the
+     * head is aimed at {@code yaw} too, matching the body's initial facing.
+     */
+    Object spawnPlayer(int entityId, UUID profileId, double x, double y, double z, float yaw, float pitch);
+
+    /** Build a head-rotation packet that aims only the NPC's head at {@code yaw}. */
+    Object headLook(int entityId, float yaw);
+
+    /** Build a rotation-only move packet that turns the NPC's body to {@code yaw}/{@code pitch}. */
+    Object bodyLook(int entityId, float yaw, float pitch);
+
+    /** Build a teleport packet that moves the NPC to {@code x,y,z} facing {@code yaw}/{@code pitch}. */
+    Object teleport(int entityId, double x, double y, double z, float yaw, float pitch);
+
+    /** Build a packet that despawns the NPC by its entity id. */
+    Object remove(int entityId);
+
+    /** Wrap several already-built packets into one bundle so a tab-add + spawn arrives as one atomic frame. */
+    Object bundle(List<Object> packets);
+
+    /** Write {@code packet} to {@code viewer}'s connection. A no-op if the connection cannot be resolved. */
+    void send(Player viewer, Object packet);
+}
