@@ -3,15 +3,23 @@ package com.uxplima.uxmlib.packet.npc;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.bukkit.Material;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
 
 import com.uxplima.uxmlib.packet.tablist.TabSkin;
 import org.jspecify.annotations.Nullable;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockbukkit.mockbukkit.MockBukkit;
+import org.mockbukkit.mockbukkit.inventory.ItemStackMock;
 
 /**
  * The {@link NpcPackets} port contract, exercised against a recording fake. The real packet construction is
@@ -20,6 +28,36 @@ import org.junit.jupiter.api.Test;
  * the client needs to attach the skin), and that {@code bundle}/{@code send} behave as documented.
  */
 class NpcPacketsContractTest {
+
+    /** The 16 colour names {@code net.minecraft.ChatFormatting} declares — the by-name target for {@link NamedColor}. */
+    private static final java.util.Set<String> CHAT_FORMATTING_COLORS = java.util.Set.of(
+            "BLACK",
+            "DARK_BLUE",
+            "DARK_GREEN",
+            "DARK_AQUA",
+            "DARK_RED",
+            "DARK_PURPLE",
+            "GOLD",
+            "GRAY",
+            "DARK_GRAY",
+            "BLUE",
+            "GREEN",
+            "AQUA",
+            "RED",
+            "LIGHT_PURPLE",
+            "YELLOW",
+            "WHITE");
+
+    @BeforeEach
+    void setUp() {
+        // A mocked server is needed only to mint a real ItemStack for the equipment contract; the rest is pure.
+        MockBukkit.mock();
+    }
+
+    @AfterEach
+    void tearDown() {
+        MockBukkit.unmock();
+    }
 
     @Test
     void allocatesMonotonicIds() {
@@ -69,6 +107,52 @@ class NpcPacketsContractTest {
     }
 
     @Test
+    void equipmentCarriesEachSlotItem() {
+        FakeNpcPackets packets = new FakeNpcPackets();
+        int entityId = packets.allocateEntityId();
+        ItemStack item = item();
+        Map<EquipmentSlot, ItemStack> items = Map.of(EquipmentSlot.HEAD, item);
+
+        FakeNpcPackets.Equipment equipment = (FakeNpcPackets.Equipment) packets.equipment(entityId, items);
+
+        assertThat(equipment.entityId()).isEqualTo(entityId);
+        assertThat(equipment.items()).containsEntry(EquipmentSlot.HEAD, item);
+    }
+
+    @Test
+    void glowCarriesTheToggle() {
+        FakeNpcPackets packets = new FakeNpcPackets();
+
+        FakeNpcPackets.Glow on = (FakeNpcPackets.Glow) packets.glow(7, true);
+        FakeNpcPackets.Glow off = (FakeNpcPackets.Glow) packets.glow(7, false);
+
+        assertThat(on.glowing()).isTrue();
+        assertThat(off.glowing()).isFalse();
+    }
+
+    @Test
+    void glowColorCarriesTheTeamMemberAndColor() {
+        FakeNpcPackets packets = new FakeNpcPackets();
+
+        FakeNpcPackets.GlowColor colored =
+                (FakeNpcPackets.GlowColor) packets.glowColor("uxmnpc_guide", "guide", NamedColor.RED);
+
+        assertThat(colored.teamName()).isEqualTo("uxmnpc_guide");
+        assertThat(colored.memberName()).isEqualTo("guide");
+        assertThat(colored.color()).isEqualTo(NamedColor.RED);
+    }
+
+    @Test
+    void everyNamedColorNamesAChatFormatting() {
+        // The NMS impl maps a NamedColor onto ChatFormatting by name; this proves each constant has a counterpart
+        // so the by-name mapping never throws at render time. The 16 ChatFormatting colour names are fixed by the
+        // protocol, so pinning them here is stable.
+        for (NamedColor color : NamedColor.values()) {
+            assertThat(CHAT_FORMATTING_COLORS).contains(color.name());
+        }
+    }
+
+    @Test
     void sendRecordsTheRecipient() {
         FakeNpcPackets packets = new FakeNpcPackets();
         Player viewer = (Player) java.lang.reflect.Proxy.newProxyInstance(
@@ -77,6 +161,11 @@ class NpcPacketsContractTest {
         packets.send(viewer, "packet");
 
         assertThat(packets.sends).containsExactly(new FakeNpcPackets.Sent(viewer, "packet"));
+    }
+
+    /** A real (mocked) {@link ItemStack} the equipment contract carries through the fake. */
+    private static ItemStack item() {
+        return new ItemStackMock(Material.DIAMOND_HELMET);
     }
 
     /** A recording fake whose packets are sentinel records so the contract can be asserted without NMS. */
@@ -95,6 +184,12 @@ class NpcPacketsContractTest {
         record Teleport(int entityId, double x, double y, double z, float yaw, float pitch) {}
 
         record Remove(int entityId) {}
+
+        record Equipment(int entityId, Map<EquipmentSlot, ItemStack> items) {}
+
+        record Glow(int entityId, boolean glowing) {}
+
+        record GlowColor(String teamName, String memberName, @Nullable NamedColor color) {}
 
         record Bundle(List<Object> packets) {}
 
@@ -141,6 +236,21 @@ class NpcPacketsContractTest {
         @Override
         public Object remove(int entityId) {
             return new Remove(entityId);
+        }
+
+        @Override
+        public Object equipment(int entityId, Map<EquipmentSlot, ItemStack> items) {
+            return new Equipment(entityId, new LinkedHashMap<>(items));
+        }
+
+        @Override
+        public Object glow(int entityId, boolean glowing) {
+            return new Glow(entityId, glowing);
+        }
+
+        @Override
+        public Object glowColor(String teamName, String memberName, @Nullable NamedColor color) {
+            return new GlowColor(teamName, memberName, color);
         }
 
         @Override

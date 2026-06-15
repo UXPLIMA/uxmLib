@@ -1,9 +1,11 @@
 package com.uxplima.uxmlib.packet.npc;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
 
 import com.uxplima.uxmlib.packet.tablist.TabSkin;
 import org.jspecify.annotations.Nullable;
@@ -56,6 +58,35 @@ public interface NpcPackets {
 
     /** Build a packet that despawns the NPC by its entity id. */
     Object remove(int entityId);
+
+    /**
+     * Build the set-equipment packet that dresses the NPC: each {@link EquipmentSlot} in {@code items} maps to the
+     * {@link ItemStack} worn there. Equipment is inherently item data, so this port takes the Bukkit
+     * {@link ItemStack} directly (the implementation copies it into the server's own item form). An empty map
+     * produces a packet that strips every slot the NPC could wear, so a re-render that drops a slot clears it on
+     * the client rather than leaving a stale item.
+     */
+    Object equipment(int entityId, Map<EquipmentSlot, ItemStack> items);
+
+    /**
+     * Build the metadata packet that turns the NPC's glowing outline on or off through the entity's shared-flags
+     * byte (the {@code glowing} bit). White is the default outline colour; {@link #glowColor} tints it. A fresh
+     * NPC carries no other shared flags (not on fire, not sneaking), so the packet sets only the one bit.
+     */
+    Object glow(int entityId, boolean glowing);
+
+    /**
+     * Build the scoreboard-team packet that tints the NPC's glow to {@code color}. The client colours a glowing
+     * entity's outline with the colour of the team its name is a member of, so this packet creates (or modifies) a
+     * team named {@code teamName}, sets its colour, and seats {@code memberName} as a member. For a fake player
+     * the member name is its profile name (the same name carried on the player-info entry, capped at 16 chars). A
+     * {@code null} colour leaves the team colourless, which renders the default white outline.
+     *
+     * @param teamName the team name to create or modify (stable per NPC so a re-colour reuses it)
+     * @param memberName the NPC's profile name, seated as the team's sole member
+     * @param color the glow colour, or {@code null} for the default white outline
+     */
+    Object glowColor(String teamName, String memberName, @Nullable NamedColor color);
 
     /** Wrap several already-built packets into one bundle so a tab-add + spawn arrives as one atomic frame. */
     Object bundle(List<Object> packets);

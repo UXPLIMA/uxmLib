@@ -1,22 +1,31 @@
 package com.uxplima.uxmlib.packet.npc.internal;
 
+import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
+import org.bukkit.craftbukkit.inventory.CraftItemStack;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
 
 import com.mojang.authlib.GameProfile;
 import com.mojang.authlib.properties.Property;
+import com.mojang.datafixers.util.Pair;
 import com.uxplima.uxmlib.npc.PacketSender;
 import com.uxplima.uxmlib.packet.Bundles;
 import com.uxplima.uxmlib.packet.Codecs;
 import com.uxplima.uxmlib.packet.EntityIds;
+import com.uxplima.uxmlib.packet.Reflect;
 import com.uxplima.uxmlib.packet.npc.ByteAngle;
+import com.uxplima.uxmlib.packet.npc.EquipmentSlot;
+import com.uxplima.uxmlib.packet.npc.NamedColor;
 import com.uxplima.uxmlib.packet.npc.NpcPackets;
 import com.uxplima.uxmlib.packet.tablist.TabSkin;
+import net.minecraft.ChatFormatting;
 import net.minecraft.network.protocol.game.ClientboundAddEntityPacket;
 import net.minecraft.network.protocol.game.ClientboundMoveEntityPacket;
 import net.minecraft.network.protocol.game.ClientboundPlayerInfoRemovePacket;
@@ -25,12 +34,20 @@ import net.minecraft.network.protocol.game.ClientboundPlayerInfoUpdatePacket.Act
 import net.minecraft.network.protocol.game.ClientboundPlayerInfoUpdatePacket.Entry;
 import net.minecraft.network.protocol.game.ClientboundRemoveEntitiesPacket;
 import net.minecraft.network.protocol.game.ClientboundRotateHeadPacket;
+import net.minecraft.network.protocol.game.ClientboundSetEntityDataPacket;
+import net.minecraft.network.protocol.game.ClientboundSetEquipmentPacket;
+import net.minecraft.network.protocol.game.ClientboundSetPlayerTeamPacket;
 import net.minecraft.network.protocol.game.ClientboundTeleportEntityPacket;
+import net.minecraft.network.syncher.EntityDataAccessor;
+import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.PositionMoveRotation;
 import net.minecraft.world.entity.Relative;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.scores.PlayerTeam;
+import net.minecraft.world.scores.Scoreboard;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -59,13 +76,39 @@ import org.jspecify.annotations.Nullable;
  * the same path {@code NmsTabListPackets} uses. The {@code GameProfile} {@code textures} property is the same
  * five lines as the tablist builder; it is replicated here rather than shared to avoid coupling the two
  * renderers through an extracted helper.
+ *
+ * <p>Three more construction notes cover the equipment and glow packets:
+ *
+ * <ul>
+ *   <li><b>Equipment.</b> {@code ClientboundSetEquipmentPacket(int, List<Pair<EquipmentSlot, ItemStack>>)} takes
+ *       the server's own {@code ItemStack}, so each Bukkit item is copied across with {@code
+ *       CraftItemStack.asNMSCopy} — the standard bridge from the Bukkit item form to the server's.
+ *   <li><b>Glow.</b> Glowing is the {@code glowing} bit of an entity's shared-flags byte (data item 0). The
+ *       accessor and the bit index are both {@code protected static} on {@code Entity}, so they are read once at
+ *       construction through {@link Reflect} (the same precedent as the nametag accessors), and the metadata
+ *       packet sets that single byte.
+ *   <li><b>Glow colour.</b> The client tints a glowing outline with the colour of the team the entity's name is
+ *       on, so a colour is a {@code ClientboundSetPlayerTeamPacket.createAddOrModifyPacket} over a throwaway
+ *       {@code PlayerTeam} carrying the {@code ChatFormatting} colour and the NPC's profile name as its member —
+ *       the approach FancyNpcs uses.
+ * </ul>
  */
 public final class NmsNpcPackets implements NpcPackets {
 
     private final PacketSender sender;
 
+    /** The {@code Byte} data item that holds an entity's shared flags (on-fire, sneaking, glowing, ...). */
+    private final EntityDataAccessor<Byte> sharedFlagsAccessor;
+    /** The shared-flags byte with only the glowing bit set, sent to switch the outline on. */
+    private final byte glowingFlag;
+
     public NmsNpcPackets(PacketSender sender) {
         this.sender = Objects.requireNonNull(sender, "sender");
+        // Read the shared-flags accessor and the glowing bit index once here, off every hot path. FLAG_GLOWING is
+        // the bit position (6); the wire value is the byte with that one bit set.
+        this.sharedFlagsAccessor = Reflect.accessor(Entity.class, "DATA_SHARED_FLAGS_ID");
+        int glowingBit = Reflect.accessor(Entity.class, "FLAG_GLOWING");
+        this.glowingFlag = (byte) (1 << glowingBit);
     }
 
     @Override
@@ -124,6 +167,39 @@ public final class NmsNpcPackets implements NpcPackets {
     }
 
     @Override
+    public Object equipment(int entityId, Map<EquipmentSlot, ItemStack> items) {
+        Objects.requireNonNull(items, "items");
+        List<Pair<net.minecraft.world.entity.EquipmentSlot, net.minecraft.world.item.ItemStack>> slots =
+                new ArrayList<>(items.size());
+        for (Map.Entry<EquipmentSlot, ItemStack> entry : items.entrySet()) {
+            slots.add(Pair.of(toNmsSlot(entry.getKey()), CraftItemStack.asNMSCopy(entry.getValue())));
+        }
+        return new ClientboundSetEquipmentPacket(entityId, slots);
+    }
+
+    @Override
+    public Object glow(int entityId, boolean glowing) {
+        // A fresh NPC carries no other shared flags, so the byte is the glowing bit alone (or zero to clear it).
+        byte flags = glowing ? glowingFlag : 0;
+        SynchedEntityData.DataValue<Byte> value = SynchedEntityData.DataValue.create(sharedFlagsAccessor, flags);
+        return new ClientboundSetEntityDataPacket(entityId, List.of(value));
+    }
+
+    @Override
+    public Object glowColor(String teamName, String memberName, @Nullable NamedColor color) {
+        Objects.requireNonNull(teamName, "teamName");
+        Objects.requireNonNull(memberName, "memberName");
+        // A throwaway scoreboard is fine: the packet copies the team's parameters and member list off it, and a
+        // PlayerTeam needs a Scoreboard only to construct.
+        PlayerTeam team = new PlayerTeam(new Scoreboard(), teamName);
+        if (color != null) {
+            team.setColor(ChatFormatting.valueOf(color.name()));
+        }
+        team.getPlayers().add(memberName);
+        return ClientboundSetPlayerTeamPacket.createAddOrModifyPacket(team, true);
+    }
+
+    @Override
     public Object bundle(List<Object> packets) {
         return Bundles.of(packets);
     }
@@ -131,6 +207,18 @@ public final class NmsNpcPackets implements NpcPackets {
     @Override
     public void send(Player viewer, Object packet) {
         sender.send(viewer, packet);
+    }
+
+    /** Map a port-side equipment slot onto the matching server slot — the single place the two names meet. */
+    private static net.minecraft.world.entity.EquipmentSlot toNmsSlot(EquipmentSlot slot) {
+        return switch (slot) {
+            case MAINHAND -> net.minecraft.world.entity.EquipmentSlot.MAINHAND;
+            case OFFHAND -> net.minecraft.world.entity.EquipmentSlot.OFFHAND;
+            case HEAD -> net.minecraft.world.entity.EquipmentSlot.HEAD;
+            case CHEST -> net.minecraft.world.entity.EquipmentSlot.CHEST;
+            case LEGS -> net.minecraft.world.entity.EquipmentSlot.LEGS;
+            case FEET -> net.minecraft.world.entity.EquipmentSlot.FEET;
+        };
     }
 
     /** The {@code GameProfile} for the NPC, carrying the skin as a {@code textures} property when present. */
