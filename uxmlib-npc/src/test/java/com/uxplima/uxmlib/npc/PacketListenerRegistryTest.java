@@ -100,6 +100,97 @@ class PacketListenerRegistryTest {
     }
 
     @Test
+    void aRewriteVerdictFoldsInItsReplacementWithoutCancelling() {
+        PacketListenerRegistry registry = new PacketListenerRegistry();
+        Object replacement = new Object();
+        registry.register(rewritingOnSend(replacement));
+
+        PacketListenerRegistry.Dispatch dispatch = registry.dispatch(PacketDirection.OUTBOUND, PLAYER, new Object());
+
+        assertThat(dispatch.cancelled()).isFalse();
+        assertThat(dispatch.rewritten()).isTrue();
+        assertThat(dispatch.replacement()).isSameAs(replacement);
+    }
+
+    @Test
+    void aCancelBeatsARewrite() {
+        PacketListenerRegistry registry = new PacketListenerRegistry();
+        registry.register(rewritingOnSend(new Object()));
+        registry.register((id, packet) -> PacketAction.CANCEL);
+
+        PacketListenerRegistry.Dispatch dispatch = registry.dispatch(PacketDirection.OUTBOUND, PLAYER, new Object());
+
+        assertThat(dispatch.cancelled()).isTrue();
+        // A cancelled packet never carries a replacement — it is dropped, not rewritten.
+        assertThat(dispatch.replacement()).isNull();
+        assertThat(dispatch.rewritten()).isFalse();
+    }
+
+    @Test
+    void theFirstRewriteWinsAndLaterListenersSeeTheOriginalPacket() {
+        PacketListenerRegistry registry = new PacketListenerRegistry();
+        Object first = new Object();
+        Object original = new Object();
+        List<Object> seen = new ArrayList<>();
+        registry.register(rewritingOnSend(first));
+        registry.register(new PacketListener() {
+            @Override
+            public PacketAction onSend(@Nullable UUID player, Object packet) {
+                seen.add(packet);
+                return PacketAction.PASS;
+            }
+
+            @Override
+            public PacketVerdict onSendVerdict(@Nullable UUID player, Object packet) {
+                seen.add(packet);
+                return PacketVerdict.rewrite(new Object());
+            }
+        });
+
+        PacketListenerRegistry.Dispatch dispatch = registry.dispatch(PacketDirection.OUTBOUND, PLAYER, original);
+
+        assertThat(dispatch.replacement()).isSameAs(first);
+        // The second listener still saw the ORIGINAL packet, never the first listener's pending replacement.
+        assertThat(seen).containsExactly(original);
+    }
+
+    @Test
+    void anInboundRewriteIsTreatedAsAPass() {
+        PacketListenerRegistry registry = new PacketListenerRegistry();
+        registry.register(new PacketListener() {
+            @Override
+            public PacketAction onSend(@Nullable UUID player, Object packet) {
+                return PacketAction.PASS;
+            }
+
+            @Override
+            public PacketVerdict onReceiveVerdict(@Nullable UUID player, Object packet) {
+                return PacketVerdict.rewrite(new Object());
+            }
+        });
+
+        PacketListenerRegistry.Dispatch dispatch = registry.dispatch(PacketDirection.INBOUND, PLAYER, new Object());
+
+        // Rewrite is outbound-only; an inbound rewrite must not cancel, and the interceptor ignores any replacement.
+        assertThat(dispatch.cancelled()).isFalse();
+        assertThat(dispatch.replacement()).isNotNull();
+    }
+
+    private static PacketListener rewritingOnSend(Object replacement) {
+        return new PacketListener() {
+            @Override
+            public PacketAction onSend(@Nullable UUID player, Object packet) {
+                return PacketAction.PASS;
+            }
+
+            @Override
+            public PacketVerdict onSendVerdict(@Nullable UUID player, Object packet) {
+                return PacketVerdict.rewrite(replacement);
+            }
+        };
+    }
+
+    @Test
     void nullPlayerIsAllowed() {
         PacketListenerRegistry registry = new PacketListenerRegistry();
         List<@Nullable UUID> seen = new ArrayList<>();

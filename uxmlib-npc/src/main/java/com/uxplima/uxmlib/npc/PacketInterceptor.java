@@ -13,7 +13,9 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * The duplex Netty handler spliced into a player's connection pipeline. On each direction it asks the
- * {@link PacketListenerRegistry} whether to pass the packet, and forwards it only if no listener cancelled.
+ * {@link PacketListenerRegistry} whether to pass the packet, and forwards it only if no listener cancelled. On
+ * the outbound path it additionally honours a {@link PacketVerdict#rewrite(Object) rewrite}: when a listener
+ * folds in a replacement packet, that replacement is written downstream in place of the original.
  *
  * <p>It is deliberately <b>fail-open</b>: the registry already swallows listener faults, and this handler
  * routes any collected faults to an injected sink (so they are logged off the I/O thread) and always forwards
@@ -56,10 +58,18 @@ public final class PacketInterceptor extends ChannelDuplexHandler {
 
     @Override
     public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
-        if (passes(PacketDirection.OUTBOUND, msg)) {
+        if (registry.isEmpty()) {
             super.write(ctx, msg, promise);
+            return;
         }
-        // else: cancelled — drop the outbound packet by not forwarding it.
+        PacketListenerRegistry.Dispatch dispatch =
+                report(registry.dispatch(PacketDirection.OUTBOUND, ownerId.get(), msg));
+        if (dispatch.cancelled()) {
+            return; // cancelled — drop the outbound packet by not forwarding it.
+        }
+        // A rewrite forwards the replacement in place of the original; otherwise forward the original unchanged.
+        Object replacement = dispatch.replacement();
+        super.write(ctx, replacement != null ? replacement : msg, promise);
     }
 
     @Override
@@ -67,7 +77,7 @@ public final class PacketInterceptor extends ChannelDuplexHandler {
         if (passes(PacketDirection.INBOUND, msg)) {
             super.channelRead(ctx, msg);
         }
-        // else: cancelled — drop the inbound packet by not forwarding it.
+        // else: cancelled — drop the inbound packet by not forwarding it (rewrite is outbound-only, ignored here).
     }
 
     /** Dispatch and fold; report faults to the sink. Returns whether the packet should be forwarded. */
@@ -75,12 +85,16 @@ public final class PacketInterceptor extends ChannelDuplexHandler {
         if (registry.isEmpty()) {
             return true;
         }
-        PacketListenerRegistry.Dispatch dispatch = registry.dispatch(direction, ownerId.get(), msg);
+        return !report(registry.dispatch(direction, ownerId.get(), msg)).cancelled();
+    }
+
+    /** Route any collected faults to the sink (off-thread logging) and return the dispatch unchanged. */
+    private PacketListenerRegistry.Dispatch report(PacketListenerRegistry.Dispatch dispatch) {
         List<Throwable> faults = dispatch.faults();
         if (!faults.isEmpty()) {
             reportFaults(faults);
         }
-        return !dispatch.cancelled();
+        return dispatch;
     }
 
     private void reportFaults(List<Throwable> faults) {

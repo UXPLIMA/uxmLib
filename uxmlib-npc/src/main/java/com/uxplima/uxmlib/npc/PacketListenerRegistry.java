@@ -18,7 +18,11 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>The folding rule is a veto: the packet is cancelled if <em>any</em> listener returns
  * {@link PacketAction#CANCEL}. Every listener still sees the packet even after one cancels, so listeners that
- * only observe stay correct.
+ * only observe stay correct. A {@link PacketVerdict#rewrite(Object) rewrite} folds in below cancel: if no
+ * listener cancels and one returns a rewrite, the folded result carries that replacement (the
+ * <em>first</em> rewrite in registration order wins; later listeners still see the original packet, never the
+ * pending replacement, so the dispatch stays order-independent and observe-only listeners stay correct). A
+ * cancel always beats a rewrite, so a cancelling listener is never overridden by a rewriting one.
  */
 public final class PacketListenerRegistry {
 
@@ -55,25 +59,31 @@ public final class PacketListenerRegistry {
         Objects.requireNonNull(direction, "direction");
         Objects.requireNonNull(packet, "packet");
         boolean cancel = false;
+        @Nullable Object replacement = null;
         @Nullable List<Throwable> faults = null;
         for (PacketListener listener : listeners) {
             try {
-                PacketAction action = invoke(listener, direction, player, packet);
-                if (action.cancels()) {
+                PacketVerdict verdict = invoke(listener, direction, player, packet);
+                if (verdict.cancels()) {
                     cancel = true;
+                } else if (replacement == null) {
+                    // First rewrite in registration order wins; a later listener still sees the original packet,
+                    // never the pending replacement, so this fold stays order-independent for observers.
+                    replacement = verdict.replacement();
                 }
             } catch (RuntimeException fault) {
                 faults = record(faults, fault);
             }
         }
-        return new Dispatch(cancel ? PacketAction.CANCEL : PacketAction.PASS, faults == null ? List.of() : faults);
+        PacketAction action = cancel ? PacketAction.CANCEL : PacketAction.PASS;
+        return new Dispatch(action, cancel ? null : replacement, faults == null ? List.of() : faults);
     }
 
-    private static PacketAction invoke(
+    private static PacketVerdict invoke(
             PacketListener listener, PacketDirection direction, @Nullable UUID player, Object packet) {
         return direction == PacketDirection.OUTBOUND
-                ? listener.onSend(player, packet)
-                : listener.onReceive(player, packet);
+                ? listener.onSendVerdict(player, packet)
+                : listener.onReceiveVerdict(player, packet);
     }
 
     private static List<Throwable> record(@Nullable List<Throwable> faults, Throwable fault) {
@@ -83,19 +93,30 @@ public final class PacketListenerRegistry {
     }
 
     /**
-     * The folded outcome of a dispatch: the verdict and any listener faults collected along the way (so the
-     * caller logs them off the I/O thread).
+     * The folded outcome of a dispatch: the verdict, the optional replacement packet a rewrite folded in (never
+     * set when the packet was cancelled), and any listener faults collected along the way (so the caller logs
+     * them off the I/O thread).
      */
-    public record Dispatch(PacketAction action, List<Throwable> faults) {
+    public record Dispatch(PacketAction action, @Nullable Object replacement, List<Throwable> faults) {
 
         public Dispatch {
             Objects.requireNonNull(action, "action");
             faults = List.copyOf(faults);
         }
 
+        /** A dispatch that only passes or cancels, carrying no replacement — the back-compat shape. */
+        public Dispatch(PacketAction action, List<Throwable> faults) {
+            this(action, null, faults);
+        }
+
         /** {@code true} if the folded verdict cancels the packet. */
         public boolean cancelled() {
             return action.cancels();
+        }
+
+        /** {@code true} if the dispatch folded in a replacement packet to forward in place of the original. */
+        public boolean rewritten() {
+            return replacement != null;
         }
     }
 }
