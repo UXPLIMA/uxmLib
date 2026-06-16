@@ -150,7 +150,8 @@ public final class HologramConfig {
         if (hasScale || hasRotation) {
             float scale = (float) node.node("scale").getDouble(1.0);
             float yaw = (float) node.node("rotation").getDouble(0.0);
-            appearance = appearance.withTransform(new Transform(scale, scale, scale, yaw));
+            float pitch = (float) node.node("pitch").getDouble(0.0);
+            appearance = appearance.withTransform(new Transform(scale, scale, scale, yaw, pitch));
         }
         return appearance;
     }

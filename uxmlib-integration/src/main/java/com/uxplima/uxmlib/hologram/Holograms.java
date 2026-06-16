@@ -168,6 +168,12 @@ public final class Holograms {
             return this;
         }
 
+        /** Rotate the hologram {@code yaw} about the vertical axis and {@code pitch} about the horizontal axis. */
+        public Builder rotation(float yaw, float pitch) {
+            appearance = appearance.withTransform(transformOrNone().withYaw(yaw).withPitch(pitch));
+            return this;
+        }
+
         /** Set the full scale-and-rotation transform at once. */
         public Builder transform(Transform transform) {
             appearance = appearance.withTransform(Objects.requireNonNull(transform, "transform"));
@@ -306,6 +312,12 @@ public final class Holograms {
         /** Rotate the hologram {@code degrees} about the vertical axis. */
         public B rotation(float degrees) {
             appearance = appearance.withTransform(transformOrNone().withYaw(degrees));
+            return self();
+        }
+
+        /** Rotate the hologram {@code yaw} about the vertical axis and {@code pitch} about the horizontal axis. */
+        public B rotation(float yaw, float pitch) {
+            appearance = appearance.withTransform(transformOrNone().withYaw(yaw).withPitch(pitch));
             return self();
         }
 

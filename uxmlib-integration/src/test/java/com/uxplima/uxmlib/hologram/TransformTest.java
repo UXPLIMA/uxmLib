@@ -36,4 +36,34 @@ class TransformTest {
         assertThat(bukkit.getScale().x()).isEqualTo(2.5f);
         assertThat(bukkit.getScale().y()).isEqualTo(2.5f);
     }
+
+    @Test
+    void rotationWithPitchKeepsDefaultScaleAndBothAngles() {
+        Transform t = Transform.rotation(90f, 30f);
+        assertThat(t.scaleX()).isEqualTo(1.0f);
+        assertThat(t.yawDegrees()).isEqualTo(90f);
+        assertThat(t.pitchDegrees()).isEqualTo(30f);
+    }
+
+    @Test
+    void noneAndYawOnlyRotationCarryZeroPitch() {
+        assertThat(Transform.NONE.pitchDegrees()).isZero();
+        assertThat(Transform.rotation(45f).pitchDegrees()).isZero();
+    }
+
+    @Test
+    void withPitchKeepsTheOtherFields() {
+        Transform t = Transform.NONE.withScale(2f).withYaw(15f).withPitch(40f);
+        assertThat(t.scaleX()).isEqualTo(2f);
+        assertThat(t.yawDegrees()).isEqualTo(15f);
+        assertThat(t.pitchDegrees()).isEqualTo(40f);
+    }
+
+    @Test
+    void aPitchedTransformStillMapsItsScale() {
+        var bukkit = Transform.rotation(20f, 50f).withScale(1.5f).toBukkit();
+        assertThat(bukkit.getScale().x()).isEqualTo(1.5f);
+        assertThat(bukkit.getScale().y()).isEqualTo(1.5f);
+        assertThat(bukkit.getScale().z()).isEqualTo(1.5f);
+    }
 }
