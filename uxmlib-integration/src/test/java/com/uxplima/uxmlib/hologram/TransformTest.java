@@ -1,7 +1,9 @@
 package com.uxplima.uxmlib.hologram;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 
+import org.joml.Vector3f;
 import org.junit.jupiter.api.Test;
 
 /** Pure tests of the friendly Transform -> native Transformation mapping. */
@@ -65,5 +67,24 @@ class TransformTest {
         assertThat(bukkit.getScale().x()).isEqualTo(1.5f);
         assertThat(bukkit.getScale().y()).isEqualTo(1.5f);
         assertThat(bukkit.getScale().z()).isEqualTo(1.5f);
+    }
+
+    @Test
+    void composesYawThenPitchSoTheTiltFollowsTheFacing() {
+        // The intent is "turn the display by yaw, then tilt it by pitch about its now-local X". With a
+        // 90-degree yaw and a 30-degree pitch the display's up vector must lean within the XY plane (its Z
+        // component stays zero) — the swapped Rx*Ry order would instead lean the up vector onto +Z, which is
+        // the gimbal-locked result we must never ship. Pinning the rotated basis catches a flipped order.
+        var rotation = Transform.rotation(90f, 30f).toBukkit().getLeftRotation();
+
+        Vector3f up = rotation.transform(new Vector3f(0f, 1f, 0f));
+        assertThat(up.x()).isCloseTo(0.5f, within(1.0e-5f));
+        assertThat(up.y()).isCloseTo(0.866025f, within(1.0e-5f));
+        assertThat(up.z()).isCloseTo(0f, within(1.0e-5f));
+
+        Vector3f right = rotation.transform(new Vector3f(1f, 0f, 0f));
+        assertThat(right.x()).isCloseTo(0f, within(1.0e-5f));
+        assertThat(right.y()).isCloseTo(0f, within(1.0e-5f));
+        assertThat(right.z()).isCloseTo(-1f, within(1.0e-5f));
     }
 }
