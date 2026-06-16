@@ -30,7 +30,9 @@ import com.uxplima.uxmlib.packet.npc.NpcPose;
 import com.uxplima.uxmlib.packet.tablist.TabSkin;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.Holder;
+import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.network.protocol.game.ClientboundAddEntityPacket;
 import net.minecraft.network.protocol.game.ClientboundMoveEntityPacket;
 import net.minecraft.network.protocol.game.ClientboundPlayerInfoRemovePacket;
@@ -47,6 +49,8 @@ import net.minecraft.network.protocol.game.ClientboundUpdateAttributesPacket;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.entity.AgeableMob;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
@@ -58,7 +62,11 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.animal.axolotl.Axolotl;
 import net.minecraft.world.entity.animal.equine.Horse;
 import net.minecraft.world.entity.animal.equine.Llama;
+import net.minecraft.world.entity.animal.feline.Cat;
+import net.minecraft.world.entity.animal.feline.CatVariant;
 import net.minecraft.world.entity.animal.fox.Fox;
+import net.minecraft.world.entity.animal.frog.Frog;
+import net.minecraft.world.entity.animal.frog.FrogVariant;
 import net.minecraft.world.entity.animal.parrot.Parrot;
 import net.minecraft.world.entity.animal.rabbit.Rabbit;
 import net.minecraft.world.entity.animal.sheep.Sheep;
@@ -158,6 +166,10 @@ public final class NmsNpcPackets implements NpcPackets {
     private final EntityDataAccessor<Integer> foxTypeAccessor;
     /** The {@code Integer} type data item on {@code Rabbit}; read once. */
     private final EntityDataAccessor<Integer> rabbitTypeAccessor;
+    /** The {@code Holder<CatVariant>} variant data item on {@code Cat}; read once. The variant is resolved per call. */
+    private final EntityDataAccessor<Holder<CatVariant>> catVariantAccessor;
+    /** The {@code Holder<FrogVariant>} variant data item on {@code Frog}; read once. The variant is resolved per call. */
+    private final EntityDataAccessor<Holder<FrogVariant>> frogVariantAccessor;
 
     public NmsNpcPackets(PacketSender sender) {
         this.sender = Objects.requireNonNull(sender, "sender");
@@ -189,6 +201,11 @@ public final class NmsNpcPackets implements NpcPackets {
         this.axolotlVariantAccessor = Reflect.accessor(Axolotl.class, "DATA_VARIANT");
         this.foxTypeAccessor = Reflect.accessor(Fox.class, "DATA_TYPE_ID");
         this.rabbitTypeAccessor = Reflect.accessor(Rabbit.class, "DATA_TYPE_ID");
+        // The cat and frog variants are dynamic-registry values: their metadata field carries a Holder, not an int.
+        // The accessor is read once here like the rest, but the Holder itself is resolved off the live server's
+        // registry per call (see catVariant/frogVariant), since the variant set only exists on a running server.
+        this.catVariantAccessor = Reflect.accessor(Cat.class, "DATA_VARIANT_ID");
+        this.frogVariantAccessor = Reflect.accessor(Frog.class, "DATA_VARIANT_ID");
     }
 
     @Override
@@ -415,6 +432,53 @@ public final class NmsNpcPackets implements NpcPackets {
     @Override
     public Object rabbitType(int entityId, int type) {
         return dataPacket(entityId, SynchedEntityData.DataValue.create(rabbitTypeAccessor, type));
+    }
+
+    @Override
+    public @Nullable Object catVariant(int entityId, String name) {
+        Objects.requireNonNull(name, "name");
+        Holder<CatVariant> variant = dynamicHolder(Registries.CAT_VARIANT, name);
+        return variant == null
+                ? null
+                : dataPacket(entityId, SynchedEntityData.DataValue.create(catVariantAccessor, variant));
+    }
+
+    @Override
+    public @Nullable Object frogVariant(int entityId, String name) {
+        Objects.requireNonNull(name, "name");
+        Holder<FrogVariant> variant = dynamicHolder(Registries.FROG_VARIANT, name);
+        return variant == null
+                ? null
+                : dataPacket(entityId, SynchedEntityData.DataValue.create(frogVariantAccessor, variant));
+    }
+
+    /**
+     * Resolve {@code name} (plain or namespaced) to a {@link Holder} off a dynamic registry reached through the
+     * live server's {@link MinecraftServer#registryAccess() registry access} — the cat- and frog-variant registries
+     * are data-driven and live only on a running server, not in {@code BuiltInRegistries}, so they cannot be reached
+     * at construction the way the villager registries are. Returns {@code null} (rather than throwing) when the
+     * server is not yet up, the name is unparseable, or the registry has no such entry; the caller drops a
+     * {@code null} packet so the render thread never throws on a typo or a too-early call.
+     */
+    private static <T> @Nullable Holder<T> dynamicHolder(ResourceKey<Registry<T>> registryKey, String name) {
+        try {
+            MinecraftServer server = MinecraftServer.getServer();
+            if (server == null) {
+                return null;
+            }
+            Identifier id = name.indexOf(Identifier.NAMESPACE_SEPARATOR) < 0
+                    ? Identifier.withDefaultNamespace(name)
+                    : Identifier.tryParse(name);
+            if (id == null) {
+                return null;
+            }
+            Registry<T> registry = server.registryAccess().lookupOrThrow(registryKey);
+            return registry.get(id).map(reference -> (Holder<T>) reference).orElse(null);
+        } catch (RuntimeException registryUnavailable) {
+            // The server registries can be missing or mid-build very early in boot; a variant is cosmetic, so a
+            // failed lookup falls back to the entity's default variant rather than failing the spawn.
+            return null;
+        }
     }
 
     /** Wrap one already-built {@link SynchedEntityData.DataValue} into a single-field metadata packet. */

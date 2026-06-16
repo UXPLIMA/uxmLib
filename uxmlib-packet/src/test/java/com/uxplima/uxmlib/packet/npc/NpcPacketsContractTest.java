@@ -328,6 +328,28 @@ class NpcPacketsContractTest {
     }
 
     @Test
+    void catVariantCarriesTheEntityAndName() {
+        // Cat and frog variants are dynamic-registry values resolved by name; the NMS impl reaches the live
+        // server registry, so the port carries only the name and the contract proves it round-trips through.
+        FakeNpcPackets packets = new FakeNpcPackets();
+
+        FakeNpcPackets.CatVariant cat = (FakeNpcPackets.CatVariant) packets.catVariant(7, "calico");
+
+        assertThat(cat.entityId()).isEqualTo(7);
+        assertThat(cat.name()).isEqualTo("calico");
+    }
+
+    @Test
+    void frogVariantCarriesTheEntityAndName() {
+        FakeNpcPackets packets = new FakeNpcPackets();
+
+        FakeNpcPackets.FrogVariant frog = (FakeNpcPackets.FrogVariant) packets.frogVariant(7, "warm");
+
+        assertThat(frog.entityId()).isEqualTo(7);
+        assertThat(frog.name()).isEqualTo("warm");
+    }
+
+    @Test
     void everyNpcPoseNamesAServerPose() {
         // The NMS impl resolves a Pose by the constant's server name; this proves each NpcPose has a counterpart so
         // the by-name Pose.valueOf never throws at render time. GLIDING maps to the server's FALL_FLYING.
@@ -447,6 +469,10 @@ class NpcPacketsContractTest {
         record FoxType(int entityId, int type) {}
 
         record RabbitType(int entityId, int type) {}
+
+        record CatVariant(int entityId, String name) {}
+
+        record FrogVariant(int entityId, String name) {}
 
         record GlowColor(String teamName, String memberName, @Nullable NamedColor color) {}
 
@@ -600,6 +626,16 @@ class NpcPacketsContractTest {
         @Override
         public Object rabbitType(int entityId, int type) {
             return new RabbitType(entityId, type);
+        }
+
+        @Override
+        public Object catVariant(int entityId, String name) {
+            return new CatVariant(entityId, name);
+        }
+
+        @Override
+        public Object frogVariant(int entityId, String name) {
+            return new FrogVariant(entityId, name);
         }
 
         @Override

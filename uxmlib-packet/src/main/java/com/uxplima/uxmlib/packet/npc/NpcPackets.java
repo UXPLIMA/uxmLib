@@ -231,6 +231,39 @@ public interface NpcPackets {
     Object rabbitType(int entityId, int type);
 
     /**
+     * Build the metadata packet that sets a cat's coat {@code variant} (e.g. {@code tabby}, {@code calico},
+     * {@code jellie}) through the cat's {@code DATA_VARIANT_ID} field. Unlike the integer coats above, a cat
+     * variant is a dynamic-registry value: the field carries a {@code Holder<CatVariant>} resolved by name off
+     * the live server's cat-variant registry, so the variant set must be reachable from a running server. The
+     * name is the registry name (plain, defaulted to the {@code minecraft} namespace, or namespaced). Send this
+     * only to a cat; any other type has no cat-variant field at that index.
+     *
+     * <p>Resolving against a live registry can fail (the server is not yet up, or the name is unknown), so this
+     * returns {@code null} rather than throwing when the variant cannot be resolved; the caller drops a
+     * {@code null} packet, leaving the cat on its default variant. The plugin validates the name against the
+     * known set before calling, so a {@code null} here is the defensive floor rather than a routine path.
+     *
+     * @param name the cat-variant registry name (plain or namespaced)
+     * @return the metadata packet, or {@code null} when the variant cannot be resolved off the live registry
+     */
+    @Nullable Object catVariant(int entityId, String name);
+
+    /**
+     * Build the metadata packet that sets a frog's {@code variant} ({@code temperate}, {@code warm}, or
+     * {@code cold}) through the frog's {@code DATA_VARIANT_ID} field. Like {@link #catVariant}, a frog variant
+     * is a dynamic-registry value: the field carries a {@code Holder<FrogVariant>} resolved by name off the live
+     * server's frog-variant registry. The name is the registry name (plain, defaulted to the {@code minecraft}
+     * namespace, or namespaced). Send this only to a frog; any other type has no frog-variant field at that index.
+     *
+     * <p>As with {@link #catVariant}, a registry lookup can fail, so this returns {@code null} rather than
+     * throwing when the variant cannot be resolved; the caller drops a {@code null} packet.
+     *
+     * @param name the frog-variant registry name (plain or namespaced)
+     * @return the metadata packet, or {@code null} when the variant cannot be resolved off the live registry
+     */
+    @Nullable Object frogVariant(int entityId, String name);
+
+    /**
      * Build the scoreboard-team packet that tints the NPC's glow to {@code color}. The client colours a glowing
      * entity's outline with the colour of the team its name is a member of, so this packet creates (or modifies) a
      * team named {@code teamName}, sets its colour, and seats {@code memberName} as a member. For a fake player
