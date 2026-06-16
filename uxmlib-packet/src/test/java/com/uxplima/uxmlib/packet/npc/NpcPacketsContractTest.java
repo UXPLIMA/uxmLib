@@ -203,6 +203,24 @@ class NpcPacketsContractTest {
     }
 
     @Test
+    void monsterFamilyBabiesAreSeparateBuildersFromTheAgeableOne() {
+        // The zombie line, piglins, and zoglins extend Monster, not AgeableMob, so their baby flag lives at a
+        // different data index; each gets its own builder so a value never lands on the wrong field.
+        FakeNpcPackets packets = new FakeNpcPackets();
+
+        FakeNpcPackets.ZombieBaby zombie = (FakeNpcPackets.ZombieBaby) packets.zombieBaby(7, true);
+        FakeNpcPackets.PiglinBaby piglin = (FakeNpcPackets.PiglinBaby) packets.piglinBaby(8, true);
+        FakeNpcPackets.ZoglinBaby zoglin = (FakeNpcPackets.ZoglinBaby) packets.zoglinBaby(9, false);
+
+        assertThat(zombie.entityId()).isEqualTo(7);
+        assertThat(zombie.baby()).isTrue();
+        assertThat(piglin.entityId()).isEqualTo(8);
+        assertThat(piglin.baby()).isTrue();
+        assertThat(zoglin.entityId()).isEqualTo(9);
+        assertThat(zoglin.baby()).isFalse();
+    }
+
+    @Test
     void villagerDataCarriesTypeProfessionAndLevel() {
         FakeNpcPackets packets = new FakeNpcPackets();
 
@@ -332,6 +350,12 @@ class NpcPacketsContractTest {
 
         record Baby(int entityId, boolean baby) {}
 
+        record ZombieBaby(int entityId, boolean baby) {}
+
+        record PiglinBaby(int entityId, boolean baby) {}
+
+        record ZoglinBaby(int entityId, boolean baby) {}
+
         record VillagerData(int entityId, String type, String profession, int level) {}
 
         record SlimeSize(int entityId, int size) {}
@@ -425,6 +449,21 @@ class NpcPacketsContractTest {
         @Override
         public Object baby(int entityId, boolean baby) {
             return new Baby(entityId, baby);
+        }
+
+        @Override
+        public Object zombieBaby(int entityId, boolean baby) {
+            return new ZombieBaby(entityId, baby);
+        }
+
+        @Override
+        public Object piglinBaby(int entityId, boolean baby) {
+            return new PiglinBaby(entityId, baby);
+        }
+
+        @Override
+        public Object zoglinBaby(int entityId, boolean baby) {
+            return new ZoglinBaby(entityId, baby);
         }
 
         @Override

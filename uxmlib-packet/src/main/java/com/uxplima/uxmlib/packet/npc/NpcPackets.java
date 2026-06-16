@@ -107,14 +107,40 @@ public interface NpcPackets {
     Object scale(int entityId, double scale);
 
     /**
-     * Build the metadata packet that toggles an ageable mob's baby/adult state through the {@code DATA_BABY_ID}
-     * field shared by every {@code AgeableMob} (animals, the villager line, the zombie/piglin variants). The field
-     * is a boolean — {@code true} is a baby, {@code false} an adult — and the data index is the same for every
-     * ageable type, so the one packet renders correctly on any of them. The caller must only ever send this to an
-     * entity that is actually ageable: a non-ageable type (a creeper, a slime) has no metadata at that index, so
-     * the value would land on the wrong field. Validating that is the plugin's per-type concern, not this builder's.
+     * Build the metadata packet that toggles an {@code AgeableMob}'s baby/adult state through the {@code
+     * AgeableMob.DATA_BABY_ID} field — the boolean ({@code true} is a baby, {@code false} an adult) carried by the
+     * breeding animal line (cows, pigs, …), the villager line, and the hoglin (all real {@code AgeableMob}
+     * subclasses). The caller must only ever send this to a type that actually extends {@code AgeableMob}: the
+     * baby flag's data index is allocated per class hierarchy, so it differs between {@code AgeableMob} and the
+     * monster-family baby mobs (the zombie line, piglins, zoglins) — those carry their own baby field at a
+     * different index and have their own builders ({@link #zombieBaby}, {@link #piglinBaby}, {@link #zoglinBaby}).
+     * Sending this packet to one of them, or to a non-ageable type (a creeper, a slime), would land the value on
+     * an unrelated field. Picking the right builder for the type is the plugin's per-type concern, not this one's.
      */
     Object baby(int entityId, boolean baby);
+
+    /**
+     * Build the metadata packet that toggles a zombie-line mob's baby/adult state through {@code
+     * Zombie.DATA_BABY_ID} — the zombie family's own baby boolean, at a different data index than {@link #baby}'s
+     * {@code AgeableMob} one because zombies extend {@code Monster}, not {@code AgeableMob}. Send this only to a
+     * zombie, husk, drowned, zombie villager, or zombified piglin; any other type has no field at that index.
+     */
+    Object zombieBaby(int entityId, boolean baby);
+
+    /**
+     * Build the metadata packet that toggles a piglin's baby/adult state through {@code Piglin.DATA_BABY_ID} — the
+     * piglin's own baby boolean, again at a different index than {@link #baby}'s because piglins extend {@code
+     * Monster}. Send this only to a piglin (not a piglin brute, which has no baby form); any other type has no
+     * field at that index.
+     */
+    Object piglinBaby(int entityId, boolean baby);
+
+    /**
+     * Build the metadata packet that toggles a zoglin's baby/adult state through {@code Zoglin.DATA_BABY_ID} — the
+     * zoglin's own baby boolean, at a different index than {@link #baby}'s because zoglins extend {@code Monster}.
+     * Send this only to a zoglin; any other type has no field at that index.
+     */
+    Object zoglinBaby(int entityId, boolean baby);
 
     /**
      * Build the metadata packet that sets a villager's appearance — its biome {@code type} (the registry name of a

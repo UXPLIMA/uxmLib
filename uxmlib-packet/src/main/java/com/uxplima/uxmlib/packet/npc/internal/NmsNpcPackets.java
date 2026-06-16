@@ -56,6 +56,9 @@ import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.monster.Creeper;
 import net.minecraft.world.entity.monster.Slime;
+import net.minecraft.world.entity.monster.Zoglin;
+import net.minecraft.world.entity.monster.piglin.Piglin;
+import net.minecraft.world.entity.monster.zombie.Zombie;
 import net.minecraft.world.entity.npc.villager.Villager;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.phys.Vec3;
@@ -119,8 +122,14 @@ public final class NmsNpcPackets implements NpcPackets {
     private final byte glowingFlag;
     /** The {@code Pose} data item that holds an entity's body pose; read once, like the shared-flags accessor. */
     private final EntityDataAccessor<Pose> poseAccessor;
-    /** The {@code Boolean} baby/adult data item shared by every {@code AgeableMob}; read once. */
+    /** The {@code Boolean} baby/adult data item on {@code AgeableMob} (animals, villagers, hoglin); read once. */
     private final EntityDataAccessor<Boolean> babyAccessor;
+    /** The {@code Boolean} baby/adult data item on the zombie line ({@code Zombie}); a separate index. Read once. */
+    private final EntityDataAccessor<Boolean> zombieBabyAccessor;
+    /** The {@code Boolean} baby/adult data item on {@code Piglin}; a separate index again. Read once. */
+    private final EntityDataAccessor<Boolean> piglinBabyAccessor;
+    /** The {@code Boolean} baby/adult data item on {@code Zoglin}; a separate index again. Read once. */
+    private final EntityDataAccessor<Boolean> zoglinBabyAccessor;
     /** The {@code Integer} slime-size data item on {@code Slime}; read once. */
     private final EntityDataAccessor<Integer> slimeSizeAccessor;
     /** The {@code Boolean} powered data item on {@code Creeper}; read once. */
@@ -140,6 +149,11 @@ public final class NmsNpcPackets implements NpcPackets {
         // Each lives on the entity class that owns the property, so it is only ever sent to that type (the plugin
         // gates which property reaches which entity); a wrong index would land on an unrelated field otherwise.
         this.babyAccessor = Reflect.accessor(AgeableMob.class, "DATA_BABY_ID");
+        // The zombie line, piglins, and zoglins extend Monster (not AgeableMob), so each carries its own baby
+        // boolean at its own data index; sending the AgeableMob baby to them would land on an unrelated field.
+        this.zombieBabyAccessor = Reflect.accessor(Zombie.class, "DATA_BABY_ID");
+        this.piglinBabyAccessor = Reflect.accessor(Piglin.class, "DATA_BABY_ID");
+        this.zoglinBabyAccessor = Reflect.accessor(Zoglin.class, "DATA_BABY_ID");
         this.slimeSizeAccessor = Reflect.accessor(Slime.class, "ID_SIZE");
         this.chargedAccessor = Reflect.accessor(Creeper.class, "DATA_IS_POWERED");
         this.villagerDataAccessor = Reflect.accessor(Villager.class, "DATA_VILLAGER_DATA");
@@ -286,6 +300,21 @@ public final class NmsNpcPackets implements NpcPackets {
         // Ships the AgeableMob baby boolean exactly the way glow ships its byte; the accessor carries the boolean
         // serializer, so DataValue.create needs nothing more than the accessor and the value.
         return dataPacket(entityId, SynchedEntityData.DataValue.create(babyAccessor, baby));
+    }
+
+    @Override
+    public Object zombieBaby(int entityId, boolean baby) {
+        return dataPacket(entityId, SynchedEntityData.DataValue.create(zombieBabyAccessor, baby));
+    }
+
+    @Override
+    public Object piglinBaby(int entityId, boolean baby) {
+        return dataPacket(entityId, SynchedEntityData.DataValue.create(piglinBabyAccessor, baby));
+    }
+
+    @Override
+    public Object zoglinBaby(int entityId, boolean baby) {
+        return dataPacket(entityId, SynchedEntityData.DataValue.create(zoglinBabyAccessor, baby));
     }
 
     @Override
