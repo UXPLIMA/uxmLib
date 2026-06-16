@@ -37,6 +37,15 @@ public interface TabListPackets {
     /** Build a packet that removes the given profile ids from the tab list. */
     Object remove(List<UUID> ids);
 
+    /**
+     * Build a packet that flips only the {@code listed} flag of existing entries (an {@code UPDATE_LISTED}
+     * action), without touching their profile, skin, name, or order. With {@code listed=false} an entry stays a
+     * known client entity but drops out of the tab list; with {@code listed=true} it reappears. This is the
+     * counterpart to {@link PlayerInfoUpdates#forceUnlisted}: it re-lists real players when a viewer leaves a
+     * synthetic-tab "suppress real players" mode, so their rows come back without re-adding their profiles.
+     */
+    Object relist(List<UUID> ids, boolean listed);
+
     /** Write {@code packet} to {@code viewer}'s connection. A no-op if the connection cannot be resolved. */
     void send(Player viewer, Object packet);
 }

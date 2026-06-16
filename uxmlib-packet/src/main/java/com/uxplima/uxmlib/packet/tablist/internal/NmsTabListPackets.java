@@ -87,6 +87,21 @@ public final class NmsTabListPackets implements TabListPackets {
     }
 
     @Override
+    public Object relist(List<UUID> ids, boolean listed) {
+        Objects.requireNonNull(ids, "ids");
+        List<Entry> entries = new java.util.ArrayList<>(ids.size());
+        for (UUID id : ids) {
+            // The lone UPDATE_LISTED action means the client reads only the listed flag and leaves the existing
+            // row's profile, skin, name, and order intact; the other components carry the same harmless defaults
+            // Paper's package-private (UUID, listed) shorthand would fill in, since that shorthand isn't reachable
+            // from here.
+            entries.add(new Entry(
+                    Objects.requireNonNull(id, "id"), null, listed, 0, GameType.DEFAULT_MODE, null, true, 0, null));
+        }
+        return new ClientboundPlayerInfoUpdatePacket(EnumSet.of(Action.UPDATE_LISTED), entries);
+    }
+
+    @Override
     public void send(Player viewer, Object packet) {
         sender.send(viewer, packet);
     }
