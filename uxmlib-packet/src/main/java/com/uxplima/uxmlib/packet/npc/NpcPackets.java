@@ -177,6 +177,60 @@ public interface NpcPackets {
     Object charged(int entityId, boolean charged);
 
     /**
+     * Build the metadata packet that sets a horse's appearance — its coat {@code color} (0–6) and its body
+     * {@code markings} (0–4) — through the horse's {@code DATA_ID_TYPE_VARIANT} field. The two pack into the one
+     * integer the field carries (colour in the low byte, markings in the high byte) exactly as the server's own
+     * {@code setVariantAndMarkings} does; see {@link HorseVariant}. Send this only to a horse; any other type
+     * (a donkey, a mule, a llama) has no such combined variant field at that index. The plugin clamps the two
+     * values to their real ranges before calling.
+     */
+    Object horseVariant(int entityId, int color, int markings);
+
+    /**
+     * Build the metadata packet that sets a llama's coat {@code variant} (0–3) through the llama's {@code
+     * DATA_VARIANT_ID} field — the integer that picks one of the four llama coats. Send this only to a llama or
+     * trader llama; any other type has no llama-variant field at that index. The plugin clamps the value first.
+     */
+    Object llamaVariant(int entityId, int variant);
+
+    /**
+     * Build the metadata packet that sets a sheep's wool {@code color} (a {@code DyeColor} id, 0–15) through the
+     * low four bits of the sheep's {@code DATA_WOOL_ID} byte. Only the colour bits are written and the sheared
+     * bit is left clear, so the sheep renders unsheared in the chosen colour. Send this only to a sheep; any
+     * other type has no wool byte at that index.
+     */
+    Object sheepColor(int entityId, int color);
+
+    /**
+     * Build the metadata packet that sets a parrot's {@code variant} (0–4) through the parrot's {@code
+     * DATA_VARIANT_ID} field — the integer that picks one of the five parrot colours. Send this only to a
+     * parrot; any other type has no parrot-variant field at that index. The plugin clamps the value first.
+     */
+    Object parrotVariant(int entityId, int variant);
+
+    /**
+     * Build the metadata packet that sets an axolotl's {@code variant} (0–4) through the axolotl's {@code
+     * DATA_VARIANT} field — the integer that picks one of the five axolotl colours. Send this only to an
+     * axolotl; any other type has no axolotl-variant field at that index. The plugin clamps the value first.
+     */
+    Object axolotlVariant(int entityId, int variant);
+
+    /**
+     * Build the metadata packet that sets a fox's {@code type} (0 red, 1 snow) through the fox's {@code
+     * DATA_TYPE_ID} field. Send this only to a fox; any other type has no fox-type field at that index. The
+     * plugin clamps the value first.
+     */
+    Object foxType(int entityId, int type);
+
+    /**
+     * Build the metadata packet that sets a rabbit's {@code type} through the rabbit's {@code DATA_TYPE_ID}
+     * field — the integer that picks one of the six coats (0–5), with 99 the killer (toast) rabbit. Send this
+     * only to a rabbit; any other type has no rabbit-type field at that index. The plugin validates the value
+     * (the six coats plus 99) before calling.
+     */
+    Object rabbitType(int entityId, int type);
+
+    /**
      * Build the scoreboard-team packet that tints the NPC's glow to {@code color}. The client colours a glowing
      * entity's outline with the colour of the team its name is a member of, so this packet creates (or modifies) a
      * team named {@code teamName}, sets its colour, and seats {@code memberName} as a member. For a fake player

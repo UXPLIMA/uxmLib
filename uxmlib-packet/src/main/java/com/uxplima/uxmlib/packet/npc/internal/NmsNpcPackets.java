@@ -23,6 +23,7 @@ import com.uxplima.uxmlib.packet.EntityIds;
 import com.uxplima.uxmlib.packet.Reflect;
 import com.uxplima.uxmlib.packet.npc.ByteAngle;
 import com.uxplima.uxmlib.packet.npc.EquipmentSlot;
+import com.uxplima.uxmlib.packet.npc.HorseVariant;
 import com.uxplima.uxmlib.packet.npc.NamedColor;
 import com.uxplima.uxmlib.packet.npc.NpcPackets;
 import com.uxplima.uxmlib.packet.npc.NpcPose;
@@ -54,6 +55,13 @@ import net.minecraft.world.entity.PositionMoveRotation;
 import net.minecraft.world.entity.Relative;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.animal.axolotl.Axolotl;
+import net.minecraft.world.entity.animal.equine.Horse;
+import net.minecraft.world.entity.animal.equine.Llama;
+import net.minecraft.world.entity.animal.fox.Fox;
+import net.minecraft.world.entity.animal.parrot.Parrot;
+import net.minecraft.world.entity.animal.rabbit.Rabbit;
+import net.minecraft.world.entity.animal.sheep.Sheep;
 import net.minecraft.world.entity.monster.Creeper;
 import net.minecraft.world.entity.monster.Slime;
 import net.minecraft.world.entity.monster.Zoglin;
@@ -136,6 +144,20 @@ public final class NmsNpcPackets implements NpcPackets {
     private final EntityDataAccessor<Boolean> chargedAccessor;
     /** The {@code VillagerData} data item on {@code Villager}; read once. */
     private final EntityDataAccessor<net.minecraft.world.entity.npc.villager.VillagerData> villagerDataAccessor;
+    /** The {@code Integer} packed colour+markings variant data item on {@code Horse}; read once. */
+    private final EntityDataAccessor<Integer> horseVariantAccessor;
+    /** The {@code Integer} coat-variant data item on {@code Llama}; read once. */
+    private final EntityDataAccessor<Integer> llamaVariantAccessor;
+    /** The {@code Byte} wool data item on {@code Sheep} (low 4 bits colour, bit 0x10 sheared); read once. */
+    private final EntityDataAccessor<Byte> sheepWoolAccessor;
+    /** The {@code Integer} variant data item on {@code Parrot}; read once. */
+    private final EntityDataAccessor<Integer> parrotVariantAccessor;
+    /** The {@code Integer} variant data item on {@code Axolotl}; read once. */
+    private final EntityDataAccessor<Integer> axolotlVariantAccessor;
+    /** The {@code Integer} type data item on {@code Fox}; read once. */
+    private final EntityDataAccessor<Integer> foxTypeAccessor;
+    /** The {@code Integer} type data item on {@code Rabbit}; read once. */
+    private final EntityDataAccessor<Integer> rabbitTypeAccessor;
 
     public NmsNpcPackets(PacketSender sender) {
         this.sender = Objects.requireNonNull(sender, "sender");
@@ -157,6 +179,16 @@ public final class NmsNpcPackets implements NpcPackets {
         this.slimeSizeAccessor = Reflect.accessor(Slime.class, "ID_SIZE");
         this.chargedAccessor = Reflect.accessor(Creeper.class, "DATA_IS_POWERED");
         this.villagerDataAccessor = Reflect.accessor(Villager.class, "DATA_VILLAGER_DATA");
+        // The animal-variant accessors, each on the class that owns it, read once like the rest. The horse packs
+        // colour and markings into one integer; the sheep keeps colour in the low nibble of its wool byte. Each is
+        // only ever sent to its own type (the plugin gates which property reaches which entity).
+        this.horseVariantAccessor = Reflect.accessor(Horse.class, "DATA_ID_TYPE_VARIANT");
+        this.llamaVariantAccessor = Reflect.accessor(Llama.class, "DATA_VARIANT_ID");
+        this.sheepWoolAccessor = Reflect.accessor(Sheep.class, "DATA_WOOL_ID");
+        this.parrotVariantAccessor = Reflect.accessor(Parrot.class, "DATA_VARIANT_ID");
+        this.axolotlVariantAccessor = Reflect.accessor(Axolotl.class, "DATA_VARIANT");
+        this.foxTypeAccessor = Reflect.accessor(Fox.class, "DATA_TYPE_ID");
+        this.rabbitTypeAccessor = Reflect.accessor(Rabbit.class, "DATA_TYPE_ID");
     }
 
     @Override
@@ -342,6 +374,47 @@ public final class NmsNpcPackets implements NpcPackets {
     @Override
     public Object charged(int entityId, boolean charged) {
         return dataPacket(entityId, SynchedEntityData.DataValue.create(chargedAccessor, charged));
+    }
+
+    @Override
+    public Object horseVariant(int entityId, int color, int markings) {
+        // Colour and markings pack into the one integer the field carries, the same packing the server uses; the
+        // pure HorseVariant helper does the masking so the bit layout stays testable off the NMS path.
+        int packed = HorseVariant.pack(color, markings);
+        return dataPacket(entityId, SynchedEntityData.DataValue.create(horseVariantAccessor, packed));
+    }
+
+    @Override
+    public Object llamaVariant(int entityId, int variant) {
+        return dataPacket(entityId, SynchedEntityData.DataValue.create(llamaVariantAccessor, variant));
+    }
+
+    @Override
+    public Object sheepColor(int entityId, int color) {
+        // The wool byte holds the colour in its low four bits and the sheared flag in bit 0x10; writing the colour
+        // alone (the masked nibble) leaves the sheared bit clear, so the sheep renders unsheared in that colour.
+        byte wool = (byte) (color & 0x0F);
+        return dataPacket(entityId, SynchedEntityData.DataValue.create(sheepWoolAccessor, wool));
+    }
+
+    @Override
+    public Object parrotVariant(int entityId, int variant) {
+        return dataPacket(entityId, SynchedEntityData.DataValue.create(parrotVariantAccessor, variant));
+    }
+
+    @Override
+    public Object axolotlVariant(int entityId, int variant) {
+        return dataPacket(entityId, SynchedEntityData.DataValue.create(axolotlVariantAccessor, variant));
+    }
+
+    @Override
+    public Object foxType(int entityId, int type) {
+        return dataPacket(entityId, SynchedEntityData.DataValue.create(foxTypeAccessor, type));
+    }
+
+    @Override
+    public Object rabbitType(int entityId, int type) {
+        return dataPacket(entityId, SynchedEntityData.DataValue.create(rabbitTypeAccessor, type));
     }
 
     /** Wrap one already-built {@link SynchedEntityData.DataValue} into a single-field metadata packet. */

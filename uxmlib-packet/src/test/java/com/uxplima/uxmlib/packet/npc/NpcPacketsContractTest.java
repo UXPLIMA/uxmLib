@@ -256,6 +256,78 @@ class NpcPacketsContractTest {
     }
 
     @Test
+    void horseVariantCarriesTheEntityAndTheColourAndMarkings() {
+        FakeNpcPackets packets = new FakeNpcPackets();
+
+        FakeNpcPackets.HorseVariant variant = (FakeNpcPackets.HorseVariant) packets.horseVariant(7, 3, 2);
+
+        assertThat(variant.entityId()).isEqualTo(7);
+        assertThat(variant.color()).isEqualTo(3);
+        assertThat(variant.markings()).isEqualTo(2);
+    }
+
+    @Test
+    void llamaVariantCarriesTheEntityAndVariant() {
+        FakeNpcPackets packets = new FakeNpcPackets();
+
+        FakeNpcPackets.LlamaVariant variant = (FakeNpcPackets.LlamaVariant) packets.llamaVariant(7, 2);
+
+        assertThat(variant.entityId()).isEqualTo(7);
+        assertThat(variant.variant()).isEqualTo(2);
+    }
+
+    @Test
+    void sheepColorCarriesTheEntityAndColour() {
+        FakeNpcPackets packets = new FakeNpcPackets();
+
+        FakeNpcPackets.SheepColor color = (FakeNpcPackets.SheepColor) packets.sheepColor(7, 14);
+
+        assertThat(color.entityId()).isEqualTo(7);
+        assertThat(color.color()).isEqualTo(14);
+    }
+
+    @Test
+    void parrotVariantCarriesTheEntityAndVariant() {
+        FakeNpcPackets packets = new FakeNpcPackets();
+
+        FakeNpcPackets.ParrotVariant variant = (FakeNpcPackets.ParrotVariant) packets.parrotVariant(7, 4);
+
+        assertThat(variant.entityId()).isEqualTo(7);
+        assertThat(variant.variant()).isEqualTo(4);
+    }
+
+    @Test
+    void axolotlVariantCarriesTheEntityAndVariant() {
+        FakeNpcPackets packets = new FakeNpcPackets();
+
+        FakeNpcPackets.AxolotlVariant variant = (FakeNpcPackets.AxolotlVariant) packets.axolotlVariant(7, 3);
+
+        assertThat(variant.entityId()).isEqualTo(7);
+        assertThat(variant.variant()).isEqualTo(3);
+    }
+
+    @Test
+    void foxTypeCarriesTheEntityAndType() {
+        FakeNpcPackets packets = new FakeNpcPackets();
+
+        FakeNpcPackets.FoxType fox = (FakeNpcPackets.FoxType) packets.foxType(7, 1);
+
+        assertThat(fox.entityId()).isEqualTo(7);
+        assertThat(fox.type()).isEqualTo(1);
+    }
+
+    @Test
+    void rabbitTypeCarriesTheEntityAndTypeIncludingTheKillerVariant() {
+        FakeNpcPackets packets = new FakeNpcPackets();
+
+        FakeNpcPackets.RabbitType rabbit = (FakeNpcPackets.RabbitType) packets.rabbitType(7, 99);
+
+        assertThat(rabbit.entityId()).isEqualTo(7);
+        // 99 is the killer (toast) rabbit on the wire, carried straight through as the raw type id.
+        assertThat(rabbit.type()).isEqualTo(99);
+    }
+
+    @Test
     void everyNpcPoseNamesAServerPose() {
         // The NMS impl resolves a Pose by the constant's server name; this proves each NpcPose has a counterpart so
         // the by-name Pose.valueOf never throws at render time. GLIDING maps to the server's FALL_FLYING.
@@ -361,6 +433,20 @@ class NpcPacketsContractTest {
         record SlimeSize(int entityId, int size) {}
 
         record Charged(int entityId, boolean charged) {}
+
+        record HorseVariant(int entityId, int color, int markings) {}
+
+        record LlamaVariant(int entityId, int variant) {}
+
+        record SheepColor(int entityId, int color) {}
+
+        record ParrotVariant(int entityId, int variant) {}
+
+        record AxolotlVariant(int entityId, int variant) {}
+
+        record FoxType(int entityId, int type) {}
+
+        record RabbitType(int entityId, int type) {}
 
         record GlowColor(String teamName, String memberName, @Nullable NamedColor color) {}
 
@@ -479,6 +565,41 @@ class NpcPacketsContractTest {
         @Override
         public Object charged(int entityId, boolean charged) {
             return new Charged(entityId, charged);
+        }
+
+        @Override
+        public Object horseVariant(int entityId, int color, int markings) {
+            return new HorseVariant(entityId, color, markings);
+        }
+
+        @Override
+        public Object llamaVariant(int entityId, int variant) {
+            return new LlamaVariant(entityId, variant);
+        }
+
+        @Override
+        public Object sheepColor(int entityId, int color) {
+            return new SheepColor(entityId, color);
+        }
+
+        @Override
+        public Object parrotVariant(int entityId, int variant) {
+            return new ParrotVariant(entityId, variant);
+        }
+
+        @Override
+        public Object axolotlVariant(int entityId, int variant) {
+            return new AxolotlVariant(entityId, variant);
+        }
+
+        @Override
+        public Object foxType(int entityId, int type) {
+            return new FoxType(entityId, type);
+        }
+
+        @Override
+        public Object rabbitType(int entityId, int type) {
+            return new RabbitType(entityId, type);
         }
 
         @Override
