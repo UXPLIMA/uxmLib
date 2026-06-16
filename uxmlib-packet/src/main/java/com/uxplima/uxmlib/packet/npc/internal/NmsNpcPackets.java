@@ -5,6 +5,7 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -27,6 +28,7 @@ import com.uxplima.uxmlib.packet.npc.NpcPackets;
 import com.uxplima.uxmlib.packet.npc.NpcPose;
 import com.uxplima.uxmlib.packet.tablist.TabSkin;
 import net.minecraft.ChatFormatting;
+import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.protocol.game.ClientboundAddEntityPacket;
 import net.minecraft.network.protocol.game.ClientboundMoveEntityPacket;
@@ -44,6 +46,7 @@ import net.minecraft.network.protocol.game.ClientboundUpdateAttributesPacket;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.entity.AgeableMob;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Pose;
@@ -51,6 +54,9 @@ import net.minecraft.world.entity.PositionMoveRotation;
 import net.minecraft.world.entity.Relative;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.monster.Creeper;
+import net.minecraft.world.entity.monster.Slime;
+import net.minecraft.world.entity.npc.villager.Villager;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.scores.PlayerTeam;
@@ -113,6 +119,14 @@ public final class NmsNpcPackets implements NpcPackets {
     private final byte glowingFlag;
     /** The {@code Pose} data item that holds an entity's body pose; read once, like the shared-flags accessor. */
     private final EntityDataAccessor<Pose> poseAccessor;
+    /** The {@code Boolean} baby/adult data item shared by every {@code AgeableMob}; read once. */
+    private final EntityDataAccessor<Boolean> babyAccessor;
+    /** The {@code Integer} slime-size data item on {@code Slime}; read once. */
+    private final EntityDataAccessor<Integer> slimeSizeAccessor;
+    /** The {@code Boolean} powered data item on {@code Creeper}; read once. */
+    private final EntityDataAccessor<Boolean> chargedAccessor;
+    /** The {@code VillagerData} data item on {@code Villager}; read once. */
+    private final EntityDataAccessor<net.minecraft.world.entity.npc.villager.VillagerData> villagerDataAccessor;
 
     public NmsNpcPackets(PacketSender sender) {
         this.sender = Objects.requireNonNull(sender, "sender");
@@ -122,6 +136,13 @@ public final class NmsNpcPackets implements NpcPackets {
         int glowingBit = Reflect.accessor(Entity.class, "FLAG_GLOWING");
         this.glowingFlag = (byte) (1 << glowingBit);
         this.poseAccessor = Reflect.accessor(Entity.class, "DATA_POSE");
+        // The type-specific appearance accessors, each read once here off every hot path, exactly like glow/pose.
+        // Each lives on the entity class that owns the property, so it is only ever sent to that type (the plugin
+        // gates which property reaches which entity); a wrong index would land on an unrelated field otherwise.
+        this.babyAccessor = Reflect.accessor(AgeableMob.class, "DATA_BABY_ID");
+        this.slimeSizeAccessor = Reflect.accessor(Slime.class, "ID_SIZE");
+        this.chargedAccessor = Reflect.accessor(Creeper.class, "DATA_IS_POWERED");
+        this.villagerDataAccessor = Reflect.accessor(Villager.class, "DATA_VILLAGER_DATA");
     }
 
     @Override
@@ -258,6 +279,63 @@ public final class NmsNpcPackets implements NpcPackets {
         AttributeInstance instance = new AttributeInstance(Attributes.SCALE, ignored -> {});
         instance.setBaseValue(scale);
         return new ClientboundUpdateAttributesPacket(entityId, List.of(instance));
+    }
+
+    @Override
+    public Object baby(int entityId, boolean baby) {
+        // Ships the AgeableMob baby boolean exactly the way glow ships its byte; the accessor carries the boolean
+        // serializer, so DataValue.create needs nothing more than the accessor and the value.
+        return dataPacket(entityId, SynchedEntityData.DataValue.create(babyAccessor, baby));
+    }
+
+    @Override
+    public Object villagerData(int entityId, String type, String profession, int level) {
+        Objects.requireNonNull(type, "type");
+        Objects.requireNonNull(profession, "profession");
+        // Resolve the type/profession by name off their defaulted registries — an unknown name returns the registry
+        // default rather than nothing — and pack them into the VillagerData record the metadata field carries.
+        net.minecraft.world.entity.npc.villager.VillagerData data =
+                new net.minecraft.world.entity.npc.villager.VillagerData(
+                        holder(BuiltInRegistries.VILLAGER_TYPE, type),
+                        holder(BuiltInRegistries.VILLAGER_PROFESSION, profession),
+                        level);
+        return dataPacket(entityId, SynchedEntityData.DataValue.create(villagerDataAccessor, data));
+    }
+
+    @Override
+    public Object slimeSize(int entityId, int size) {
+        if (size < 1) {
+            throw new IllegalArgumentException("slime size must be at least 1, was " + size);
+        }
+        return dataPacket(entityId, SynchedEntityData.DataValue.create(slimeSizeAccessor, size));
+    }
+
+    @Override
+    public Object charged(int entityId, boolean charged) {
+        return dataPacket(entityId, SynchedEntityData.DataValue.create(chargedAccessor, charged));
+    }
+
+    /** Wrap one already-built {@link SynchedEntityData.DataValue} into a single-field metadata packet. */
+    private static ClientboundSetEntityDataPacket dataPacket(int entityId, SynchedEntityData.DataValue<?> value) {
+        return new ClientboundSetEntityDataPacket(entityId, List.of(value));
+    }
+
+    /**
+     * Resolve {@code name} (plain or namespaced) to a {@link Holder} off the defaulted {@code registry}, falling
+     * back to the registry default when the name is unparseable or unknown — the registry's own default holder, so
+     * a typo renders the default appearance rather than failing the spawn.
+     */
+    private static <T> Holder<T> holder(net.minecraft.core.DefaultedRegistry<T> registry, String name) {
+        Identifier id = name.indexOf(Identifier.NAMESPACE_SEPARATOR) < 0
+                ? Identifier.withDefaultNamespace(name)
+                : Identifier.tryParse(name);
+        if (id != null) {
+            Optional<? extends Holder<T>> found = registry.get(id);
+            if (found.isPresent()) {
+                return found.get();
+            }
+        }
+        return registry.get(registry.getDefaultKey()).orElseThrow();
     }
 
     @Override

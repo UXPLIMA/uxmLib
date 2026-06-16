@@ -107,6 +107,50 @@ public interface NpcPackets {
     Object scale(int entityId, double scale);
 
     /**
+     * Build the metadata packet that toggles an ageable mob's baby/adult state through the {@code DATA_BABY_ID}
+     * field shared by every {@code AgeableMob} (animals, the villager line, the zombie/piglin variants). The field
+     * is a boolean — {@code true} is a baby, {@code false} an adult — and the data index is the same for every
+     * ageable type, so the one packet renders correctly on any of them. The caller must only ever send this to an
+     * entity that is actually ageable: a non-ageable type (a creeper, a slime) has no metadata at that index, so
+     * the value would land on the wrong field. Validating that is the plugin's per-type concern, not this builder's.
+     */
+    Object baby(int entityId, boolean baby);
+
+    /**
+     * Build the metadata packet that sets a villager's appearance — its biome {@code type} (the registry name of a
+     * villager type, e.g. {@code plains}/{@code desert}), its {@code profession} (e.g. {@code farmer}/{@code
+     * librarian}), and its {@code level} (1–5, the badge tier) — through the villager's {@code DATA_VILLAGER_DATA}
+     * field. The type and profession are resolved by name off the server's villager-type and villager-profession
+     * registries, both defaulted registries: an unknown name falls back to the registry default rather than
+     * throwing, so a typo renders the default villager rather than failing the spawn. Send this only to a villager;
+     * any other type has no villager-data field at that index.
+     *
+     * @param type the villager-type registry name (plain or namespaced), defaulted when unknown
+     * @param profession the villager-profession registry name (plain or namespaced), defaulted when unknown
+     * @param level the badge level the client renders (the protocol uses 1–5)
+     */
+    Object villagerData(int entityId, String type, String profession, int level);
+
+    /**
+     * Build the metadata packet that sets a slime's (or magma cube's) size through the {@code ID_SIZE} field — an
+     * integer where larger is bigger and the body's collision box and render scale follow it. The protocol stores
+     * the size as {@code size}; the client renders a {@code size}-block-ish cube. Send this only to a slime or
+     * magma cube; any other type has no size field at that index. The plugin clamps the value to a sane range
+     * before calling — this builder only guards against the impossible.
+     *
+     * @param size the slime size (the plugin clamps it; 1 is the smallest natural slime)
+     * @throws IllegalArgumentException if {@code size} is below 1, which the slime size field cannot represent
+     */
+    Object slimeSize(int entityId, int size);
+
+    /**
+     * Build the metadata packet that toggles a creeper's charged (powered) state through the creeper's {@code
+     * DATA_IS_POWERED} field — the boolean that renders the blue electrified aura a charged creeper carries. Send
+     * this only to a creeper; any other type has no powered field at that index.
+     */
+    Object charged(int entityId, boolean charged);
+
+    /**
      * Build the scoreboard-team packet that tints the NPC's glow to {@code color}. The client colours a glowing
      * entity's outline with the colour of the team its name is a member of, so this packet creates (or modifies) a
      * team named {@code teamName}, sets its colour, and seats {@code memberName} as a member. For a fake player

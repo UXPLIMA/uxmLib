@@ -191,6 +191,53 @@ class NpcPacketsContractTest {
     }
 
     @Test
+    void babyCarriesTheEntityAndToggle() {
+        FakeNpcPackets packets = new FakeNpcPackets();
+
+        FakeNpcPackets.Baby on = (FakeNpcPackets.Baby) packets.baby(7, true);
+        FakeNpcPackets.Baby off = (FakeNpcPackets.Baby) packets.baby(7, false);
+
+        assertThat(on.entityId()).isEqualTo(7);
+        assertThat(on.baby()).isTrue();
+        assertThat(off.baby()).isFalse();
+    }
+
+    @Test
+    void villagerDataCarriesTypeProfessionAndLevel() {
+        FakeNpcPackets packets = new FakeNpcPackets();
+
+        FakeNpcPackets.VillagerData data =
+                (FakeNpcPackets.VillagerData) packets.villagerData(7, "desert", "librarian", 3);
+
+        assertThat(data.entityId()).isEqualTo(7);
+        assertThat(data.type()).isEqualTo("desert");
+        assertThat(data.profession()).isEqualTo("librarian");
+        assertThat(data.level()).isEqualTo(3);
+    }
+
+    @Test
+    void slimeSizeCarriesTheEntityAndSize() {
+        FakeNpcPackets packets = new FakeNpcPackets();
+
+        FakeNpcPackets.SlimeSize sized = (FakeNpcPackets.SlimeSize) packets.slimeSize(7, 4);
+
+        assertThat(sized.entityId()).isEqualTo(7);
+        assertThat(sized.size()).isEqualTo(4);
+    }
+
+    @Test
+    void chargedCarriesTheEntityAndToggle() {
+        FakeNpcPackets packets = new FakeNpcPackets();
+
+        FakeNpcPackets.Charged on = (FakeNpcPackets.Charged) packets.charged(7, true);
+        FakeNpcPackets.Charged off = (FakeNpcPackets.Charged) packets.charged(7, false);
+
+        assertThat(on.entityId()).isEqualTo(7);
+        assertThat(on.charged()).isTrue();
+        assertThat(off.charged()).isFalse();
+    }
+
+    @Test
     void everyNpcPoseNamesAServerPose() {
         // The NMS impl resolves a Pose by the constant's server name; this proves each NpcPose has a counterpart so
         // the by-name Pose.valueOf never throws at render time. GLIDING maps to the server's FALL_FLYING.
@@ -283,6 +330,14 @@ class NpcPacketsContractTest {
 
         record Scale(int entityId, double scale) {}
 
+        record Baby(int entityId, boolean baby) {}
+
+        record VillagerData(int entityId, String type, String profession, int level) {}
+
+        record SlimeSize(int entityId, int size) {}
+
+        record Charged(int entityId, boolean charged) {}
+
         record GlowColor(String teamName, String memberName, @Nullable NamedColor color) {}
 
         record GlowColorRemove(String teamName) {}
@@ -365,6 +420,26 @@ class NpcPacketsContractTest {
         @Override
         public Object scale(int entityId, double scale) {
             return new Scale(entityId, scale);
+        }
+
+        @Override
+        public Object baby(int entityId, boolean baby) {
+            return new Baby(entityId, baby);
+        }
+
+        @Override
+        public Object villagerData(int entityId, String type, String profession, int level) {
+            return new VillagerData(entityId, type, profession, level);
+        }
+
+        @Override
+        public Object slimeSize(int entityId, int size) {
+            return new SlimeSize(entityId, size);
+        }
+
+        @Override
+        public Object charged(int entityId, boolean charged) {
+            return new Charged(entityId, charged);
         }
 
         @Override
