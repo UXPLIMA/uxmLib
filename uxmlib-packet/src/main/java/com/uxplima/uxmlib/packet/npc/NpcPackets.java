@@ -91,6 +91,22 @@ public interface NpcPackets {
     Object glow(int entityId, boolean glowing);
 
     /**
+     * Build the metadata packet that freezes the NPC in {@code pose} through the entity's {@code DATA_POSE} field.
+     * A pose only renders where the entity type supports it (a player or a humanoid mob), so an NPC whose type
+     * cannot strike the pose simply ignores it — the packet is harmless either way. The accessor is read once at
+     * construction, like the glow accessor, so this stays off the reflection path on every send.
+     */
+    Object pose(int entityId, NpcPose pose);
+
+    /**
+     * Build the attribute packet that resizes the NPC to {@code scale} through the {@code minecraft:generic.scale}
+     * attribute (1.0 is the natural size; 2.0 is twice as tall, 0.5 half). The attribute applies to every entity
+     * type. The plugin command is the primary clamp; the implementation guards only against a non-finite or
+     * non-positive value, which the protocol cannot represent.
+     */
+    Object scale(int entityId, double scale);
+
+    /**
      * Build the scoreboard-team packet that tints the NPC's glow to {@code color}. The client colours a glowing
      * entity's outline with the colour of the team its name is a member of, so this packet creates (or modifies) a
      * team named {@code teamName}, sets its colour, and seats {@code memberName} as a member. For a fake player

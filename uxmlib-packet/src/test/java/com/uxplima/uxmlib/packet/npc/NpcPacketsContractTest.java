@@ -29,6 +29,31 @@ import org.mockbukkit.mockbukkit.inventory.ItemStackMock;
  */
 class NpcPacketsContractTest {
 
+    /**
+     * The pose names {@code net.minecraft.world.entity.Pose} declares — the by-name target for {@link NpcPose}.
+     * The list is fixed by the protocol, so pinning it here is stable; it proves every {@code NpcPose} server name
+     * has a real {@code Pose} counterpart so the NMS {@code Pose.valueOf} never throws at render time.
+     */
+    private static final java.util.Set<String> SERVER_POSE_NAMES = java.util.Set.of(
+            "STANDING",
+            "FALL_FLYING",
+            "SLEEPING",
+            "SWIMMING",
+            "SPIN_ATTACK",
+            "CROUCHING",
+            "LONG_JUMPING",
+            "DYING",
+            "CROAKING",
+            "USING_TONGUE",
+            "SITTING",
+            "ROARING",
+            "SNIFFING",
+            "EMERGING",
+            "DIGGING",
+            "SLIDING",
+            "SHOOTING",
+            "INHALING");
+
     /** The 16 colour names {@code net.minecraft.ChatFormatting} declares — the by-name target for {@link NamedColor}. */
     private static final java.util.Set<String> CHAT_FORMATTING_COLORS = java.util.Set.of(
             "BLACK",
@@ -146,6 +171,37 @@ class NpcPacketsContractTest {
     }
 
     @Test
+    void poseCarriesTheEntityAndPose() {
+        FakeNpcPackets packets = new FakeNpcPackets();
+
+        FakeNpcPackets.PoseSet posed = (FakeNpcPackets.PoseSet) packets.pose(7, NpcPose.SITTING);
+
+        assertThat(posed.entityId()).isEqualTo(7);
+        assertThat(posed.pose()).isEqualTo(NpcPose.SITTING);
+    }
+
+    @Test
+    void scaleCarriesTheEntityAndScale() {
+        FakeNpcPackets packets = new FakeNpcPackets();
+
+        FakeNpcPackets.Scale scaled = (FakeNpcPackets.Scale) packets.scale(7, 2.5);
+
+        assertThat(scaled.entityId()).isEqualTo(7);
+        assertThat(scaled.scale()).isEqualTo(2.5);
+    }
+
+    @Test
+    void everyNpcPoseNamesAServerPose() {
+        // The NMS impl resolves a Pose by the constant's server name; this proves each NpcPose has a counterpart so
+        // the by-name Pose.valueOf never throws at render time. GLIDING maps to the server's FALL_FLYING.
+        for (NpcPose pose : NpcPose.values()) {
+            assertThat(SERVER_POSE_NAMES).contains(pose.serverName());
+        }
+        assertThat(NpcPose.GLIDING.serverName()).isEqualTo("FALL_FLYING");
+        assertThat(NpcPose.STANDING.serverName()).isEqualTo("STANDING");
+    }
+
+    @Test
     void glowColorCarriesTheTeamMemberAndColor() {
         FakeNpcPackets packets = new FakeNpcPackets();
 
@@ -223,6 +279,10 @@ class NpcPacketsContractTest {
 
         record Glow(int entityId, boolean glowing) {}
 
+        record PoseSet(int entityId, NpcPose pose) {}
+
+        record Scale(int entityId, double scale) {}
+
         record GlowColor(String teamName, String memberName, @Nullable NamedColor color) {}
 
         record GlowColorRemove(String teamName) {}
@@ -295,6 +355,16 @@ class NpcPacketsContractTest {
         @Override
         public Object glow(int entityId, boolean glowing) {
             return new Glow(entityId, glowing);
+        }
+
+        @Override
+        public Object pose(int entityId, NpcPose pose) {
+            return new PoseSet(entityId, pose);
+        }
+
+        @Override
+        public Object scale(int entityId, double scale) {
+            return new Scale(entityId, scale);
         }
 
         @Override

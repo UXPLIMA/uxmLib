@@ -24,6 +24,7 @@ import com.uxplima.uxmlib.packet.npc.ByteAngle;
 import com.uxplima.uxmlib.packet.npc.EquipmentSlot;
 import com.uxplima.uxmlib.packet.npc.NamedColor;
 import com.uxplima.uxmlib.packet.npc.NpcPackets;
+import com.uxplima.uxmlib.packet.npc.NpcPose;
 import com.uxplima.uxmlib.packet.tablist.TabSkin;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -39,13 +40,17 @@ import net.minecraft.network.protocol.game.ClientboundSetEntityDataPacket;
 import net.minecraft.network.protocol.game.ClientboundSetEquipmentPacket;
 import net.minecraft.network.protocol.game.ClientboundSetPlayerTeamPacket;
 import net.minecraft.network.protocol.game.ClientboundTeleportEntityPacket;
+import net.minecraft.network.protocol.game.ClientboundUpdateAttributesPacket;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.Pose;
 import net.minecraft.world.entity.PositionMoveRotation;
 import net.minecraft.world.entity.Relative;
+import net.minecraft.world.entity.ai.attributes.AttributeInstance;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.scores.PlayerTeam;
@@ -106,14 +111,17 @@ public final class NmsNpcPackets implements NpcPackets {
     private final EntityDataAccessor<Byte> sharedFlagsAccessor;
     /** The shared-flags byte with only the glowing bit set, sent to switch the outline on. */
     private final byte glowingFlag;
+    /** The {@code Pose} data item that holds an entity's body pose; read once, like the shared-flags accessor. */
+    private final EntityDataAccessor<Pose> poseAccessor;
 
     public NmsNpcPackets(PacketSender sender) {
         this.sender = Objects.requireNonNull(sender, "sender");
-        // Read the shared-flags accessor and the glowing bit index once here, off every hot path. FLAG_GLOWING is
-        // the bit position (6); the wire value is the byte with that one bit set.
+        // Read the shared-flags and pose accessors and the glowing bit index once here, off every hot path.
+        // FLAG_GLOWING is the bit position (6); the wire value is the byte with that one bit set.
         this.sharedFlagsAccessor = Reflect.accessor(Entity.class, "DATA_SHARED_FLAGS_ID");
         int glowingBit = Reflect.accessor(Entity.class, "FLAG_GLOWING");
         this.glowingFlag = (byte) (1 << glowingBit);
+        this.poseAccessor = Reflect.accessor(Entity.class, "DATA_POSE");
     }
 
     @Override
@@ -227,6 +235,29 @@ public final class NmsNpcPackets implements NpcPackets {
         byte flags = glowing ? glowingFlag : 0;
         SynchedEntityData.DataValue<Byte> value = SynchedEntityData.DataValue.create(sharedFlagsAccessor, flags);
         return new ClientboundSetEntityDataPacket(entityId, List.of(value));
+    }
+
+    @Override
+    public Object pose(int entityId, NpcPose pose) {
+        Objects.requireNonNull(pose, "pose");
+        // Resolve the server pose from the constant's server name (GLIDING -> FALL_FLYING, the rest by name) and
+        // ship it the same way glow ships its byte: DataValue.create derives the POSE serializer from the accessor.
+        Pose nmsPose = Pose.valueOf(pose.serverName());
+        SynchedEntityData.DataValue<Pose> value = SynchedEntityData.DataValue.create(poseAccessor, nmsPose);
+        return new ClientboundSetEntityDataPacket(entityId, List.of(value));
+    }
+
+    @Override
+    public Object scale(int entityId, double scale) {
+        if (!Double.isFinite(scale) || scale <= 0.0) {
+            throw new IllegalArgumentException("scale must be finite and positive, was " + scale);
+        }
+        // The packet's public constructor reads each instance's base value and modifiers into a snapshot, so an
+        // instance carrying just the scale base value (no modifiers) is the simplest way past the private snapshot
+        // constructor without a registry-buffer round-trip.
+        AttributeInstance instance = new AttributeInstance(Attributes.SCALE, ignored -> {});
+        instance.setBaseValue(scale);
+        return new ClientboundUpdateAttributesPacket(entityId, List.of(instance));
     }
 
     @Override
