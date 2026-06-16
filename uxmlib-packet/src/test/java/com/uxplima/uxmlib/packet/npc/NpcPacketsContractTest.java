@@ -171,6 +171,47 @@ class NpcPacketsContractTest {
     }
 
     @Test
+    void sharedFlagsComposeOnFireGlowAndInvisibleIntoOnePacket() {
+        FakeNpcPackets packets = new FakeNpcPackets();
+
+        FakeNpcPackets.SharedFlags flags = (FakeNpcPackets.SharedFlags) packets.sharedFlags(7, true, false, true);
+
+        assertThat(flags.entityId()).isEqualTo(7);
+        assertThat(flags.onFire()).isTrue();
+        assertThat(flags.glowing()).isFalse();
+        assertThat(flags.invisible()).isTrue();
+    }
+
+    @Test
+    void silentCarriesTheEntityAndToggle() {
+        FakeNpcPackets packets = new FakeNpcPackets();
+
+        FakeNpcPackets.Silent on = (FakeNpcPackets.Silent) packets.silent(7, true);
+        FakeNpcPackets.Silent off = (FakeNpcPackets.Silent) packets.silent(7, false);
+
+        assertThat(on.entityId()).isEqualTo(7);
+        assertThat(on.silent()).isTrue();
+        assertThat(off.silent()).isFalse();
+    }
+
+    @Test
+    void collidableCarriesTheTeamMemberColourAndRule() {
+        FakeNpcPackets packets = new FakeNpcPackets();
+
+        FakeNpcPackets.Collidable on =
+                (FakeNpcPackets.Collidable) packets.collidable("uxmnpc_guide", "guide", NamedColor.RED, true);
+        FakeNpcPackets.Collidable off =
+                (FakeNpcPackets.Collidable) packets.collidable("uxmnpc_guide", "guide", null, false);
+
+        assertThat(on.teamName()).isEqualTo("uxmnpc_guide");
+        assertThat(on.memberName()).isEqualTo("guide");
+        assertThat(on.color()).isEqualTo(NamedColor.RED);
+        assertThat(on.collidable()).isTrue();
+        assertThat(off.color()).isNull();
+        assertThat(off.collidable()).isFalse();
+    }
+
+    @Test
     void poseCarriesTheEntityAndPose() {
         FakeNpcPackets packets = new FakeNpcPackets();
 
@@ -438,6 +479,12 @@ class NpcPacketsContractTest {
 
         record Glow(int entityId, boolean glowing) {}
 
+        record SharedFlags(int entityId, boolean onFire, boolean glowing, boolean invisible) {}
+
+        record Silent(int entityId, boolean silent) {}
+
+        record Collidable(String teamName, String memberName, @Nullable NamedColor color, boolean collidable) {}
+
         record PoseSet(int entityId, NpcPose pose) {}
 
         record Scale(int entityId, double scale) {}
@@ -546,6 +593,21 @@ class NpcPacketsContractTest {
         @Override
         public Object glow(int entityId, boolean glowing) {
             return new Glow(entityId, glowing);
+        }
+
+        @Override
+        public Object sharedFlags(int entityId, boolean onFire, boolean glowing, boolean invisible) {
+            return new SharedFlags(entityId, onFire, glowing, invisible);
+        }
+
+        @Override
+        public Object silent(int entityId, boolean silent) {
+            return new Silent(entityId, silent);
+        }
+
+        @Override
+        public Object collidable(String teamName, String memberName, @Nullable NamedColor color, boolean collidable) {
+            return new Collidable(teamName, memberName, color, collidable);
         }
 
         @Override

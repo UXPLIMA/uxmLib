@@ -80,6 +80,7 @@ import net.minecraft.world.level.GameType;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.scores.PlayerTeam;
 import net.minecraft.world.scores.Scoreboard;
+import net.minecraft.world.scores.Team;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -136,6 +137,12 @@ public final class NmsNpcPackets implements NpcPackets {
     private final EntityDataAccessor<Byte> sharedFlagsAccessor;
     /** The shared-flags byte with only the glowing bit set, sent to switch the outline on. */
     private final byte glowingFlag;
+    /** The shared-flags byte with only the on-fire bit set; combined with the others in {@link #sharedFlags}. */
+    private final byte onFireFlag;
+    /** The shared-flags byte with only the invisible bit set; combined with the others in {@link #sharedFlags}. */
+    private final byte invisibleFlag;
+    /** The {@code Boolean} silent data item on {@code Entity}; read once like the shared-flags accessor. */
+    private final EntityDataAccessor<Boolean> silentAccessor;
     /** The {@code Pose} data item that holds an entity's body pose; read once, like the shared-flags accessor. */
     private final EntityDataAccessor<Pose> poseAccessor;
     /** The {@code Boolean} baby/adult data item on {@code AgeableMob} (animals, villagers, hoglin); read once. */
@@ -178,6 +185,14 @@ public final class NmsNpcPackets implements NpcPackets {
         this.sharedFlagsAccessor = Reflect.accessor(Entity.class, "DATA_SHARED_FLAGS_ID");
         int glowingBit = Reflect.accessor(Entity.class, "FLAG_GLOWING");
         this.glowingFlag = (byte) (1 << glowingBit);
+        // The on-fire and invisible bits live in the same shared-flags byte, so sharedFlags composes all three
+        // rather than letting glow/on-fire/invisible each overwrite the whole byte. Their bit indices are read off
+        // Entity here, once, exactly like the glowing bit.
+        int onFireBit = Reflect.accessor(Entity.class, "FLAG_ONFIRE");
+        this.onFireFlag = (byte) (1 << onFireBit);
+        int invisibleBit = Reflect.accessor(Entity.class, "FLAG_INVISIBLE");
+        this.invisibleFlag = (byte) (1 << invisibleBit);
+        this.silentAccessor = Reflect.accessor(Entity.class, "DATA_SILENT");
         this.poseAccessor = Reflect.accessor(Entity.class, "DATA_POSE");
         // The type-specific appearance accessors, each read once here off every hot path, exactly like glow/pose.
         // Each lives on the entity class that owns the property, so it is only ever sent to that type (the plugin
@@ -319,6 +334,30 @@ public final class NmsNpcPackets implements NpcPackets {
         byte flags = glowing ? glowingFlag : 0;
         SynchedEntityData.DataValue<Byte> value = SynchedEntityData.DataValue.create(sharedFlagsAccessor, flags);
         return new ClientboundSetEntityDataPacket(entityId, List.of(value));
+    }
+
+    @Override
+    public Object sharedFlags(int entityId, boolean onFire, boolean glowing, boolean invisible) {
+        // Compose the three bits into one shared-flags byte so none overwrites the others' state. An unset flag
+        // leaves its bit clear; an all-false call clears the byte to zero (no glow, not on fire, visible).
+        byte flags = 0;
+        if (onFire) {
+            flags |= onFireFlag;
+        }
+        if (glowing) {
+            flags |= glowingFlag;
+        }
+        if (invisible) {
+            flags |= invisibleFlag;
+        }
+        SynchedEntityData.DataValue<Byte> value = SynchedEntityData.DataValue.create(sharedFlagsAccessor, flags);
+        return new ClientboundSetEntityDataPacket(entityId, List.of(value));
+    }
+
+    @Override
+    public Object silent(int entityId, boolean silent) {
+        // DATA_SILENT lives on Entity, so it applies to any NPC type; ship it the same way glow ships its byte.
+        return dataPacket(entityId, SynchedEntityData.DataValue.create(silentAccessor, silent));
     }
 
     @Override
@@ -525,6 +564,23 @@ public final class NmsNpcPackets implements NpcPackets {
         // client drops the named team if it has it and ignores the packet otherwise.
         PlayerTeam team = new PlayerTeam(new Scoreboard(), teamName);
         return ClientboundSetPlayerTeamPacket.createRemovePacket(team);
+    }
+
+    @Override
+    public Object collidable(String teamName, String memberName, @Nullable NamedColor color, boolean collidable) {
+        Objects.requireNonNull(teamName, "teamName");
+        Objects.requireNonNull(memberName, "memberName");
+        // The client honours the team's collision rule and outline colour for an entity whose name is on the team,
+        // the same team mechanism glowColor tints through; ALWAYS collides, NEVER passes through. Both ride one
+        // packet because an entity is on only one team. A throwaway scoreboard is fine — the packet copies the
+        // team's parameters and member list off it.
+        PlayerTeam team = new PlayerTeam(new Scoreboard(), teamName);
+        team.setCollisionRule(collidable ? Team.CollisionRule.ALWAYS : Team.CollisionRule.NEVER);
+        if (color != null) {
+            team.setColor(ChatFormatting.valueOf(color.name()));
+        }
+        team.getPlayers().add(memberName);
+        return ClientboundSetPlayerTeamPacket.createAddOrModifyPacket(team, true);
     }
 
     @Override

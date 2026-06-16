@@ -87,8 +87,46 @@ public interface NpcPackets {
      * Build the metadata packet that turns the NPC's glowing outline on or off through the entity's shared-flags
      * byte (the {@code glowing} bit). White is the default outline colour; {@link #glowColor} tints it. A fresh
      * NPC carries no other shared flags (not on fire, not sneaking), so the packet sets only the one bit.
+     *
+     * <p>This sets <em>only</em> the glowing bit, so it overwrites the on-fire and invisible bits of the same byte;
+     * an NPC that combines glow with on-fire or invisible must use {@link #sharedFlags} instead, which composes all
+     * three bits into one byte. This narrower method is kept for the common glow-only path and for callers that
+     * never touch the other flags.
      */
     Object glow(int entityId, boolean glowing);
+
+    /**
+     * Build the metadata packet that sets the NPC's shared-flags byte (data item 0) from the {@code onFire},
+     * {@code glowing}, and {@code invisible} bits at once, so the three compose into one value rather than three
+     * packets each overwriting the whole byte. The bit positions ({@code FLAG_ONFIRE}, {@code FLAG_GLOWING},
+     * {@code FLAG_INVISIBLE}) are read off {@code Entity} once at construction, so an unset flag leaves its bit
+     * clear. White is still the default glow outline; {@link #glowColor} tints it independently of this byte.
+     */
+    Object sharedFlags(int entityId, boolean onFire, boolean glowing, boolean invisible);
+
+    /**
+     * Build the metadata packet that toggles the NPC's silence through the entity's {@code DATA_SILENT} boolean —
+     * a silent entity emits no ambient or hurt sounds. The accessor lives on {@code Entity}, so it applies to every
+     * NPC type (player or mob), and is read once at construction off every hot path like the shared-flags accessor.
+     */
+    Object silent(int entityId, boolean silent);
+
+    /**
+     * Build the scoreboard-team packet that sets the NPC's collision rule <em>and</em> its glow colour on one team,
+     * mirroring the {@link #glowColor} team approach: the client honours both the {@code collisionRule} and the
+     * outline colour of the team an entity's name is on, and an entity can be on only one team, so the two must
+     * travel on a single packet rather than two that overwrite each other. This creates (or modifies) a team named
+     * {@code teamName}, sets its collision rule to {@code ALWAYS} when {@code collidable} or {@code NEVER} when not,
+     * tints it {@code color} (or leaves it the default white when {@code null}), and seats {@code memberName} as a
+     * member. The caller uses this in place of {@link #glowColor} whenever the NPC overrides collision, folding any
+     * glow colour in; {@link #glowColorRemove} still clears the team on despawn either way.
+     *
+     * @param teamName the team name to create or modify (the same per-NPC team {@link #glowColor} uses)
+     * @param memberName the NPC's profile name, seated as the team's member
+     * @param color the glow colour, or {@code null} for the default white outline
+     * @param collidable whether the NPC collides with players (team collision rule {@code ALWAYS} vs {@code NEVER})
+     */
+    Object collidable(String teamName, String memberName, @Nullable NamedColor color, boolean collidable);
 
     /**
      * Build the metadata packet that freezes the NPC in {@code pose} through the entity's {@code DATA_POSE} field.
