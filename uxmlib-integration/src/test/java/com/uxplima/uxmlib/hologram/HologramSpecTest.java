@@ -83,6 +83,30 @@ class HologramSpecTest {
     }
 
     @Test
+    void alignmentTranslationPerAxisScaleAndShadowRoundTrip() {
+        HologramSpec spec = Holograms.builder()
+                .line(Component.text("x"))
+                .alignment(org.bukkit.entity.TextDisplay.TextAlignment.LEFT)
+                .translation(0.5f, 1f, -0.5f)
+                .scale(2f, 3f, 4f)
+                .shadowRadius(1.5f)
+                .shadowStrength(0.8f)
+                .spec();
+
+        Appearance look = spec.appearance();
+        assertThat(look.alignment()).isEqualTo(org.bukkit.entity.TextDisplay.TextAlignment.LEFT);
+        assertThat(look.shadowRadius()).isEqualTo(1.5f);
+        assertThat(look.shadowStrength()).isEqualTo(0.8f);
+        Transform transform = java.util.Objects.requireNonNull(look.transform());
+        assertThat(transform.transX()).isEqualTo(0.5f);
+        assertThat(transform.transY()).isEqualTo(1f);
+        assertThat(transform.transZ()).isEqualTo(-0.5f);
+        assertThat(transform.scaleX()).isEqualTo(2f);
+        assertThat(transform.scaleY()).isEqualTo(3f);
+        assertThat(transform.scaleZ()).isEqualTo(4f);
+    }
+
+    @Test
     void requiresAtLeastOneLine() {
         assertThatThrownBy(() -> Holograms.builder().spec()).isInstanceOf(IllegalArgumentException.class);
     }

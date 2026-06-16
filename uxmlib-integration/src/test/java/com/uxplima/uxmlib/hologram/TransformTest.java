@@ -40,6 +40,52 @@ class TransformTest {
     }
 
     @Test
+    void perAxisScaleSetsEachAxisIndependently() {
+        Transform t = Transform.scale(2f, 3f, 4f);
+        assertThat(t.scaleX()).isEqualTo(2f);
+        assertThat(t.scaleY()).isEqualTo(3f);
+        assertThat(t.scaleZ()).isEqualTo(4f);
+        assertThat(t.yawDegrees()).isZero();
+    }
+
+    @Test
+    void perAxisScaleMapsToNativeTransformation() {
+        var bukkit = Transform.scale(2f, 3f, 4f).toBukkit();
+        assertThat(bukkit.getScale().x()).isEqualTo(2f);
+        assertThat(bukkit.getScale().y()).isEqualTo(3f);
+        assertThat(bukkit.getScale().z()).isEqualTo(4f);
+    }
+
+    @Test
+    void translationOffsetsTheNativeTransformation() {
+        Transform t = Transform.translation(1.5f, -2f, 0.25f);
+        assertThat(t.transX()).isEqualTo(1.5f);
+        assertThat(t.transY()).isEqualTo(-2f);
+        assertThat(t.transZ()).isEqualTo(0.25f);
+        var bukkit = t.toBukkit();
+        assertThat(bukkit.getTranslation().x()).isEqualTo(1.5f);
+        assertThat(bukkit.getTranslation().y()).isEqualTo(-2f);
+        assertThat(bukkit.getTranslation().z()).isEqualTo(0.25f);
+        // A bare translation leaves scale at the default 1.0 on every axis.
+        assertThat(bukkit.getScale().x()).isEqualTo(1f);
+    }
+
+    @Test
+    void withTranslationKeepsScaleAndRotation() {
+        Transform t = Transform.NONE.withScale(2f).withYaw(45f).withTranslation(0f, 1f, 0f);
+        assertThat(t.scaleX()).isEqualTo(2f);
+        assertThat(t.yawDegrees()).isEqualTo(45f);
+        assertThat(t.transY()).isEqualTo(1f);
+    }
+
+    @Test
+    void noneCarriesZeroTranslation() {
+        assertThat(Transform.NONE.transX()).isZero();
+        assertThat(Transform.NONE.transY()).isZero();
+        assertThat(Transform.NONE.transZ()).isZero();
+    }
+
+    @Test
     void rotationWithPitchKeepsDefaultScaleAndBothAngles() {
         Transform t = Transform.rotation(90f, 30f);
         assertThat(t.scaleX()).isEqualTo(1.0f);

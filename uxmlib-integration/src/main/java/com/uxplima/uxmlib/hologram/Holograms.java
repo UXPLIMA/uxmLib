@@ -162,6 +162,36 @@ public final class Holograms {
             return this;
         }
 
+        /** Scale the hologram per axis (1.0 = default size on that axis). */
+        public Builder scale(float x, float y, float z) {
+            appearance = appearance.withTransform(transformOrNone().withScale(x, y, z));
+            return this;
+        }
+
+        /** Offset the hologram by {@code (x, y, z)} in display space, relative to its anchor. */
+        public Builder translation(float x, float y, float z) {
+            appearance = appearance.withTransform(transformOrNone().withTranslation(x, y, z));
+            return this;
+        }
+
+        /** Align the text to the {@code LEFT}, {@code CENTER} or {@code RIGHT} of the line. */
+        public Builder alignment(TextDisplay.TextAlignment alignment) {
+            appearance = appearance.withAlignment(Objects.requireNonNull(alignment, "alignment"));
+            return this;
+        }
+
+        /** Set the radius of the drop shadow cast on the ground beneath the hologram (0 = none). */
+        public Builder shadowRadius(float radius) {
+            appearance = appearance.withShadowRadius(radius);
+            return this;
+        }
+
+        /** Set the strength (opacity falloff) of the drop shadow beneath the hologram. */
+        public Builder shadowStrength(float strength) {
+            appearance = appearance.withShadowStrength(strength);
+            return this;
+        }
+
         /** Rotate the hologram {@code degrees} about the vertical axis. */
         public Builder rotation(float degrees) {
             appearance = appearance.withTransform(transformOrNone().withYaw(degrees));
@@ -306,6 +336,30 @@ public final class Holograms {
         /** Scale the hologram uniformly (1.0 = default size). */
         public B scale(float factor) {
             appearance = appearance.withTransform(transformOrNone().withScale(factor));
+            return self();
+        }
+
+        /** Scale the hologram per axis (1.0 = default size on that axis). */
+        public B scale(float x, float y, float z) {
+            appearance = appearance.withTransform(transformOrNone().withScale(x, y, z));
+            return self();
+        }
+
+        /** Offset the hologram by {@code (x, y, z)} in display space, relative to its anchor. */
+        public B translation(float x, float y, float z) {
+            appearance = appearance.withTransform(transformOrNone().withTranslation(x, y, z));
+            return self();
+        }
+
+        /** Set the radius of the drop shadow cast on the ground beneath the hologram (0 = none). */
+        public B shadowRadius(float radius) {
+            appearance = appearance.withShadowRadius(radius);
+            return self();
+        }
+
+        /** Set the strength (opacity falloff) of the drop shadow beneath the hologram. */
+        public B shadowStrength(float strength) {
+            appearance = appearance.withShadowStrength(strength);
             return self();
         }
 

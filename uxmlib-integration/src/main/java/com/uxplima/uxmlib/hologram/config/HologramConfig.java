@@ -151,7 +151,8 @@ public final class HologramConfig {
             float scale = (float) node.node("scale").getDouble(1.0);
             float yaw = (float) node.node("rotation").getDouble(0.0);
             float pitch = (float) node.node("pitch").getDouble(0.0);
-            appearance = appearance.withTransform(new Transform(scale, scale, scale, yaw, pitch));
+            appearance = appearance.withTransform(
+                    Transform.NONE.withScale(scale).withYaw(yaw).withPitch(pitch));
         }
         return appearance;
     }

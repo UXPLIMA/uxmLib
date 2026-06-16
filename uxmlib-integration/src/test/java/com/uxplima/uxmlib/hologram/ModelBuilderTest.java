@@ -73,4 +73,20 @@ class ModelBuilderTest {
         assertThat(look.billboard()).isEqualTo(Display.Billboard.VERTICAL);
         assertThat(java.util.Objects.requireNonNull(look.transform()).scaleX()).isEqualTo(1.5f);
     }
+
+    @Test
+    void modelBuilderCarriesTranslationPerAxisScaleAndShadow() {
+        Appearance look = Holograms.item(new ItemStack(Material.DIAMOND))
+                .translation(0f, 0.75f, 0f)
+                .scale(1f, 2f, 1f)
+                .shadowRadius(2f)
+                .shadowStrength(0.5f)
+                .appearance();
+
+        assertThat(look.shadowRadius()).isEqualTo(2f);
+        assertThat(look.shadowStrength()).isEqualTo(0.5f);
+        Transform transform = java.util.Objects.requireNonNull(look.transform());
+        assertThat(transform.transY()).isEqualTo(0.75f);
+        assertThat(transform.scaleY()).isEqualTo(2f);
+    }
 }
