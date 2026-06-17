@@ -8,6 +8,8 @@ import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
+import net.kyori.adventure.text.Component;
+
 import com.uxplima.uxmlib.packet.tablist.TabSkin;
 import org.jspecify.annotations.Nullable;
 
@@ -361,6 +363,13 @@ public interface NpcPackets {
      * item-display entity; any other type has no item field at that index.
      */
     Object itemDisplayItem(int entityId, ItemStack item);
+
+    /**
+     * Build the metadata packet that sets a text-display entity's shown text to {@code text} through its {@code
+     * DATA_TEXT_ID} field (the Adventure component is converted to the server's own component form). Send this only
+     * to a text-display entity; any other type has no text field at that index.
+     */
+    Object textDisplayText(int entityId, Component text);
 
     /**
      * Build the metadata packet that sets a parrot's {@code variant} (0–4) through the parrot's {@code

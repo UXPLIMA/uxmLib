@@ -501,6 +501,17 @@ class NpcPacketsContractTest {
     }
 
     @Test
+    void textDisplayTextCarriesTheEntityAndText() {
+        FakeNpcPackets packets = new FakeNpcPackets();
+
+        FakeNpcPackets.TextDisplayText text = (FakeNpcPackets.TextDisplayText)
+                packets.textDisplayText(25, net.kyori.adventure.text.Component.text("Welcome"));
+
+        assertThat(text.entityId()).isEqualTo(25);
+        assertThat(text.plain()).isEqualTo("Welcome");
+    }
+
+    @Test
     void parrotVariantCarriesTheEntityAndVariant() {
         FakeNpcPackets packets = new FakeNpcPackets();
 
@@ -713,6 +724,8 @@ class NpcPacketsContractTest {
         record BlockDisplayState(int entityId, Material material) {}
 
         record ItemDisplayItem(int entityId, Material material) {}
+
+        record TextDisplayText(int entityId, String plain) {}
 
         record ParrotVariant(int entityId, int variant) {}
 
@@ -954,6 +967,14 @@ class NpcPacketsContractTest {
         @Override
         public Object itemDisplayItem(int entityId, ItemStack item) {
             return new ItemDisplayItem(entityId, item.getType());
+        }
+
+        @Override
+        public Object textDisplayText(int entityId, net.kyori.adventure.text.Component text) {
+            return new TextDisplayText(
+                    entityId,
+                    net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText()
+                            .serialize(text));
         }
 
         @Override

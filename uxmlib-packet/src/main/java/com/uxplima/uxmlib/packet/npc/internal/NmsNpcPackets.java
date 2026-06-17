@@ -21,6 +21,7 @@ import com.mojang.datafixers.util.Pair;
 import com.uxplima.uxmlib.npc.PacketSender;
 import com.uxplima.uxmlib.packet.Bundles;
 import com.uxplima.uxmlib.packet.Codecs;
+import com.uxplima.uxmlib.packet.Components;
 import com.uxplima.uxmlib.packet.EntityIds;
 import com.uxplima.uxmlib.packet.Reflect;
 import com.uxplima.uxmlib.packet.npc.ArmorStandPart;
@@ -233,6 +234,8 @@ public final class NmsNpcPackets implements NpcPackets {
     private final EntityDataAccessor<net.minecraft.world.level.block.state.BlockState> blockDisplayStateAccessor;
     /** The {@code ItemStack} data item on {@code Display.ItemDisplay}; read once. */
     private final EntityDataAccessor<net.minecraft.world.item.ItemStack> itemDisplayItemAccessor;
+    /** The {@code Component} text data item on {@code Display.TextDisplay}; read once. */
+    private final EntityDataAccessor<net.minecraft.network.chat.Component> textDisplayTextAccessor;
     /** The {@code Integer} variant data item on {@code Parrot}; read once. */
     private final EntityDataAccessor<Integer> parrotVariantAccessor;
     /** The {@code Integer} variant data item on {@code Axolotl}; read once. */
@@ -320,6 +323,7 @@ public final class NmsNpcPackets implements NpcPackets {
         this.interactionResponseAccessor = Reflect.accessor(Interaction.class, "DATA_RESPONSE_ID");
         this.blockDisplayStateAccessor = Reflect.accessor(Display.BlockDisplay.class, "DATA_BLOCK_STATE_ID");
         this.itemDisplayItemAccessor = Reflect.accessor(Display.ItemDisplay.class, "DATA_ITEM_STACK_ID");
+        this.textDisplayTextAccessor = Reflect.accessor(Display.TextDisplay.class, "DATA_TEXT_ID");
         this.parrotVariantAccessor = Reflect.accessor(Parrot.class, "DATA_VARIANT_ID");
         this.axolotlVariantAccessor = Reflect.accessor(Axolotl.class, "DATA_VARIANT");
         this.foxTypeAccessor = Reflect.accessor(Fox.class, "DATA_TYPE_ID");
@@ -655,6 +659,12 @@ public final class NmsNpcPackets implements NpcPackets {
     public Object itemDisplayItem(int entityId, ItemStack item) {
         return dataPacket(
                 entityId, SynchedEntityData.DataValue.create(itemDisplayItemAccessor, CraftItemStack.asNMSCopy(item)));
+    }
+
+    @Override
+    public Object textDisplayText(int entityId, net.kyori.adventure.text.Component text) {
+        return dataPacket(
+                entityId, SynchedEntityData.DataValue.create(textDisplayTextAccessor, Components.asVanilla(text)));
     }
 
     @Override
