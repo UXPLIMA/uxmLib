@@ -476,6 +476,36 @@ public interface NpcPackets {
     @Nullable Object frogVariant(int entityId, String name);
 
     /**
+     * Build the metadata packet that sets a wolf's coat {@code variant} (e.g. {@code pale}, {@code ashen},
+     * {@code striped}) through the wolf's {@code DATA_VARIANT_ID} field — a dynamic-registry {@code
+     * Holder<WolfVariant>} resolved by name off the live server's wolf-variant registry, exactly like
+     * {@link #catVariant}. Distinct from {@link #wolfCollar} (the collar colour). Send this only to a wolf; returns
+     * {@code null} (dropped by the caller) when the variant cannot be resolved.
+     */
+    @Nullable Object wolfVariant(int entityId, String name);
+
+    /**
+     * Build the metadata packet that sets a chicken's {@code variant} ({@code temperate}/{@code warm}/{@code cold})
+     * through its {@code DATA_VARIANT_ID} {@code Holder<ChickenVariant>}, resolved by name off the live registry
+     * like {@link #catVariant}. Send this only to a chicken; returns {@code null} when unresolvable.
+     */
+    @Nullable Object chickenVariant(int entityId, String name);
+
+    /**
+     * Build the metadata packet that sets a cow's {@code variant} ({@code temperate}/{@code warm}/{@code cold})
+     * through its {@code DATA_VARIANT_ID} {@code Holder<CowVariant>}, resolved by name off the live registry like
+     * {@link #catVariant}. Send this only to a cow; returns {@code null} when unresolvable.
+     */
+    @Nullable Object cowVariant(int entityId, String name);
+
+    /**
+     * Build the metadata packet that sets a pig's {@code variant} ({@code temperate}/{@code warm}/{@code cold})
+     * through its {@code DATA_VARIANT_ID} {@code Holder<PigVariant>}, resolved by name off the live registry like
+     * {@link #catVariant}. Send this only to a pig; returns {@code null} when unresolvable.
+     */
+    @Nullable Object pigVariant(int entityId, String name);
+
+    /**
      * Build the scoreboard-team packet that tints the NPC's glow to {@code color}. The client colours a glowing
      * entity's outline with the colour of the team its name is a member of, so this packet creates (or modifies) a
      * team named {@code teamName}, sets its colour, and seats {@code memberName} as a member. For a fake player

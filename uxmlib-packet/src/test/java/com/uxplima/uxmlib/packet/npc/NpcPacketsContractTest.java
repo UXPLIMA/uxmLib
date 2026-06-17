@@ -635,6 +635,16 @@ class NpcPacketsContractTest {
     void frogVariantCarriesTheEntityAndName() {
         FakeNpcPackets packets = new FakeNpcPackets();
 
+        FakeNpcPackets.WolfVariant wolf = (FakeNpcPackets.WolfVariant) packets.wolfVariant(8, "ashen");
+        assertThat(wolf.entityId()).isEqualTo(8);
+        assertThat(wolf.name()).isEqualTo("ashen");
+        FakeNpcPackets.ChickenVariant chicken = (FakeNpcPackets.ChickenVariant) packets.chickenVariant(9, "warm");
+        assertThat(chicken.name()).isEqualTo("warm");
+        FakeNpcPackets.CowVariant cow = (FakeNpcPackets.CowVariant) packets.cowVariant(10, "cold");
+        assertThat(cow.name()).isEqualTo("cold");
+        FakeNpcPackets.PigVariant pig = (FakeNpcPackets.PigVariant) packets.pigVariant(11, "temperate");
+        assertThat(pig.name()).isEqualTo("temperate");
+
         FakeNpcPackets.FrogVariant frog = (FakeNpcPackets.FrogVariant) packets.frogVariant(7, "warm");
 
         assertThat(frog.entityId()).isEqualTo(7);
@@ -817,6 +827,14 @@ class NpcPacketsContractTest {
         record CatVariant(int entityId, String name) {}
 
         record FrogVariant(int entityId, String name) {}
+
+        record WolfVariant(int entityId, String name) {}
+
+        record ChickenVariant(int entityId, String name) {}
+
+        record CowVariant(int entityId, String name) {}
+
+        record PigVariant(int entityId, String name) {}
 
         record GlowColor(String teamName, String memberName, @Nullable NamedColor color) {}
 
@@ -1114,6 +1132,26 @@ class NpcPacketsContractTest {
         @Override
         public Object frogVariant(int entityId, String name) {
             return new FrogVariant(entityId, name);
+        }
+
+        @Override
+        public Object wolfVariant(int entityId, String name) {
+            return new WolfVariant(entityId, name);
+        }
+
+        @Override
+        public Object chickenVariant(int entityId, String name) {
+            return new ChickenVariant(entityId, name);
+        }
+
+        @Override
+        public Object cowVariant(int entityId, String name) {
+            return new CowVariant(entityId, name);
+        }
+
+        @Override
+        public Object pigVariant(int entityId, String name) {
+            return new PigVariant(entityId, name);
         }
 
         @Override

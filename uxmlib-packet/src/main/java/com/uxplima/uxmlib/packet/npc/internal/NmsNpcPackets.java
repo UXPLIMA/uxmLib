@@ -70,6 +70,10 @@ import net.minecraft.world.entity.animal.allay.Allay;
 import net.minecraft.world.entity.animal.axolotl.Axolotl;
 import net.minecraft.world.entity.animal.bee.Bee;
 import net.minecraft.world.entity.animal.camel.Camel;
+import net.minecraft.world.entity.animal.chicken.Chicken;
+import net.minecraft.world.entity.animal.chicken.ChickenVariant;
+import net.minecraft.world.entity.animal.cow.Cow;
+import net.minecraft.world.entity.animal.cow.CowVariant;
 import net.minecraft.world.entity.animal.equine.Horse;
 import net.minecraft.world.entity.animal.equine.Llama;
 import net.minecraft.world.entity.animal.feline.Cat;
@@ -81,9 +85,12 @@ import net.minecraft.world.entity.animal.frog.FrogVariant;
 import net.minecraft.world.entity.animal.goat.Goat;
 import net.minecraft.world.entity.animal.panda.Panda;
 import net.minecraft.world.entity.animal.parrot.Parrot;
+import net.minecraft.world.entity.animal.pig.Pig;
+import net.minecraft.world.entity.animal.pig.PigVariant;
 import net.minecraft.world.entity.animal.rabbit.Rabbit;
 import net.minecraft.world.entity.animal.sheep.Sheep;
 import net.minecraft.world.entity.animal.wolf.Wolf;
+import net.minecraft.world.entity.animal.wolf.WolfVariant;
 import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.entity.monster.Creeper;
 import net.minecraft.world.entity.monster.Shulker;
@@ -260,6 +267,12 @@ public final class NmsNpcPackets implements NpcPackets {
     private final EntityDataAccessor<Holder<CatVariant>> catVariantAccessor;
     /** The {@code Holder<FrogVariant>} variant data item on {@code Frog}; read once. The variant is resolved per call. */
     private final EntityDataAccessor<Holder<FrogVariant>> frogVariantAccessor;
+    /** The {@code Holder<…Variant>} coat-variant data items on {@code Wolf}/{@code Chicken}/{@code Cow}/{@code Pig}. */
+    private final EntityDataAccessor<Holder<WolfVariant>> wolfVariantAccessor;
+
+    private final EntityDataAccessor<Holder<ChickenVariant>> chickenVariantAccessor;
+    private final EntityDataAccessor<Holder<CowVariant>> cowVariantAccessor;
+    private final EntityDataAccessor<Holder<PigVariant>> pigVariantAccessor;
 
     public NmsNpcPackets(PacketSender sender) {
         this.sender = Objects.requireNonNull(sender, "sender");
@@ -350,6 +363,10 @@ public final class NmsNpcPackets implements NpcPackets {
         // registry per call (see catVariant/frogVariant), since the variant set only exists on a running server.
         this.catVariantAccessor = Reflect.accessor(Cat.class, "DATA_VARIANT_ID");
         this.frogVariantAccessor = Reflect.accessor(Frog.class, "DATA_VARIANT_ID");
+        this.wolfVariantAccessor = Reflect.accessor(Wolf.class, "DATA_VARIANT_ID");
+        this.chickenVariantAccessor = Reflect.accessor(Chicken.class, "DATA_VARIANT_ID");
+        this.cowVariantAccessor = Reflect.accessor(Cow.class, "DATA_VARIANT_ID");
+        this.pigVariantAccessor = Reflect.accessor(Pig.class, "DATA_VARIANT_ID");
     }
 
     @Override
@@ -783,6 +800,42 @@ public final class NmsNpcPackets implements NpcPackets {
         return variant == null
                 ? null
                 : dataPacket(entityId, SynchedEntityData.DataValue.create(frogVariantAccessor, variant));
+    }
+
+    @Override
+    public @Nullable Object wolfVariant(int entityId, String name) {
+        Objects.requireNonNull(name, "name");
+        Holder<WolfVariant> variant = dynamicHolder(Registries.WOLF_VARIANT, name);
+        return variant == null
+                ? null
+                : dataPacket(entityId, SynchedEntityData.DataValue.create(wolfVariantAccessor, variant));
+    }
+
+    @Override
+    public @Nullable Object chickenVariant(int entityId, String name) {
+        Objects.requireNonNull(name, "name");
+        Holder<ChickenVariant> variant = dynamicHolder(Registries.CHICKEN_VARIANT, name);
+        return variant == null
+                ? null
+                : dataPacket(entityId, SynchedEntityData.DataValue.create(chickenVariantAccessor, variant));
+    }
+
+    @Override
+    public @Nullable Object cowVariant(int entityId, String name) {
+        Objects.requireNonNull(name, "name");
+        Holder<CowVariant> variant = dynamicHolder(Registries.COW_VARIANT, name);
+        return variant == null
+                ? null
+                : dataPacket(entityId, SynchedEntityData.DataValue.create(cowVariantAccessor, variant));
+    }
+
+    @Override
+    public @Nullable Object pigVariant(int entityId, String name) {
+        Objects.requireNonNull(name, "name");
+        Holder<PigVariant> variant = dynamicHolder(Registries.PIG_VARIANT, name);
+        return variant == null
+                ? null
+                : dataPacket(entityId, SynchedEntityData.DataValue.create(pigVariantAccessor, variant));
     }
 
     /**
