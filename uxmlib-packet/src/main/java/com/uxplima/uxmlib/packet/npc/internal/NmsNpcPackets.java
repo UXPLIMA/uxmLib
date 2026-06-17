@@ -68,6 +68,7 @@ import net.minecraft.world.entity.TamableAnimal;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.animal.allay.Allay;
+import net.minecraft.world.entity.animal.armadillo.Armadillo;
 import net.minecraft.world.entity.animal.axolotl.Axolotl;
 import net.minecraft.world.entity.animal.bee.Bee;
 import net.minecraft.world.entity.animal.camel.Camel;
@@ -90,6 +91,7 @@ import net.minecraft.world.entity.animal.pig.Pig;
 import net.minecraft.world.entity.animal.pig.PigVariant;
 import net.minecraft.world.entity.animal.rabbit.Rabbit;
 import net.minecraft.world.entity.animal.sheep.Sheep;
+import net.minecraft.world.entity.animal.sniffer.Sniffer;
 import net.minecraft.world.entity.animal.wolf.Wolf;
 import net.minecraft.world.entity.animal.wolf.WolfVariant;
 import net.minecraft.world.entity.decoration.ArmorStand;
@@ -292,6 +294,10 @@ public final class NmsNpcPackets implements NpcPackets {
     private final byte foxCrouchingFlag;
     /** {@code Panda.EAT_COUNTER}; a positive counter drives the sitting-and-eating pose. */
     private final EntityDataAccessor<Integer> pandaEatCounterAccessor;
+    /** {@code Sniffer.DATA_STATE} and {@code Armadillo.ARMADILLO_STATE}; each carries the mob's animation enum. */
+    private final EntityDataAccessor<Sniffer.State> snifferStateAccessor;
+
+    private final EntityDataAccessor<Armadillo.ArmadilloState> armadilloStateAccessor;
 
     public NmsNpcPackets(PacketSender sender) {
         this.sender = Objects.requireNonNull(sender, "sender");
@@ -399,6 +405,8 @@ public final class NmsNpcPackets implements NpcPackets {
         int foxCrouching = Reflect.accessor(Fox.class, "FLAG_CROUCHING");
         this.foxCrouchingFlag = (byte) foxCrouching;
         this.pandaEatCounterAccessor = Reflect.accessor(Panda.class, "EAT_COUNTER");
+        this.snifferStateAccessor = Reflect.accessor(Sniffer.class, "DATA_STATE");
+        this.armadilloStateAccessor = Reflect.accessor(Armadillo.class, "ARMADILLO_STATE");
     }
 
     @Override
@@ -868,6 +876,36 @@ public final class NmsNpcPackets implements NpcPackets {
     @Override
     public Object pandaEating(int entityId, boolean eating) {
         return dataPacket(entityId, SynchedEntityData.DataValue.create(pandaEatCounterAccessor, eating ? 1 : 0));
+    }
+
+    @Override
+    public @Nullable Object snifferState(int entityId, String state) {
+        Objects.requireNonNull(state, "state");
+        Sniffer.State resolved = enumByName(Sniffer.State.values(), state);
+        if (resolved == null) {
+            return null;
+        }
+        return dataPacket(entityId, SynchedEntityData.DataValue.create(snifferStateAccessor, resolved));
+    }
+
+    @Override
+    public @Nullable Object armadilloState(int entityId, String state) {
+        Objects.requireNonNull(state, "state");
+        Armadillo.ArmadilloState resolved = enumByName(Armadillo.ArmadilloState.values(), state);
+        if (resolved == null) {
+            return null;
+        }
+        return dataPacket(entityId, SynchedEntityData.DataValue.create(armadilloStateAccessor, resolved));
+    }
+
+    /** Resolve {@code name} (case-insensitive) against an enum's constants, or {@code null} if none match. */
+    private static <E extends Enum<E>> @Nullable E enumByName(E[] values, String name) {
+        for (E value : values) {
+            if (value.name().equalsIgnoreCase(name)) {
+                return value;
+            }
+        }
+        return null;
     }
 
     @Override

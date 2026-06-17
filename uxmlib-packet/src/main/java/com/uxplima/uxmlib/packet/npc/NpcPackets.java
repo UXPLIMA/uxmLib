@@ -539,6 +539,20 @@ public interface NpcPackets {
     Object pandaEating(int entityId, boolean eating);
 
     /**
+     * Build the metadata packet that sets a sniffer's animation state (one of {@code idling}, {@code feeling_happy},
+     * {@code scenting}, {@code sniffing}, {@code searching}, {@code digging}, {@code rising}; case-insensitive).
+     * Returns {@code null} for an unknown name so the caller can skip fail-soft. Send this only to a sniffer.
+     */
+    @Nullable Object snifferState(int entityId, String state);
+
+    /**
+     * Build the metadata packet that sets an armadillo's state (one of {@code idle}, {@code rolling}, {@code scared},
+     * {@code unrolling}; case-insensitive). Returns {@code null} for an unknown name so the caller can skip
+     * fail-soft. Send this only to an armadillo.
+     */
+    @Nullable Object armadilloState(int entityId, String state);
+
+    /**
      * Build the scoreboard-team packet that tints the NPC's glow to {@code color}. The client colours a glowing
      * entity's outline with the colour of the team its name is a member of, so this packet creates (or modifies) a
      * team named {@code teamName}, sets its colour, and seats {@code memberName} as a member. For a fake player

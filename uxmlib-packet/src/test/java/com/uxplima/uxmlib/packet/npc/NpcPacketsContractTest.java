@@ -658,6 +658,10 @@ class NpcPacketsContractTest {
         assertThat(fox.crouching()).isTrue();
         FakeNpcPackets.PandaEating panda = (FakeNpcPackets.PandaEating) packets.pandaEating(17, true);
         assertThat(panda.eating()).isTrue();
+        FakeNpcPackets.SnifferState sniffer = (FakeNpcPackets.SnifferState) packets.snifferState(18, "digging");
+        assertThat(sniffer.state()).isEqualTo("digging");
+        FakeNpcPackets.ArmadilloState armadillo = (FakeNpcPackets.ArmadilloState) packets.armadilloState(19, "rolling");
+        assertThat(armadillo.state()).isEqualTo("rolling");
 
         FakeNpcPackets.FrogVariant frog = (FakeNpcPackets.FrogVariant) packets.frogVariant(7, "warm");
 
@@ -859,6 +863,10 @@ class NpcPacketsContractTest {
         record FoxFlags(int entityId, boolean sitting, boolean sleeping, boolean crouching) {}
 
         record PandaEating(int entityId, boolean eating) {}
+
+        record SnifferState(int entityId, String state) {}
+
+        record ArmadilloState(int entityId, String state) {}
 
         record GlowColor(String teamName, String memberName, @Nullable NamedColor color) {}
 
@@ -1201,6 +1209,16 @@ class NpcPacketsContractTest {
         @Override
         public Object pandaEating(int entityId, boolean eating) {
             return new PandaEating(entityId, eating);
+        }
+
+        @Override
+        public Object snifferState(int entityId, String state) {
+            return new SnifferState(entityId, state);
+        }
+
+        @Override
+        public Object armadilloState(int entityId, String state) {
+            return new ArmadilloState(entityId, state);
         }
 
         @Override
