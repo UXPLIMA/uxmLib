@@ -10,6 +10,7 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.bukkit.Material;
+import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
@@ -478,6 +479,28 @@ class NpcPacketsContractTest {
     }
 
     @Test
+    void blockDisplayStateCarriesTheEntityAndBlock() {
+        FakeNpcPackets packets = new FakeNpcPackets();
+
+        FakeNpcPackets.BlockDisplayState state =
+                (FakeNpcPackets.BlockDisplayState) packets.blockDisplayState(23, Material.STONE.createBlockData());
+
+        assertThat(state.entityId()).isEqualTo(23);
+        assertThat(state.material()).isEqualTo(Material.STONE);
+    }
+
+    @Test
+    void itemDisplayItemCarriesTheEntityAndItem() {
+        FakeNpcPackets packets = new FakeNpcPackets();
+        ItemStack item = item();
+
+        FakeNpcPackets.ItemDisplayItem display = (FakeNpcPackets.ItemDisplayItem) packets.itemDisplayItem(24, item);
+
+        assertThat(display.entityId()).isEqualTo(24);
+        assertThat(display.material()).isEqualTo(item.getType());
+    }
+
+    @Test
     void parrotVariantCarriesTheEntityAndVariant() {
         FakeNpcPackets packets = new FakeNpcPackets();
 
@@ -686,6 +709,10 @@ class NpcPacketsContractTest {
         record ArmorStandPose(int entityId, ArmorStandPart part, float x, float y, float z) {}
 
         record InteractionSize(int entityId, float width, float height) {}
+
+        record BlockDisplayState(int entityId, Material material) {}
+
+        record ItemDisplayItem(int entityId, Material material) {}
 
         record ParrotVariant(int entityId, int variant) {}
 
@@ -917,6 +944,16 @@ class NpcPacketsContractTest {
         @Override
         public Object interactionSize(int entityId, float width, float height) {
             return new InteractionSize(entityId, width, height);
+        }
+
+        @Override
+        public Object blockDisplayState(int entityId, BlockData blockData) {
+            return new BlockDisplayState(entityId, blockData.getMaterial());
+        }
+
+        @Override
+        public Object itemDisplayItem(int entityId, ItemStack item) {
+            return new ItemDisplayItem(entityId, item.getType());
         }
 
         @Override

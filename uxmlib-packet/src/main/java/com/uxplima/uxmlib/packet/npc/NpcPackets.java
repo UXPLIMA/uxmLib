@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
@@ -346,6 +347,20 @@ public interface NpcPackets {
      * entity; any other type has no such fields at those indices.
      */
     Object interactionSize(int entityId, float width, float height);
+
+    /**
+     * Build the metadata packet that sets a block-display entity's shown block to {@code blockData} through its
+     * {@code DATA_BLOCK_STATE_ID} field (the Bukkit block data is converted to the server's own block state). Send
+     * this only to a block-display entity; any other type has no block-state field at that index.
+     */
+    Object blockDisplayState(int entityId, BlockData blockData);
+
+    /**
+     * Build the metadata packet that sets an item-display entity's shown item to {@code item} through its {@code
+     * DATA_ITEM_STACK_ID} field (the Bukkit item is copied into the server's own item form). Send this only to an
+     * item-display entity; any other type has no item field at that index.
+     */
+    Object itemDisplayItem(int entityId, ItemStack item);
 
     /**
      * Build the metadata packet that sets a parrot's {@code variant} (0–4) through the parrot's {@code

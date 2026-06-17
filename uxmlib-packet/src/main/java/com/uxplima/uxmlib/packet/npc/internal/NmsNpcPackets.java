@@ -9,6 +9,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
+import org.bukkit.block.data.BlockData;
+import org.bukkit.craftbukkit.block.data.CraftBlockData;
 import org.bukkit.craftbukkit.inventory.CraftItemStack;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -54,6 +56,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.entity.AgeableMob;
+import net.minecraft.world.entity.Display;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Interaction;
@@ -226,6 +229,10 @@ public final class NmsNpcPackets implements NpcPackets {
 
     private final EntityDataAccessor<Float> interactionHeightAccessor;
     private final EntityDataAccessor<Boolean> interactionResponseAccessor;
+    /** The {@code BlockState} data item on {@code Display.BlockDisplay}; read once. */
+    private final EntityDataAccessor<net.minecraft.world.level.block.state.BlockState> blockDisplayStateAccessor;
+    /** The {@code ItemStack} data item on {@code Display.ItemDisplay}; read once. */
+    private final EntityDataAccessor<net.minecraft.world.item.ItemStack> itemDisplayItemAccessor;
     /** The {@code Integer} variant data item on {@code Parrot}; read once. */
     private final EntityDataAccessor<Integer> parrotVariantAccessor;
     /** The {@code Integer} variant data item on {@code Axolotl}; read once. */
@@ -311,6 +318,8 @@ public final class NmsNpcPackets implements NpcPackets {
         this.interactionWidthAccessor = Reflect.accessor(Interaction.class, "DATA_WIDTH_ID");
         this.interactionHeightAccessor = Reflect.accessor(Interaction.class, "DATA_HEIGHT_ID");
         this.interactionResponseAccessor = Reflect.accessor(Interaction.class, "DATA_RESPONSE_ID");
+        this.blockDisplayStateAccessor = Reflect.accessor(Display.BlockDisplay.class, "DATA_BLOCK_STATE_ID");
+        this.itemDisplayItemAccessor = Reflect.accessor(Display.ItemDisplay.class, "DATA_ITEM_STACK_ID");
         this.parrotVariantAccessor = Reflect.accessor(Parrot.class, "DATA_VARIANT_ID");
         this.axolotlVariantAccessor = Reflect.accessor(Axolotl.class, "DATA_VARIANT");
         this.foxTypeAccessor = Reflect.accessor(Fox.class, "DATA_TYPE_ID");
@@ -633,6 +642,19 @@ public final class NmsNpcPackets implements NpcPackets {
     public Object armorStandPose(int entityId, ArmorStandPart part, float x, float y, float z) {
         EntityDataAccessor<Rotations> accessor = poseAccessor(part);
         return dataPacket(entityId, SynchedEntityData.DataValue.create(accessor, new Rotations(x, y, z)));
+    }
+
+    @Override
+    public Object blockDisplayState(int entityId, BlockData blockData) {
+        return dataPacket(
+                entityId,
+                SynchedEntityData.DataValue.create(blockDisplayStateAccessor, ((CraftBlockData) blockData).getState()));
+    }
+
+    @Override
+    public Object itemDisplayItem(int entityId, ItemStack item) {
+        return dataPacket(
+                entityId, SynchedEntityData.DataValue.create(itemDisplayItemAccessor, CraftItemStack.asNMSCopy(item)));
     }
 
     @Override
