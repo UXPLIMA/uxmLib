@@ -247,6 +247,30 @@ public interface NpcPackets {
     Object wolfCollar(int entityId, int color);
 
     /**
+     * Build the metadata packet that sets a shulker's shell {@code color} (a {@code DyeColor} id, 0–15) through the
+     * shulker's {@code DATA_COLOR_ID} byte. The natural uncoloured shulker uses 16; this builder writes a 0–15 dye
+     * id, so the plugin validates the colour before calling. Send this only to a shulker; any other type has no
+     * colour byte at that index.
+     */
+    Object shulkerColor(int entityId, int color);
+
+    /**
+     * Build the metadata packet that sets how far a shulker's shell is open through its {@code DATA_PEEK_ID} byte —
+     * 0 is fully closed, 100 fully open. Send this only to a shulker; any other type has no peek byte at that index.
+     * The plugin clamps the value to 0–100 before calling.
+     */
+    Object shulkerPeek(int entityId, int peek);
+
+    /**
+     * Build the metadata packet that sets a panda's gene (its visible face and temperament) through the panda's
+     * {@code MAIN_GENE_ID} and {@code HIDDEN_GENE_ID} bytes — the gene id (0–6: normal, lazy, worried, playful,
+     * brown, weak, aggressive). Both genes are set to the same id so a recessive gene (brown or weak) renders its
+     * own phenotype rather than falling back to normal, which the client does only when the two genes match. Send
+     * this only to a panda; any other type has no gene byte at that index. The plugin validates the gene id first.
+     */
+    Object pandaGene(int entityId, int gene);
+
+    /**
      * Build the metadata packet that sets a parrot's {@code variant} (0–4) through the parrot's {@code
      * DATA_VARIANT_ID} field — the integer that picks one of the five parrot colours. Send this only to a
      * parrot; any other type has no parrot-variant field at that index. The plugin clamps the value first.

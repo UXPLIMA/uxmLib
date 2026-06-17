@@ -67,11 +67,13 @@ import net.minecraft.world.entity.animal.feline.CatVariant;
 import net.minecraft.world.entity.animal.fox.Fox;
 import net.minecraft.world.entity.animal.frog.Frog;
 import net.minecraft.world.entity.animal.frog.FrogVariant;
+import net.minecraft.world.entity.animal.panda.Panda;
 import net.minecraft.world.entity.animal.parrot.Parrot;
 import net.minecraft.world.entity.animal.rabbit.Rabbit;
 import net.minecraft.world.entity.animal.sheep.Sheep;
 import net.minecraft.world.entity.animal.wolf.Wolf;
 import net.minecraft.world.entity.monster.Creeper;
+import net.minecraft.world.entity.monster.Shulker;
 import net.minecraft.world.entity.monster.Slime;
 import net.minecraft.world.entity.monster.Zoglin;
 import net.minecraft.world.entity.monster.piglin.Piglin;
@@ -168,6 +170,14 @@ public final class NmsNpcPackets implements NpcPackets {
     private final EntityDataAccessor<Byte> sheepWoolAccessor;
     /** The {@code Integer} collar-colour data item on {@code Wolf} (a DyeColor id, 0–15); read once. */
     private final EntityDataAccessor<Integer> wolfCollarAccessor;
+    /** The {@code Byte} shell-colour data item on {@code Shulker} (a DyeColor id, 0–15; 16 is default); read once. */
+    private final EntityDataAccessor<Byte> shulkerColorAccessor;
+    /** The {@code Byte} peek data item on {@code Shulker} (0 closed, 100 open); read once. */
+    private final EntityDataAccessor<Byte> shulkerPeekAccessor;
+    /** The {@code Byte} main (visible) gene data item on {@code Panda} (0–6); read once. */
+    private final EntityDataAccessor<Byte> pandaMainGeneAccessor;
+    /** The {@code Byte} hidden gene data item on {@code Panda} (0–6); set alongside the main gene so it renders. */
+    private final EntityDataAccessor<Byte> pandaHiddenGeneAccessor;
     /** The {@code Integer} variant data item on {@code Parrot}; read once. */
     private final EntityDataAccessor<Integer> parrotVariantAccessor;
     /** The {@code Integer} variant data item on {@code Axolotl}; read once. */
@@ -216,6 +226,10 @@ public final class NmsNpcPackets implements NpcPackets {
         this.llamaVariantAccessor = Reflect.accessor(Llama.class, "DATA_VARIANT_ID");
         this.sheepWoolAccessor = Reflect.accessor(Sheep.class, "DATA_WOOL_ID");
         this.wolfCollarAccessor = Reflect.accessor(Wolf.class, "DATA_COLLAR_COLOR");
+        this.shulkerColorAccessor = Reflect.accessor(Shulker.class, "DATA_COLOR_ID");
+        this.shulkerPeekAccessor = Reflect.accessor(Shulker.class, "DATA_PEEK_ID");
+        this.pandaMainGeneAccessor = Reflect.accessor(Panda.class, "MAIN_GENE_ID");
+        this.pandaHiddenGeneAccessor = Reflect.accessor(Panda.class, "HIDDEN_GENE_ID");
         this.parrotVariantAccessor = Reflect.accessor(Parrot.class, "DATA_VARIANT_ID");
         this.axolotlVariantAccessor = Reflect.accessor(Axolotl.class, "DATA_VARIANT");
         this.foxTypeAccessor = Reflect.accessor(Fox.class, "DATA_TYPE_ID");
@@ -463,6 +477,28 @@ public final class NmsNpcPackets implements NpcPackets {
     }
 
     @Override
+    public Object shulkerColor(int entityId, int color) {
+        return dataPacket(entityId, SynchedEntityData.DataValue.create(shulkerColorAccessor, (byte) color));
+    }
+
+    @Override
+    public Object shulkerPeek(int entityId, int peek) {
+        return dataPacket(entityId, SynchedEntityData.DataValue.create(shulkerPeekAccessor, (byte) peek));
+    }
+
+    @Override
+    public Object pandaGene(int entityId, int gene) {
+        // Set the hidden gene to the main gene too: the client renders a recessive gene (brown/weak) only when both
+        // match, so a single main-gene write would otherwise fall back to the normal phenotype for those two.
+        byte id = (byte) gene;
+        return dataPacket(
+                entityId,
+                List.of(
+                        SynchedEntityData.DataValue.create(pandaMainGeneAccessor, id),
+                        SynchedEntityData.DataValue.create(pandaHiddenGeneAccessor, id)));
+    }
+
+    @Override
     public Object parrotVariant(int entityId, int variant) {
         return dataPacket(entityId, SynchedEntityData.DataValue.create(parrotVariantAccessor, variant));
     }
@@ -532,6 +568,12 @@ public final class NmsNpcPackets implements NpcPackets {
     /** Wrap one already-built {@link SynchedEntityData.DataValue} into a single-field metadata packet. */
     private static ClientboundSetEntityDataPacket dataPacket(int entityId, SynchedEntityData.DataValue<?> value) {
         return new ClientboundSetEntityDataPacket(entityId, List.of(value));
+    }
+
+    /** Wrap several already-built {@link SynchedEntityData.DataValue}s into one metadata packet (e.g. a panda's pair). */
+    private static ClientboundSetEntityDataPacket dataPacket(
+            int entityId, List<SynchedEntityData.DataValue<?>> values) {
+        return new ClientboundSetEntityDataPacket(entityId, values);
     }
 
     /**

@@ -338,6 +338,36 @@ class NpcPacketsContractTest {
     }
 
     @Test
+    void shulkerColorCarriesTheEntityAndColour() {
+        FakeNpcPackets packets = new FakeNpcPackets();
+
+        FakeNpcPackets.ShulkerColor color = (FakeNpcPackets.ShulkerColor) packets.shulkerColor(9, 5);
+
+        assertThat(color.entityId()).isEqualTo(9);
+        assertThat(color.color()).isEqualTo(5);
+    }
+
+    @Test
+    void shulkerPeekCarriesTheEntityAndOpening() {
+        FakeNpcPackets packets = new FakeNpcPackets();
+
+        FakeNpcPackets.ShulkerPeek peek = (FakeNpcPackets.ShulkerPeek) packets.shulkerPeek(10, 100);
+
+        assertThat(peek.entityId()).isEqualTo(10);
+        assertThat(peek.peek()).isEqualTo(100);
+    }
+
+    @Test
+    void pandaGeneCarriesTheEntityAndGene() {
+        FakeNpcPackets packets = new FakeNpcPackets();
+
+        FakeNpcPackets.PandaGene gene = (FakeNpcPackets.PandaGene) packets.pandaGene(11, 4);
+
+        assertThat(gene.entityId()).isEqualTo(11);
+        assertThat(gene.gene()).isEqualTo(4);
+    }
+
+    @Test
     void parrotVariantCarriesTheEntityAndVariant() {
         FakeNpcPackets packets = new FakeNpcPackets();
 
@@ -521,6 +551,12 @@ class NpcPacketsContractTest {
 
         record WolfCollar(int entityId, int color) {}
 
+        record ShulkerColor(int entityId, int color) {}
+
+        record ShulkerPeek(int entityId, int peek) {}
+
+        record PandaGene(int entityId, int gene) {}
+
         record ParrotVariant(int entityId, int variant) {}
 
         record AxolotlVariant(int entityId, int variant) {}
@@ -685,6 +721,21 @@ class NpcPacketsContractTest {
         @Override
         public Object wolfCollar(int entityId, int color) {
             return new WolfCollar(entityId, color);
+        }
+
+        @Override
+        public Object shulkerColor(int entityId, int color) {
+            return new ShulkerColor(entityId, color);
+        }
+
+        @Override
+        public Object shulkerPeek(int entityId, int peek) {
+            return new ShulkerPeek(entityId, peek);
+        }
+
+        @Override
+        public Object pandaGene(int entityId, int gene) {
+            return new PandaGene(entityId, gene);
         }
 
         @Override
