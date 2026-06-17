@@ -544,6 +544,17 @@ class NpcPacketsContractTest {
     }
 
     @Test
+    void textDisplayLineWidthCarriesTheEntityAndWidth() {
+        FakeNpcPackets packets = new FakeNpcPackets();
+
+        FakeNpcPackets.TextDisplayLineWidth width =
+                (FakeNpcPackets.TextDisplayLineWidth) packets.textDisplayLineWidth(29, 150);
+
+        assertThat(width.entityId()).isEqualTo(29);
+        assertThat(width.lineWidth()).isEqualTo(150);
+    }
+
+    @Test
     void parrotVariantCarriesTheEntityAndVariant() {
         FakeNpcPackets packets = new FakeNpcPackets();
 
@@ -764,6 +775,8 @@ class NpcPacketsContractTest {
         record DisplayBillboard(int entityId, byte constraint) {}
 
         record TextDisplayBackground(int entityId, int argb) {}
+
+        record TextDisplayLineWidth(int entityId, int lineWidth) {}
 
         record ParrotVariant(int entityId, int variant) {}
 
@@ -1028,6 +1041,11 @@ class NpcPacketsContractTest {
         @Override
         public Object textDisplayBackground(int entityId, int argb) {
             return new TextDisplayBackground(entityId, argb);
+        }
+
+        @Override
+        public Object textDisplayLineWidth(int entityId, int lineWidth) {
+            return new TextDisplayLineWidth(entityId, lineWidth);
         }
 
         @Override

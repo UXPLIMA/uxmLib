@@ -244,6 +244,8 @@ public final class NmsNpcPackets implements NpcPackets {
     private final EntityDataAccessor<Byte> displayBillboardAccessor;
     /** The {@code Integer} ARGB background data item on {@code Display.TextDisplay}; read once. */
     private final EntityDataAccessor<Integer> textDisplayBackgroundAccessor;
+    /** The {@code Integer} line-width (text-wrap pixels) data item on {@code Display.TextDisplay}; read once. */
+    private final EntityDataAccessor<Integer> textDisplayLineWidthAccessor;
     /** The {@code Integer} variant data item on {@code Parrot}; read once. */
     private final EntityDataAccessor<Integer> parrotVariantAccessor;
     /** The {@code Integer} variant data item on {@code Axolotl}; read once. */
@@ -335,6 +337,7 @@ public final class NmsNpcPackets implements NpcPackets {
         this.displayScaleAccessor = Reflect.accessor(Display.class, "DATA_SCALE_ID");
         this.displayBillboardAccessor = Reflect.accessor(Display.class, "DATA_BILLBOARD_RENDER_CONSTRAINTS_ID");
         this.textDisplayBackgroundAccessor = Reflect.accessor(Display.TextDisplay.class, "DATA_BACKGROUND_COLOR_ID");
+        this.textDisplayLineWidthAccessor = Reflect.accessor(Display.TextDisplay.class, "DATA_LINE_WIDTH_ID");
         this.parrotVariantAccessor = Reflect.accessor(Parrot.class, "DATA_VARIANT_ID");
         this.axolotlVariantAccessor = Reflect.accessor(Axolotl.class, "DATA_VARIANT");
         this.foxTypeAccessor = Reflect.accessor(Fox.class, "DATA_TYPE_ID");
@@ -692,6 +695,11 @@ public final class NmsNpcPackets implements NpcPackets {
     @Override
     public Object textDisplayBackground(int entityId, int argb) {
         return dataPacket(entityId, SynchedEntityData.DataValue.create(textDisplayBackgroundAccessor, argb));
+    }
+
+    @Override
+    public Object textDisplayLineWidth(int entityId, int lineWidth) {
+        return dataPacket(entityId, SynchedEntityData.DataValue.create(textDisplayLineWidthAccessor, lineWidth));
     }
 
     @Override

@@ -393,6 +393,13 @@ public interface NpcPackets {
     Object textDisplayBackground(int entityId, int argb);
 
     /**
+     * Build the metadata packet that sets a text-display entity's line width (the pixel width at which its text
+     * wraps) through its {@code DATA_LINE_WIDTH_ID} field. Send this only to a text-display entity; any other type
+     * has no line-width field at that index. The plugin clamps to a positive value first.
+     */
+    Object textDisplayLineWidth(int entityId, int lineWidth);
+
+    /**
      * Build the metadata packet that sets a parrot's {@code variant} (0–4) through the parrot's {@code
      * DATA_VARIANT_ID} field — the integer that picks one of the five parrot colours. Send this only to a
      * parrot; any other type has no parrot-variant field at that index. The plugin clamps the value first.
