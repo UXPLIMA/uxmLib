@@ -56,6 +56,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.entity.AgeableMob;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.Interaction;
 import net.minecraft.world.entity.Pose;
 import net.minecraft.world.entity.PositionMoveRotation;
 import net.minecraft.world.entity.Relative;
@@ -220,6 +221,11 @@ public final class NmsNpcPackets implements NpcPackets {
     private final EntityDataAccessor<Rotations> armorStandRightArmPoseAccessor;
     private final EntityDataAccessor<Rotations> armorStandLeftLegPoseAccessor;
     private final EntityDataAccessor<Rotations> armorStandRightLegPoseAccessor;
+    /** The {@code Float} width/height and {@code Boolean} response data items on {@code Interaction}; read once. */
+    private final EntityDataAccessor<Float> interactionWidthAccessor;
+
+    private final EntityDataAccessor<Float> interactionHeightAccessor;
+    private final EntityDataAccessor<Boolean> interactionResponseAccessor;
     /** The {@code Integer} variant data item on {@code Parrot}; read once. */
     private final EntityDataAccessor<Integer> parrotVariantAccessor;
     /** The {@code Integer} variant data item on {@code Axolotl}; read once. */
@@ -302,6 +308,9 @@ public final class NmsNpcPackets implements NpcPackets {
         this.armorStandRightArmPoseAccessor = Reflect.accessor(ArmorStand.class, "DATA_RIGHT_ARM_POSE");
         this.armorStandLeftLegPoseAccessor = Reflect.accessor(ArmorStand.class, "DATA_LEFT_LEG_POSE");
         this.armorStandRightLegPoseAccessor = Reflect.accessor(ArmorStand.class, "DATA_RIGHT_LEG_POSE");
+        this.interactionWidthAccessor = Reflect.accessor(Interaction.class, "DATA_WIDTH_ID");
+        this.interactionHeightAccessor = Reflect.accessor(Interaction.class, "DATA_HEIGHT_ID");
+        this.interactionResponseAccessor = Reflect.accessor(Interaction.class, "DATA_RESPONSE_ID");
         this.parrotVariantAccessor = Reflect.accessor(Parrot.class, "DATA_VARIANT_ID");
         this.axolotlVariantAccessor = Reflect.accessor(Axolotl.class, "DATA_VARIANT");
         this.foxTypeAccessor = Reflect.accessor(Fox.class, "DATA_TYPE_ID");
@@ -624,6 +633,16 @@ public final class NmsNpcPackets implements NpcPackets {
     public Object armorStandPose(int entityId, ArmorStandPart part, float x, float y, float z) {
         EntityDataAccessor<Rotations> accessor = poseAccessor(part);
         return dataPacket(entityId, SynchedEntityData.DataValue.create(accessor, new Rotations(x, y, z)));
+    }
+
+    @Override
+    public Object interactionSize(int entityId, float width, float height) {
+        return dataPacket(
+                entityId,
+                List.of(
+                        SynchedEntityData.DataValue.create(interactionWidthAccessor, width),
+                        SynchedEntityData.DataValue.create(interactionHeightAccessor, height),
+                        SynchedEntityData.DataValue.create(interactionResponseAccessor, true)));
     }
 
     private EntityDataAccessor<Rotations> poseAccessor(ArmorStandPart part) {

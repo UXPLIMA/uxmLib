@@ -339,6 +339,15 @@ public interface NpcPackets {
     Object armorStandPose(int entityId, ArmorStandPart part, float x, float y, float z);
 
     /**
+     * Build the metadata packet that sizes an interaction entity's clickable hitbox to {@code width} × {@code
+     * height} (blocks) and marks it responsive, through its {@code DATA_WIDTH_ID}/{@code DATA_HEIGHT_ID}/{@code
+     * DATA_RESPONSE_ID} fields. An interaction entity is invisible; its only purpose is the hitbox, so a width or
+     * height of zero leaves it unclickable — the caller passes a positive size. Send this only to an interaction
+     * entity; any other type has no such fields at those indices.
+     */
+    Object interactionSize(int entityId, float width, float height);
+
+    /**
      * Build the metadata packet that sets a parrot's {@code variant} (0–4) through the parrot's {@code
      * DATA_VARIANT_ID} field — the integer that picks one of the five parrot colours. Send this only to a
      * parrot; any other type has no parrot-variant field at that index. The plugin clamps the value first.

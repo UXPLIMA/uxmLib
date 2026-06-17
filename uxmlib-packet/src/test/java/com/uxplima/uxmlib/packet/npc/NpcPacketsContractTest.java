@@ -467,6 +467,17 @@ class NpcPacketsContractTest {
     }
 
     @Test
+    void interactionSizeCarriesTheEntityAndDimensions() {
+        FakeNpcPackets packets = new FakeNpcPackets();
+
+        FakeNpcPackets.InteractionSize size = (FakeNpcPackets.InteractionSize) packets.interactionSize(21, 1.5f, 2.0f);
+
+        assertThat(size.entityId()).isEqualTo(21);
+        assertThat(size.width()).isEqualTo(1.5f);
+        assertThat(size.height()).isEqualTo(2.0f);
+    }
+
+    @Test
     void parrotVariantCarriesTheEntityAndVariant() {
         FakeNpcPackets packets = new FakeNpcPackets();
 
@@ -673,6 +684,8 @@ class NpcPacketsContractTest {
         record ArmorStandFlags(int entityId, boolean small, boolean showArms, boolean noBasePlate, boolean marker) {}
 
         record ArmorStandPose(int entityId, ArmorStandPart part, float x, float y, float z) {}
+
+        record InteractionSize(int entityId, float width, float height) {}
 
         record ParrotVariant(int entityId, int variant) {}
 
@@ -899,6 +912,11 @@ class NpcPacketsContractTest {
         @Override
         public Object armorStandPose(int entityId, ArmorStandPart part, float x, float y, float z) {
             return new ArmorStandPose(entityId, part, x, y, z);
+        }
+
+        @Override
+        public Object interactionSize(int entityId, float width, float height) {
+            return new InteractionSize(entityId, width, height);
         }
 
         @Override
