@@ -59,7 +59,9 @@ import net.minecraft.world.entity.PositionMoveRotation;
 import net.minecraft.world.entity.Relative;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.animal.allay.Allay;
 import net.minecraft.world.entity.animal.axolotl.Axolotl;
+import net.minecraft.world.entity.animal.camel.Camel;
 import net.minecraft.world.entity.animal.equine.Horse;
 import net.minecraft.world.entity.animal.equine.Llama;
 import net.minecraft.world.entity.animal.feline.Cat;
@@ -67,6 +69,7 @@ import net.minecraft.world.entity.animal.feline.CatVariant;
 import net.minecraft.world.entity.animal.fox.Fox;
 import net.minecraft.world.entity.animal.frog.Frog;
 import net.minecraft.world.entity.animal.frog.FrogVariant;
+import net.minecraft.world.entity.animal.goat.Goat;
 import net.minecraft.world.entity.animal.panda.Panda;
 import net.minecraft.world.entity.animal.parrot.Parrot;
 import net.minecraft.world.entity.animal.rabbit.Rabbit;
@@ -178,6 +181,14 @@ public final class NmsNpcPackets implements NpcPackets {
     private final EntityDataAccessor<Byte> pandaMainGeneAccessor;
     /** The {@code Byte} hidden gene data item on {@code Panda} (0–6); set alongside the main gene so it renders. */
     private final EntityDataAccessor<Byte> pandaHiddenGeneAccessor;
+    /** The {@code Boolean} screaming-variant data item on {@code Goat}; read once. */
+    private final EntityDataAccessor<Boolean> goatScreamingAccessor;
+    /** The {@code Boolean} dancing data item on {@code Allay}; read once. */
+    private final EntityDataAccessor<Boolean> allayDancingAccessor;
+    /** The {@code Boolean} dancing data item on {@code Piglin}; read once. */
+    private final EntityDataAccessor<Boolean> piglinDancingAccessor;
+    /** The {@code Boolean} dash data item on {@code Camel}; read once. */
+    private final EntityDataAccessor<Boolean> camelDashAccessor;
     /** The {@code Integer} variant data item on {@code Parrot}; read once. */
     private final EntityDataAccessor<Integer> parrotVariantAccessor;
     /** The {@code Integer} variant data item on {@code Axolotl}; read once. */
@@ -230,6 +241,10 @@ public final class NmsNpcPackets implements NpcPackets {
         this.shulkerPeekAccessor = Reflect.accessor(Shulker.class, "DATA_PEEK_ID");
         this.pandaMainGeneAccessor = Reflect.accessor(Panda.class, "MAIN_GENE_ID");
         this.pandaHiddenGeneAccessor = Reflect.accessor(Panda.class, "HIDDEN_GENE_ID");
+        this.goatScreamingAccessor = Reflect.accessor(Goat.class, "DATA_IS_SCREAMING_GOAT");
+        this.allayDancingAccessor = Reflect.accessor(Allay.class, "DATA_DANCING");
+        this.piglinDancingAccessor = Reflect.accessor(Piglin.class, "DATA_IS_DANCING");
+        this.camelDashAccessor = Reflect.accessor(Camel.class, "DASH");
         this.parrotVariantAccessor = Reflect.accessor(Parrot.class, "DATA_VARIANT_ID");
         this.axolotlVariantAccessor = Reflect.accessor(Axolotl.class, "DATA_VARIANT");
         this.foxTypeAccessor = Reflect.accessor(Fox.class, "DATA_TYPE_ID");
@@ -496,6 +511,26 @@ public final class NmsNpcPackets implements NpcPackets {
                 List.of(
                         SynchedEntityData.DataValue.create(pandaMainGeneAccessor, id),
                         SynchedEntityData.DataValue.create(pandaHiddenGeneAccessor, id)));
+    }
+
+    @Override
+    public Object goatScreaming(int entityId, boolean screaming) {
+        return dataPacket(entityId, SynchedEntityData.DataValue.create(goatScreamingAccessor, screaming));
+    }
+
+    @Override
+    public Object allayDancing(int entityId, boolean dancing) {
+        return dataPacket(entityId, SynchedEntityData.DataValue.create(allayDancingAccessor, dancing));
+    }
+
+    @Override
+    public Object piglinDancing(int entityId, boolean dancing) {
+        return dataPacket(entityId, SynchedEntityData.DataValue.create(piglinDancingAccessor, dancing));
+    }
+
+    @Override
+    public Object camelDash(int entityId, boolean dashing) {
+        return dataPacket(entityId, SynchedEntityData.DataValue.create(camelDashAccessor, dashing));
     }
 
     @Override

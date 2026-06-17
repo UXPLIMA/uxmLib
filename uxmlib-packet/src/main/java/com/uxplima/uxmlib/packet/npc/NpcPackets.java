@@ -271,6 +271,32 @@ public interface NpcPackets {
     Object pandaGene(int entityId, int gene);
 
     /**
+     * Build the metadata packet that toggles a goat's screaming variant through {@code Goat.DATA_IS_SCREAMING_GOAT}.
+     * A screaming goat shares the model but rams and bleats differently. Send this only to a goat; any other type
+     * has no screaming field at that index.
+     */
+    Object goatScreaming(int entityId, boolean screaming);
+
+    /**
+     * Build the metadata packet that toggles an allay's dance through {@code Allay.DATA_DANCING} — a dancing allay
+     * bobs in place as it does beside a playing jukebox. Send this only to an allay; any other type has no dancing
+     * field at that index.
+     */
+    Object allayDancing(int entityId, boolean dancing);
+
+    /**
+     * Build the metadata packet that toggles a piglin's dance through {@code Piglin.DATA_IS_DANCING}. Send this only
+     * to a piglin; any other type has no dancing field at that index.
+     */
+    Object piglinDancing(int entityId, boolean dancing);
+
+    /**
+     * Build the metadata packet that toggles a camel's dash through {@code Camel.DASH} — the sprint-leap state the
+     * client animates. Send this only to a camel; any other type has no dash field at that index.
+     */
+    Object camelDash(int entityId, boolean dashing);
+
+    /**
      * Build the metadata packet that sets a parrot's {@code variant} (0–4) through the parrot's {@code
      * DATA_VARIANT_ID} field — the integer that picks one of the five parrot colours. Send this only to a
      * parrot; any other type has no parrot-variant field at that index. The plugin clamps the value first.

@@ -368,6 +368,46 @@ class NpcPacketsContractTest {
     }
 
     @Test
+    void goatScreamingCarriesTheEntityAndFlag() {
+        FakeNpcPackets packets = new FakeNpcPackets();
+
+        FakeNpcPackets.GoatScreaming screaming = (FakeNpcPackets.GoatScreaming) packets.goatScreaming(12, true);
+
+        assertThat(screaming.entityId()).isEqualTo(12);
+        assertThat(screaming.screaming()).isTrue();
+    }
+
+    @Test
+    void allayDancingCarriesTheEntityAndFlag() {
+        FakeNpcPackets packets = new FakeNpcPackets();
+
+        FakeNpcPackets.AllayDancing dancing = (FakeNpcPackets.AllayDancing) packets.allayDancing(13, true);
+
+        assertThat(dancing.entityId()).isEqualTo(13);
+        assertThat(dancing.dancing()).isTrue();
+    }
+
+    @Test
+    void piglinDancingCarriesTheEntityAndFlag() {
+        FakeNpcPackets packets = new FakeNpcPackets();
+
+        FakeNpcPackets.PiglinDancing dancing = (FakeNpcPackets.PiglinDancing) packets.piglinDancing(14, false);
+
+        assertThat(dancing.entityId()).isEqualTo(14);
+        assertThat(dancing.dancing()).isFalse();
+    }
+
+    @Test
+    void camelDashCarriesTheEntityAndFlag() {
+        FakeNpcPackets packets = new FakeNpcPackets();
+
+        FakeNpcPackets.CamelDash dash = (FakeNpcPackets.CamelDash) packets.camelDash(15, true);
+
+        assertThat(dash.entityId()).isEqualTo(15);
+        assertThat(dash.dashing()).isTrue();
+    }
+
+    @Test
     void parrotVariantCarriesTheEntityAndVariant() {
         FakeNpcPackets packets = new FakeNpcPackets();
 
@@ -557,6 +597,14 @@ class NpcPacketsContractTest {
 
         record PandaGene(int entityId, int gene) {}
 
+        record GoatScreaming(int entityId, boolean screaming) {}
+
+        record AllayDancing(int entityId, boolean dancing) {}
+
+        record PiglinDancing(int entityId, boolean dancing) {}
+
+        record CamelDash(int entityId, boolean dashing) {}
+
         record ParrotVariant(int entityId, int variant) {}
 
         record AxolotlVariant(int entityId, int variant) {}
@@ -736,6 +784,26 @@ class NpcPacketsContractTest {
         @Override
         public Object pandaGene(int entityId, int gene) {
             return new PandaGene(entityId, gene);
+        }
+
+        @Override
+        public Object goatScreaming(int entityId, boolean screaming) {
+            return new GoatScreaming(entityId, screaming);
+        }
+
+        @Override
+        public Object allayDancing(int entityId, boolean dancing) {
+            return new AllayDancing(entityId, dancing);
+        }
+
+        @Override
+        public Object piglinDancing(int entityId, boolean dancing) {
+            return new PiglinDancing(entityId, dancing);
+        }
+
+        @Override
+        public Object camelDash(int entityId, boolean dashing) {
+            return new CamelDash(entityId, dashing);
         }
 
         @Override
