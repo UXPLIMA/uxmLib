@@ -64,6 +64,7 @@ import net.minecraft.world.entity.Interaction;
 import net.minecraft.world.entity.Pose;
 import net.minecraft.world.entity.PositionMoveRotation;
 import net.minecraft.world.entity.Relative;
+import net.minecraft.world.entity.TamableAnimal;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.animal.allay.Allay;
@@ -279,6 +280,19 @@ public final class NmsNpcPackets implements NpcPackets {
 
     private final EntityDataAccessor<Boolean> raiderCelebratingAccessor;
 
+    /** {@code TamableAnimal.DATA_FLAGS_ID} and its sitting bit (the unnamed {@code 0x01} of {@code isInSittingPose}). */
+    private final EntityDataAccessor<Byte> tameableFlagsAccessor;
+
+    private final byte tameableSittingFlag;
+    /** {@code Fox.DATA_FLAGS_ID} and its three pose bit masks (sitting/sleeping/crouching). */
+    private final EntityDataAccessor<Byte> foxFlagsAccessor;
+
+    private final byte foxSittingFlag;
+    private final byte foxSleepingFlag;
+    private final byte foxCrouchingFlag;
+    /** {@code Panda.EAT_COUNTER}; a positive counter drives the sitting-and-eating pose. */
+    private final EntityDataAccessor<Integer> pandaEatCounterAccessor;
+
     public NmsNpcPackets(PacketSender sender) {
         this.sender = Objects.requireNonNull(sender, "sender");
         // Read the shared-flags and pose accessors and the glowing bit index once here, off every hot path.
@@ -374,6 +388,17 @@ public final class NmsNpcPackets implements NpcPackets {
         this.pigVariantAccessor = Reflect.accessor(Pig.class, "DATA_VARIANT_ID");
         this.axolotlPlayingDeadAccessor = Reflect.accessor(Axolotl.class, "DATA_PLAYING_DEAD");
         this.raiderCelebratingAccessor = Reflect.accessor(Raider.class, "IS_CELEBRATING");
+        this.tameableFlagsAccessor = Reflect.accessor(TamableAnimal.class, "DATA_FLAGS_ID");
+        this.tameableSittingFlag = 1;
+        // Fox's FLAG_* constants are bit masks the mob applies directly (setFlag does flags | mask), like bee/vex.
+        this.foxFlagsAccessor = Reflect.accessor(Fox.class, "DATA_FLAGS_ID");
+        int foxSitting = Reflect.accessor(Fox.class, "FLAG_SITTING");
+        this.foxSittingFlag = (byte) foxSitting;
+        int foxSleeping = Reflect.accessor(Fox.class, "FLAG_SLEEPING");
+        this.foxSleepingFlag = (byte) foxSleeping;
+        int foxCrouching = Reflect.accessor(Fox.class, "FLAG_CROUCHING");
+        this.foxCrouchingFlag = (byte) foxCrouching;
+        this.pandaEatCounterAccessor = Reflect.accessor(Panda.class, "EAT_COUNTER");
     }
 
     @Override
@@ -817,6 +842,32 @@ public final class NmsNpcPackets implements NpcPackets {
     @Override
     public Object raiderCelebrating(int entityId, boolean celebrating) {
         return dataPacket(entityId, SynchedEntityData.DataValue.create(raiderCelebratingAccessor, celebrating));
+    }
+
+    @Override
+    public Object tameableSitting(int entityId, boolean sitting) {
+        byte flags = sitting ? tameableSittingFlag : 0;
+        return dataPacket(entityId, SynchedEntityData.DataValue.create(tameableFlagsAccessor, flags));
+    }
+
+    @Override
+    public Object foxFlags(int entityId, boolean sitting, boolean sleeping, boolean crouching) {
+        byte flags = 0;
+        if (sitting) {
+            flags |= foxSittingFlag;
+        }
+        if (sleeping) {
+            flags |= foxSleepingFlag;
+        }
+        if (crouching) {
+            flags |= foxCrouchingFlag;
+        }
+        return dataPacket(entityId, SynchedEntityData.DataValue.create(foxFlagsAccessor, flags));
+    }
+
+    @Override
+    public Object pandaEating(int entityId, boolean eating) {
+        return dataPacket(entityId, SynchedEntityData.DataValue.create(pandaEatCounterAccessor, eating ? 1 : 0));
     }
 
     @Override

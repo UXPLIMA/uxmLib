@@ -519,6 +519,26 @@ public interface NpcPackets {
     Object raiderCelebrating(int entityId, boolean celebrating);
 
     /**
+     * Build the metadata packet that toggles a tameable mob's (wolf/cat/parrot) sitting pose through {@code
+     * TamableAnimal.DATA_FLAGS_ID}'s sitting bit. Only the sitting bit is written. Send this only to a tameable
+     * type; any other has no such field at that index.
+     */
+    Object tameableSitting(int entityId, boolean sitting);
+
+    /**
+     * Build the metadata packet that sets a fox's pose flags — {@code sitting}, {@code sleeping}, {@code crouching}
+     * — composed into the one {@code Fox.DATA_FLAGS_ID} byte (each is a bit mask the server applies directly). Send
+     * this only to a fox; any other type has no such byte at that index.
+     */
+    Object foxFlags(int entityId, boolean sitting, boolean sleeping, boolean crouching);
+
+    /**
+     * Build the metadata packet that toggles a panda's eating animation through its {@code EAT_COUNTER} (a positive
+     * counter shows the sitting-and-eating pose; zero stops it). Send this only to a panda.
+     */
+    Object pandaEating(int entityId, boolean eating);
+
+    /**
      * Build the scoreboard-team packet that tints the NPC's glow to {@code color}. The client colours a glowing
      * entity's outline with the colour of the team its name is a member of, so this packet creates (or modifies) a
      * team named {@code teamName}, sets its colour, and seats {@code memberName} as a member. For a fake player

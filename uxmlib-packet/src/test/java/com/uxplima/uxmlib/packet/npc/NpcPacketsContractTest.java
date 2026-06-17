@@ -649,6 +649,15 @@ class NpcPacketsContractTest {
         assertThat(dead.playingDead()).isTrue();
         FakeNpcPackets.RaiderCelebrating celeb = (FakeNpcPackets.RaiderCelebrating) packets.raiderCelebrating(13, true);
         assertThat(celeb.celebrating()).isTrue();
+        FakeNpcPackets.TameableSitting sit = (FakeNpcPackets.TameableSitting) packets.tameableSitting(14, true);
+        assertThat(sit.entityId()).isEqualTo(14);
+        assertThat(sit.sitting()).isTrue();
+        FakeNpcPackets.FoxFlags fox = (FakeNpcPackets.FoxFlags) packets.foxFlags(15, true, false, true);
+        assertThat(fox.sitting()).isTrue();
+        assertThat(fox.sleeping()).isFalse();
+        assertThat(fox.crouching()).isTrue();
+        FakeNpcPackets.PandaEating panda = (FakeNpcPackets.PandaEating) packets.pandaEating(17, true);
+        assertThat(panda.eating()).isTrue();
 
         FakeNpcPackets.FrogVariant frog = (FakeNpcPackets.FrogVariant) packets.frogVariant(7, "warm");
 
@@ -844,6 +853,12 @@ class NpcPacketsContractTest {
         record AxolotlPlayingDead(int entityId, boolean playingDead) {}
 
         record RaiderCelebrating(int entityId, boolean celebrating) {}
+
+        record TameableSitting(int entityId, boolean sitting) {}
+
+        record FoxFlags(int entityId, boolean sitting, boolean sleeping, boolean crouching) {}
+
+        record PandaEating(int entityId, boolean eating) {}
 
         record GlowColor(String teamName, String memberName, @Nullable NamedColor color) {}
 
@@ -1171,6 +1186,21 @@ class NpcPacketsContractTest {
         @Override
         public Object raiderCelebrating(int entityId, boolean celebrating) {
             return new RaiderCelebrating(entityId, celebrating);
+        }
+
+        @Override
+        public Object tameableSitting(int entityId, boolean sitting) {
+            return new TameableSitting(entityId, sitting);
+        }
+
+        @Override
+        public Object foxFlags(int entityId, boolean sitting, boolean sleeping, boolean crouching) {
+            return new FoxFlags(entityId, sitting, sleeping, crouching);
+        }
+
+        @Override
+        public Object pandaEating(int entityId, boolean eating) {
+            return new PandaEating(entityId, eating);
         }
 
         @Override
