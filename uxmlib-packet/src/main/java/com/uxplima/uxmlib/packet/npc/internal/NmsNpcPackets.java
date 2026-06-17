@@ -21,6 +21,7 @@ import com.uxplima.uxmlib.packet.Bundles;
 import com.uxplima.uxmlib.packet.Codecs;
 import com.uxplima.uxmlib.packet.EntityIds;
 import com.uxplima.uxmlib.packet.Reflect;
+import com.uxplima.uxmlib.packet.npc.ArmorStandPart;
 import com.uxplima.uxmlib.packet.npc.ByteAngle;
 import com.uxplima.uxmlib.packet.npc.EquipmentSlot;
 import com.uxplima.uxmlib.packet.npc.HorseVariant;
@@ -31,6 +32,7 @@ import com.uxplima.uxmlib.packet.tablist.TabSkin;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
+import net.minecraft.core.Rotations;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.protocol.game.ClientboundAddEntityPacket;
@@ -210,6 +212,14 @@ public final class NmsNpcPackets implements NpcPackets {
     private final byte armorStandArmsFlag;
     private final byte armorStandNoBasePlateFlag;
     private final byte armorStandMarkerFlag;
+    /** The six {@code Rotations} pose data items on {@code ArmorStand} (head/body/arms/legs); read once. */
+    private final EntityDataAccessor<Rotations> armorStandHeadPoseAccessor;
+
+    private final EntityDataAccessor<Rotations> armorStandBodyPoseAccessor;
+    private final EntityDataAccessor<Rotations> armorStandLeftArmPoseAccessor;
+    private final EntityDataAccessor<Rotations> armorStandRightArmPoseAccessor;
+    private final EntityDataAccessor<Rotations> armorStandLeftLegPoseAccessor;
+    private final EntityDataAccessor<Rotations> armorStandRightLegPoseAccessor;
     /** The {@code Integer} variant data item on {@code Parrot}; read once. */
     private final EntityDataAccessor<Integer> parrotVariantAccessor;
     /** The {@code Integer} variant data item on {@code Axolotl}; read once. */
@@ -286,6 +296,12 @@ public final class NmsNpcPackets implements NpcPackets {
         this.armorStandNoBasePlateFlag = (byte) noBasePlate;
         int marker = Reflect.accessor(ArmorStand.class, "CLIENT_FLAG_MARKER");
         this.armorStandMarkerFlag = (byte) marker;
+        this.armorStandHeadPoseAccessor = Reflect.accessor(ArmorStand.class, "DATA_HEAD_POSE");
+        this.armorStandBodyPoseAccessor = Reflect.accessor(ArmorStand.class, "DATA_BODY_POSE");
+        this.armorStandLeftArmPoseAccessor = Reflect.accessor(ArmorStand.class, "DATA_LEFT_ARM_POSE");
+        this.armorStandRightArmPoseAccessor = Reflect.accessor(ArmorStand.class, "DATA_RIGHT_ARM_POSE");
+        this.armorStandLeftLegPoseAccessor = Reflect.accessor(ArmorStand.class, "DATA_LEFT_LEG_POSE");
+        this.armorStandRightLegPoseAccessor = Reflect.accessor(ArmorStand.class, "DATA_RIGHT_LEG_POSE");
         this.parrotVariantAccessor = Reflect.accessor(Parrot.class, "DATA_VARIANT_ID");
         this.axolotlVariantAccessor = Reflect.accessor(Axolotl.class, "DATA_VARIANT");
         this.foxTypeAccessor = Reflect.accessor(Fox.class, "DATA_TYPE_ID");
@@ -602,6 +618,23 @@ public final class NmsNpcPackets implements NpcPackets {
             flags |= armorStandMarkerFlag;
         }
         return dataPacket(entityId, SynchedEntityData.DataValue.create(armorStandFlagsAccessor, flags));
+    }
+
+    @Override
+    public Object armorStandPose(int entityId, ArmorStandPart part, float x, float y, float z) {
+        EntityDataAccessor<Rotations> accessor = poseAccessor(part);
+        return dataPacket(entityId, SynchedEntityData.DataValue.create(accessor, new Rotations(x, y, z)));
+    }
+
+    private EntityDataAccessor<Rotations> poseAccessor(ArmorStandPart part) {
+        return switch (part) {
+            case HEAD -> armorStandHeadPoseAccessor;
+            case BODY -> armorStandBodyPoseAccessor;
+            case LEFT_ARM -> armorStandLeftArmPoseAccessor;
+            case RIGHT_ARM -> armorStandRightArmPoseAccessor;
+            case LEFT_LEG -> armorStandLeftLegPoseAccessor;
+            case RIGHT_LEG -> armorStandRightLegPoseAccessor;
+        };
     }
 
     @Override

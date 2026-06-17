@@ -453,6 +453,20 @@ class NpcPacketsContractTest {
     }
 
     @Test
+    void armorStandPoseCarriesTheEntityPartAndAngles() {
+        FakeNpcPackets packets = new FakeNpcPackets();
+
+        FakeNpcPackets.ArmorStandPose pose =
+                (FakeNpcPackets.ArmorStandPose) packets.armorStandPose(20, ArmorStandPart.LEFT_ARM, 10f, -20f, 30.5f);
+
+        assertThat(pose.entityId()).isEqualTo(20);
+        assertThat(pose.part()).isEqualTo(ArmorStandPart.LEFT_ARM);
+        assertThat(pose.x()).isEqualTo(10f);
+        assertThat(pose.y()).isEqualTo(-20f);
+        assertThat(pose.z()).isEqualTo(30.5f);
+    }
+
+    @Test
     void parrotVariantCarriesTheEntityAndVariant() {
         FakeNpcPackets packets = new FakeNpcPackets();
 
@@ -657,6 +671,8 @@ class NpcPacketsContractTest {
         record TropicalFishVariant(int entityId, int variantIndex) {}
 
         record ArmorStandFlags(int entityId, boolean small, boolean showArms, boolean noBasePlate, boolean marker) {}
+
+        record ArmorStandPose(int entityId, ArmorStandPart part, float x, float y, float z) {}
 
         record ParrotVariant(int entityId, int variant) {}
 
@@ -878,6 +894,11 @@ class NpcPacketsContractTest {
         public Object armorStandFlags(
                 int entityId, boolean small, boolean showArms, boolean noBasePlate, boolean marker) {
             return new ArmorStandFlags(entityId, small, showArms, noBasePlate, marker);
+        }
+
+        @Override
+        public Object armorStandPose(int entityId, ArmorStandPart part, float x, float y, float z) {
+            return new ArmorStandPose(entityId, part, x, y, z);
         }
 
         @Override

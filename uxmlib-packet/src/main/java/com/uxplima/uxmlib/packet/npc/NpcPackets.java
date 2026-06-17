@@ -331,6 +331,14 @@ public interface NpcPackets {
     Object armorStandFlags(int entityId, boolean small, boolean showArms, boolean noBasePlate, boolean marker);
 
     /**
+     * Build the metadata packet that sets one of an armor stand's six poses ({@code part}) to the Euler angles
+     * {@code x}/{@code y}/{@code z} (in degrees) through the matching {@code DATA_*_POSE} field. Each part is an
+     * independent field, so posing a full statue is several of these packets. Send this only to an armor stand;
+     * any other type has no pose fields at those indices.
+     */
+    Object armorStandPose(int entityId, ArmorStandPart part, float x, float y, float z);
+
+    /**
      * Build the metadata packet that sets a parrot's {@code variant} (0–4) through the parrot's {@code
      * DATA_VARIANT_ID} field — the integer that picks one of the five parrot colours. Send this only to a
      * parrot; any other type has no parrot-variant field at that index. The plugin clamps the value first.
