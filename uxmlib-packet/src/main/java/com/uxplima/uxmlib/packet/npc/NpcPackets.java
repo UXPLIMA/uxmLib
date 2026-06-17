@@ -322,6 +322,15 @@ public interface NpcPackets {
     Object tropicalFishVariant(int entityId, int variantIndex);
 
     /**
+     * Build the metadata packet that sets an armor stand's client flags — {@code small}, {@code showArms},
+     * {@code noBasePlate}, {@code marker} — composed into the one {@code DATA_CLIENT_FLAGS} byte (each is a bit
+     * mask the server applies directly). A statue NPC uses these for a small stand, visible arms (to hold items),
+     * a hidden base plate, or marker mode (no hitbox). Send this only to an armor stand; any other type has no
+     * client-flags byte at that index.
+     */
+    Object armorStandFlags(int entityId, boolean small, boolean showArms, boolean noBasePlate, boolean marker);
+
+    /**
      * Build the metadata packet that sets a parrot's {@code variant} (0–4) through the parrot's {@code
      * DATA_VARIANT_ID} field — the integer that picks one of the five parrot colours. Send this only to a
      * parrot; any other type has no parrot-variant field at that index. The plugin clamps the value first.

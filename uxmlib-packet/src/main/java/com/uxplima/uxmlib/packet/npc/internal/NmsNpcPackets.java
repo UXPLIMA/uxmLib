@@ -77,6 +77,7 @@ import net.minecraft.world.entity.animal.parrot.Parrot;
 import net.minecraft.world.entity.animal.rabbit.Rabbit;
 import net.minecraft.world.entity.animal.sheep.Sheep;
 import net.minecraft.world.entity.animal.wolf.Wolf;
+import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.entity.monster.Creeper;
 import net.minecraft.world.entity.monster.Shulker;
 import net.minecraft.world.entity.monster.Slime;
@@ -202,6 +203,13 @@ public final class NmsNpcPackets implements NpcPackets {
     private final byte vexChargingFlag;
     /** The {@code Integer} packed type-variant data item on {@code TropicalFish}; read once. */
     private final EntityDataAccessor<Integer> tropicalFishVariantAccessor;
+    /** The {@code Byte} client-flags data item on {@code ArmorStand} and its four bit masks; read once. */
+    private final EntityDataAccessor<Byte> armorStandFlagsAccessor;
+
+    private final byte armorStandSmallFlag;
+    private final byte armorStandArmsFlag;
+    private final byte armorStandNoBasePlateFlag;
+    private final byte armorStandMarkerFlag;
     /** The {@code Integer} variant data item on {@code Parrot}; read once. */
     private final EntityDataAccessor<Integer> parrotVariantAccessor;
     /** The {@code Integer} variant data item on {@code Axolotl}; read once. */
@@ -267,6 +275,17 @@ public final class NmsNpcPackets implements NpcPackets {
         int vexChargingMask = Reflect.accessor(Vex.class, "FLAG_IS_CHARGING");
         this.vexChargingFlag = (byte) vexChargingMask;
         this.tropicalFishVariantAccessor = Reflect.accessor(TropicalFish.class, "DATA_ID_TYPE_VARIANT");
+        // ArmorStand's four client-flag constants are bit masks the server applies directly (setBit does b|flag),
+        // like the bee/vex flags; read each mask once and compose them into the one client-flags byte.
+        this.armorStandFlagsAccessor = Reflect.accessor(ArmorStand.class, "DATA_CLIENT_FLAGS");
+        int small = Reflect.accessor(ArmorStand.class, "CLIENT_FLAG_SMALL");
+        this.armorStandSmallFlag = (byte) small;
+        int arms = Reflect.accessor(ArmorStand.class, "CLIENT_FLAG_SHOW_ARMS");
+        this.armorStandArmsFlag = (byte) arms;
+        int noBasePlate = Reflect.accessor(ArmorStand.class, "CLIENT_FLAG_NO_BASEPLATE");
+        this.armorStandNoBasePlateFlag = (byte) noBasePlate;
+        int marker = Reflect.accessor(ArmorStand.class, "CLIENT_FLAG_MARKER");
+        this.armorStandMarkerFlag = (byte) marker;
         this.parrotVariantAccessor = Reflect.accessor(Parrot.class, "DATA_VARIANT_ID");
         this.axolotlVariantAccessor = Reflect.accessor(Axolotl.class, "DATA_VARIANT");
         this.foxTypeAccessor = Reflect.accessor(Fox.class, "DATA_TYPE_ID");
@@ -565,6 +584,24 @@ public final class NmsNpcPackets implements NpcPackets {
     public Object vexCharging(int entityId, boolean charging) {
         byte flags = charging ? vexChargingFlag : 0;
         return dataPacket(entityId, SynchedEntityData.DataValue.create(vexFlagsAccessor, flags));
+    }
+
+    @Override
+    public Object armorStandFlags(int entityId, boolean small, boolean showArms, boolean noBasePlate, boolean marker) {
+        byte flags = 0;
+        if (small) {
+            flags |= armorStandSmallFlag;
+        }
+        if (showArms) {
+            flags |= armorStandArmsFlag;
+        }
+        if (noBasePlate) {
+            flags |= armorStandNoBasePlateFlag;
+        }
+        if (marker) {
+            flags |= armorStandMarkerFlag;
+        }
+        return dataPacket(entityId, SynchedEntityData.DataValue.create(armorStandFlagsAccessor, flags));
     }
 
     @Override

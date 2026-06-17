@@ -439,6 +439,20 @@ class NpcPacketsContractTest {
     }
 
     @Test
+    void armorStandFlagsCarryTheEntityAndEachFlag() {
+        FakeNpcPackets packets = new FakeNpcPackets();
+
+        FakeNpcPackets.ArmorStandFlags flags =
+                (FakeNpcPackets.ArmorStandFlags) packets.armorStandFlags(19, true, true, false, false);
+
+        assertThat(flags.entityId()).isEqualTo(19);
+        assertThat(flags.small()).isTrue();
+        assertThat(flags.showArms()).isTrue();
+        assertThat(flags.noBasePlate()).isFalse();
+        assertThat(flags.marker()).isFalse();
+    }
+
+    @Test
     void parrotVariantCarriesTheEntityAndVariant() {
         FakeNpcPackets packets = new FakeNpcPackets();
 
@@ -641,6 +655,8 @@ class NpcPacketsContractTest {
         record VexCharging(int entityId, boolean charging) {}
 
         record TropicalFishVariant(int entityId, int variantIndex) {}
+
+        record ArmorStandFlags(int entityId, boolean small, boolean showArms, boolean noBasePlate, boolean marker) {}
 
         record ParrotVariant(int entityId, int variant) {}
 
@@ -856,6 +872,12 @@ class NpcPacketsContractTest {
         @Override
         public Object tropicalFishVariant(int entityId, int variantIndex) {
             return new TropicalFishVariant(entityId, variantIndex);
+        }
+
+        @Override
+        public Object armorStandFlags(
+                int entityId, boolean small, boolean showArms, boolean noBasePlate, boolean marker) {
+            return new ArmorStandFlags(entityId, small, showArms, noBasePlate, marker);
         }
 
         @Override
