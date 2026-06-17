@@ -512,6 +512,38 @@ class NpcPacketsContractTest {
     }
 
     @Test
+    void displayScaleCarriesTheEntityAndScale() {
+        FakeNpcPackets packets = new FakeNpcPackets();
+
+        FakeNpcPackets.DisplayScale scale = (FakeNpcPackets.DisplayScale) packets.displayScale(26, 2.5f);
+
+        assertThat(scale.entityId()).isEqualTo(26);
+        assertThat(scale.scale()).isEqualTo(2.5f);
+    }
+
+    @Test
+    void displayBillboardCarriesTheEntityAndConstraint() {
+        FakeNpcPackets packets = new FakeNpcPackets();
+
+        FakeNpcPackets.DisplayBillboard billboard =
+                (FakeNpcPackets.DisplayBillboard) packets.displayBillboard(27, (byte) 3);
+
+        assertThat(billboard.entityId()).isEqualTo(27);
+        assertThat(billboard.constraint()).isEqualTo((byte) 3);
+    }
+
+    @Test
+    void textDisplayBackgroundCarriesTheEntityAndColour() {
+        FakeNpcPackets packets = new FakeNpcPackets();
+
+        FakeNpcPackets.TextDisplayBackground background =
+                (FakeNpcPackets.TextDisplayBackground) packets.textDisplayBackground(28, 0x80FF0000);
+
+        assertThat(background.entityId()).isEqualTo(28);
+        assertThat(background.argb()).isEqualTo(0x80FF0000);
+    }
+
+    @Test
     void parrotVariantCarriesTheEntityAndVariant() {
         FakeNpcPackets packets = new FakeNpcPackets();
 
@@ -726,6 +758,12 @@ class NpcPacketsContractTest {
         record ItemDisplayItem(int entityId, Material material) {}
 
         record TextDisplayText(int entityId, String plain) {}
+
+        record DisplayScale(int entityId, float scale) {}
+
+        record DisplayBillboard(int entityId, byte constraint) {}
+
+        record TextDisplayBackground(int entityId, int argb) {}
 
         record ParrotVariant(int entityId, int variant) {}
 
@@ -975,6 +1013,21 @@ class NpcPacketsContractTest {
                     entityId,
                     net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText()
                             .serialize(text));
+        }
+
+        @Override
+        public Object displayScale(int entityId, float scale) {
+            return new DisplayScale(entityId, scale);
+        }
+
+        @Override
+        public Object displayBillboard(int entityId, byte constraint) {
+            return new DisplayBillboard(entityId, constraint);
+        }
+
+        @Override
+        public Object textDisplayBackground(int entityId, int argb) {
+            return new TextDisplayBackground(entityId, argb);
         }
 
         @Override

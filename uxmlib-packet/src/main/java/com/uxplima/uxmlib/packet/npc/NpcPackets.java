@@ -372,6 +372,27 @@ public interface NpcPackets {
     Object textDisplayText(int entityId, Component text);
 
     /**
+     * Build the metadata packet that uniformly scales a display entity (block/item/text) to {@code scale} through
+     * its {@code DATA_SCALE_ID} transform vector (set to {@code scale} on all three axes). {@code 1.0} is the
+     * natural size. Send this only to a display entity; an interaction or other type has no scale vector there.
+     */
+    Object displayScale(int entityId, float scale);
+
+    /**
+     * Build the metadata packet that sets a display entity's billboard (face-the-viewer) constraint through its
+     * {@code DATA_BILLBOARD_RENDER_CONSTRAINTS_ID} byte: {@code 0} fixed, {@code 1} vertical, {@code 2} horizontal,
+     * {@code 3} center (always faces the viewer). Send this only to a display entity.
+     */
+    Object displayBillboard(int entityId, byte constraint);
+
+    /**
+     * Build the metadata packet that sets a text-display entity's background to the packed {@code argb} colour
+     * through its {@code DATA_BACKGROUND_COLOR_ID} field. Send this only to a text-display entity; any other type
+     * has no background field at that index.
+     */
+    Object textDisplayBackground(int entityId, int argb);
+
+    /**
      * Build the metadata packet that sets a parrot's {@code variant} (0–4) through the parrot's {@code
      * DATA_VARIANT_ID} field — the integer that picks one of the five parrot colours. Send this only to a
      * parrot; any other type has no parrot-variant field at that index. The plugin clamps the value first.

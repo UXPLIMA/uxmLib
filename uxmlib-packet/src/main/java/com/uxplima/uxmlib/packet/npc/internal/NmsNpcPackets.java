@@ -98,6 +98,8 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.scores.PlayerTeam;
 import net.minecraft.world.scores.Scoreboard;
 import net.minecraft.world.scores.Team;
+import org.joml.Vector3f;
+import org.joml.Vector3fc;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -236,6 +238,12 @@ public final class NmsNpcPackets implements NpcPackets {
     private final EntityDataAccessor<net.minecraft.world.item.ItemStack> itemDisplayItemAccessor;
     /** The {@code Component} text data item on {@code Display.TextDisplay}; read once. */
     private final EntityDataAccessor<net.minecraft.network.chat.Component> textDisplayTextAccessor;
+    /** The {@code Vector3f} scale and {@code Byte} billboard data items on {@code Display} (all subtypes); read once. */
+    private final EntityDataAccessor<Vector3fc> displayScaleAccessor;
+
+    private final EntityDataAccessor<Byte> displayBillboardAccessor;
+    /** The {@code Integer} ARGB background data item on {@code Display.TextDisplay}; read once. */
+    private final EntityDataAccessor<Integer> textDisplayBackgroundAccessor;
     /** The {@code Integer} variant data item on {@code Parrot}; read once. */
     private final EntityDataAccessor<Integer> parrotVariantAccessor;
     /** The {@code Integer} variant data item on {@code Axolotl}; read once. */
@@ -324,6 +332,9 @@ public final class NmsNpcPackets implements NpcPackets {
         this.blockDisplayStateAccessor = Reflect.accessor(Display.BlockDisplay.class, "DATA_BLOCK_STATE_ID");
         this.itemDisplayItemAccessor = Reflect.accessor(Display.ItemDisplay.class, "DATA_ITEM_STACK_ID");
         this.textDisplayTextAccessor = Reflect.accessor(Display.TextDisplay.class, "DATA_TEXT_ID");
+        this.displayScaleAccessor = Reflect.accessor(Display.class, "DATA_SCALE_ID");
+        this.displayBillboardAccessor = Reflect.accessor(Display.class, "DATA_BILLBOARD_RENDER_CONSTRAINTS_ID");
+        this.textDisplayBackgroundAccessor = Reflect.accessor(Display.TextDisplay.class, "DATA_BACKGROUND_COLOR_ID");
         this.parrotVariantAccessor = Reflect.accessor(Parrot.class, "DATA_VARIANT_ID");
         this.axolotlVariantAccessor = Reflect.accessor(Axolotl.class, "DATA_VARIANT");
         this.foxTypeAccessor = Reflect.accessor(Fox.class, "DATA_TYPE_ID");
@@ -665,6 +676,22 @@ public final class NmsNpcPackets implements NpcPackets {
     public Object textDisplayText(int entityId, net.kyori.adventure.text.Component text) {
         return dataPacket(
                 entityId, SynchedEntityData.DataValue.create(textDisplayTextAccessor, Components.asVanilla(text)));
+    }
+
+    @Override
+    public Object displayScale(int entityId, float scale) {
+        return dataPacket(
+                entityId, SynchedEntityData.DataValue.create(displayScaleAccessor, new Vector3f(scale, scale, scale)));
+    }
+
+    @Override
+    public Object displayBillboard(int entityId, byte constraint) {
+        return dataPacket(entityId, SynchedEntityData.DataValue.create(displayBillboardAccessor, constraint));
+    }
+
+    @Override
+    public Object textDisplayBackground(int entityId, int argb) {
+        return dataPacket(entityId, SynchedEntityData.DataValue.create(textDisplayBackgroundAccessor, argb));
     }
 
     @Override
