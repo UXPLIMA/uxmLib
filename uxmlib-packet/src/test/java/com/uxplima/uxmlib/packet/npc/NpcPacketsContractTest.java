@@ -319,13 +319,14 @@ class NpcPacketsContractTest {
     }
 
     @Test
-    void sheepColorCarriesTheEntityAndColour() {
+    void sheepWoolCarriesTheEntityColourAndSheared() {
         FakeNpcPackets packets = new FakeNpcPackets();
 
-        FakeNpcPackets.SheepColor color = (FakeNpcPackets.SheepColor) packets.sheepColor(7, 14);
+        FakeNpcPackets.SheepWool wool = (FakeNpcPackets.SheepWool) packets.sheepWool(7, 14, true);
 
-        assertThat(color.entityId()).isEqualTo(7);
-        assertThat(color.color()).isEqualTo(14);
+        assertThat(wool.entityId()).isEqualTo(7);
+        assertThat(wool.color()).isEqualTo(14);
+        assertThat(wool.sheared()).isTrue();
     }
 
     @Test
@@ -409,13 +410,15 @@ class NpcPacketsContractTest {
     }
 
     @Test
-    void beeNectarCarriesTheEntityAndFlag() {
+    void beeFlagsCarriesTheEntityAndFlags() {
         FakeNpcPackets packets = new FakeNpcPackets();
 
-        FakeNpcPackets.BeeNectar nectar = (FakeNpcPackets.BeeNectar) packets.beeNectar(16, true);
+        FakeNpcPackets.BeeFlags bee = (FakeNpcPackets.BeeFlags) packets.beeFlags(16, true, false, true);
 
-        assertThat(nectar.entityId()).isEqualTo(16);
-        assertThat(nectar.hasNectar()).isTrue();
+        assertThat(bee.entityId()).isEqualTo(16);
+        assertThat(bee.nectar()).isTrue();
+        assertThat(bee.rolling()).isFalse();
+        assertThat(bee.stung()).isTrue();
     }
 
     @Test
@@ -791,7 +794,7 @@ class NpcPacketsContractTest {
 
         record LlamaVariant(int entityId, int variant) {}
 
-        record SheepColor(int entityId, int color) {}
+        record SheepWool(int entityId, int color, boolean sheared) {}
 
         record WolfCollar(int entityId, int color) {}
 
@@ -809,7 +812,7 @@ class NpcPacketsContractTest {
 
         record CamelDash(int entityId, boolean dashing) {}
 
-        record BeeNectar(int entityId, boolean hasNectar) {}
+        record BeeFlags(int entityId, boolean nectar, boolean rolling, boolean stung) {}
 
         record VexCharging(int entityId, boolean charging) {}
 
@@ -1022,8 +1025,8 @@ class NpcPacketsContractTest {
         }
 
         @Override
-        public Object sheepColor(int entityId, int color) {
-            return new SheepColor(entityId, color);
+        public Object sheepWool(int entityId, int color, boolean sheared) {
+            return new SheepWool(entityId, color, sheared);
         }
 
         @Override
@@ -1067,8 +1070,8 @@ class NpcPacketsContractTest {
         }
 
         @Override
-        public Object beeNectar(int entityId, boolean hasNectar) {
-            return new BeeNectar(entityId, hasNectar);
+        public Object beeFlags(int entityId, boolean nectar, boolean rolling, boolean stung) {
+            return new BeeFlags(entityId, nectar, rolling, stung);
         }
 
         @Override

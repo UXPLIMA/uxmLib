@@ -214,10 +214,14 @@ public final class NmsNpcPackets implements NpcPackets {
     private final EntityDataAccessor<Boolean> piglinDancingAccessor;
     /** The {@code Boolean} dash data item on {@code Camel}; read once. */
     private final EntityDataAccessor<Boolean> camelDashAccessor;
-    /** The {@code Byte} flags data item on {@code Bee} and its has-nectar bit mask; read once. */
+    /** The {@code Byte} flags data item on {@code Bee} and its nectar/roll/stung bit masks; read once. */
     private final EntityDataAccessor<Byte> beeFlagsAccessor;
 
     private final byte beeNectarFlag;
+    private final byte beeRollFlag;
+    private final byte beeStungFlag;
+    /** The sheared bit ({@code 0x10}) of the sheep's wool byte, composed alongside the colour nibble. */
+    private final byte sheepShearedFlag = 0x10;
     /** The {@code Byte} flags data item on {@code Vex} and its charging bit mask; read once. */
     private final EntityDataAccessor<Byte> vexFlagsAccessor;
 
@@ -355,6 +359,10 @@ public final class NmsNpcPackets implements NpcPackets {
         this.beeFlagsAccessor = Reflect.accessor(Bee.class, "DATA_FLAGS_ID");
         int beeNectarMask = Reflect.accessor(Bee.class, "FLAG_HAS_NECTAR");
         this.beeNectarFlag = (byte) beeNectarMask;
+        int beeRollMask = Reflect.accessor(Bee.class, "FLAG_ROLL");
+        this.beeRollFlag = (byte) beeRollMask;
+        int beeStungMask = Reflect.accessor(Bee.class, "FLAG_HAS_STUNG");
+        this.beeStungFlag = (byte) beeStungMask;
         this.vexFlagsAccessor = Reflect.accessor(Vex.class, "DATA_FLAGS_ID");
         int vexChargingMask = Reflect.accessor(Vex.class, "FLAG_IS_CHARGING");
         this.vexChargingFlag = (byte) vexChargingMask;
@@ -647,10 +655,12 @@ public final class NmsNpcPackets implements NpcPackets {
     }
 
     @Override
-    public Object sheepColor(int entityId, int color) {
-        // The wool byte holds the colour in its low four bits and the sheared flag in bit 0x10; writing the colour
-        // alone (the masked nibble) leaves the sheared bit clear, so the sheep renders unsheared in that colour.
+    public Object sheepWool(int entityId, int color, boolean sheared) {
+        // The wool byte holds the colour in its low four bits and the sheared flag in bit 0x10; compose both.
         byte wool = (byte) (color & 0x0F);
+        if (sheared) {
+            wool |= sheepShearedFlag;
+        }
         return dataPacket(entityId, SynchedEntityData.DataValue.create(sheepWoolAccessor, wool));
     }
 
@@ -702,8 +712,17 @@ public final class NmsNpcPackets implements NpcPackets {
     }
 
     @Override
-    public Object beeNectar(int entityId, boolean hasNectar) {
-        byte flags = hasNectar ? beeNectarFlag : 0;
+    public Object beeFlags(int entityId, boolean nectar, boolean rolling, boolean stung) {
+        byte flags = 0;
+        if (nectar) {
+            flags |= beeNectarFlag;
+        }
+        if (rolling) {
+            flags |= beeRollFlag;
+        }
+        if (stung) {
+            flags |= beeStungFlag;
+        }
         return dataPacket(entityId, SynchedEntityData.DataValue.create(beeFlagsAccessor, flags));
     }
 

@@ -235,12 +235,12 @@ public interface NpcPackets {
     Object llamaVariant(int entityId, int variant);
 
     /**
-     * Build the metadata packet that sets a sheep's wool {@code color} (a {@code DyeColor} id, 0–15) through the
-     * low four bits of the sheep's {@code DATA_WOOL_ID} byte. Only the colour bits are written and the sheared
-     * bit is left clear, so the sheep renders unsheared in the chosen colour. Send this only to a sheep; any
-     * other type has no wool byte at that index.
+     * Build the metadata packet that sets a sheep's wool {@code color} (a {@code DyeColor} id, 0–15) in the low four
+     * bits of the {@code DATA_WOOL_ID} byte and the {@code sheared} flag in bit {@code 0x10} — both composed into the
+     * one byte. A sheared sheep hides its wool until it regrows. Send this only to a sheep; any other type has no
+     * wool byte at that index.
      */
-    Object sheepColor(int entityId, int color);
+    Object sheepWool(int entityId, int color, boolean sheared);
 
     /**
      * Build the metadata packet that sets a wolf's collar {@code color} (a {@code DyeColor} id, 0–15) through the
@@ -300,12 +300,12 @@ public interface NpcPackets {
     Object camelDash(int entityId, boolean dashing);
 
     /**
-     * Build the metadata packet that toggles a bee's has-nectar state through its {@code DATA_FLAGS_ID} byte — a bee
-     * carrying nectar trails pollen particles. Only the {@code FLAG_HAS_NECTAR} bit is written (the roll/stung bits
-     * are left clear, which a fresh NPC carries anyway). Send this only to a bee; any other type has no flags byte
-     * at that index.
+     * Build the metadata packet that sets a bee's state through its {@code DATA_FLAGS_ID} byte — {@code nectar}
+     * trails pollen particles, {@code rolling} plays the barrel-roll attack animation, {@code stung} marks a bee
+     * that has stung. All three bits are composed into the one byte. Send this only to a bee; any other type has
+     * no flags byte at that index.
      */
-    Object beeNectar(int entityId, boolean hasNectar);
+    Object beeFlags(int entityId, boolean nectar, boolean rolling, boolean stung);
 
     /**
      * Build the metadata packet that toggles a vex's charging state through its {@code DATA_FLAGS_ID} byte — a
