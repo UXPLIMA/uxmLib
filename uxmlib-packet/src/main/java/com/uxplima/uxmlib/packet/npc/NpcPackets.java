@@ -379,6 +379,20 @@ public interface NpcPackets {
     Object displayScale(int entityId, float scale);
 
     /**
+     * Build the metadata packet that scales a display entity non-uniformly to {@code x}/{@code y}/{@code z} through
+     * its {@code DATA_SCALE_ID} transform vector. The single-argument {@link #displayScale(int, float)} is the
+     * uniform shorthand. Send this only to a display entity.
+     */
+    Object displayScale(int entityId, float x, float y, float z);
+
+    /**
+     * Build the metadata packet that offsets a display entity from its anchor by {@code x}/{@code y}/{@code z}
+     * blocks through its {@code DATA_TRANSLATION_ID} transform vector (any axis may be negative). Send this only to
+     * a display entity.
+     */
+    Object displayTranslation(int entityId, float x, float y, float z);
+
+    /**
      * Build the metadata packet that sets a display entity's billboard (face-the-viewer) constraint through its
      * {@code DATA_BILLBOARD_RENDER_CONSTRAINTS_ID} byte: {@code 0} fixed, {@code 1} vertical, {@code 2} horizontal,
      * {@code 3} center (always faces the viewer). Send this only to a display entity.

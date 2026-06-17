@@ -242,6 +242,8 @@ public final class NmsNpcPackets implements NpcPackets {
     private final EntityDataAccessor<Vector3fc> displayScaleAccessor;
 
     private final EntityDataAccessor<Byte> displayBillboardAccessor;
+    /** The {@code Vector3f} translation-offset data item on {@code Display} (all subtypes); read once. */
+    private final EntityDataAccessor<Vector3fc> displayTranslationAccessor;
     /** The {@code Integer} ARGB background data item on {@code Display.TextDisplay}; read once. */
     private final EntityDataAccessor<Integer> textDisplayBackgroundAccessor;
     /** The {@code Integer} line-width (text-wrap pixels) data item on {@code Display.TextDisplay}; read once. */
@@ -336,6 +338,7 @@ public final class NmsNpcPackets implements NpcPackets {
         this.textDisplayTextAccessor = Reflect.accessor(Display.TextDisplay.class, "DATA_TEXT_ID");
         this.displayScaleAccessor = Reflect.accessor(Display.class, "DATA_SCALE_ID");
         this.displayBillboardAccessor = Reflect.accessor(Display.class, "DATA_BILLBOARD_RENDER_CONSTRAINTS_ID");
+        this.displayTranslationAccessor = Reflect.accessor(Display.class, "DATA_TRANSLATION_ID");
         this.textDisplayBackgroundAccessor = Reflect.accessor(Display.TextDisplay.class, "DATA_BACKGROUND_COLOR_ID");
         this.textDisplayLineWidthAccessor = Reflect.accessor(Display.TextDisplay.class, "DATA_LINE_WIDTH_ID");
         this.parrotVariantAccessor = Reflect.accessor(Parrot.class, "DATA_VARIANT_ID");
@@ -685,6 +688,17 @@ public final class NmsNpcPackets implements NpcPackets {
     public Object displayScale(int entityId, float scale) {
         return dataPacket(
                 entityId, SynchedEntityData.DataValue.create(displayScaleAccessor, new Vector3f(scale, scale, scale)));
+    }
+
+    @Override
+    public Object displayScale(int entityId, float x, float y, float z) {
+        return dataPacket(entityId, SynchedEntityData.DataValue.create(displayScaleAccessor, new Vector3f(x, y, z)));
+    }
+
+    @Override
+    public Object displayTranslation(int entityId, float x, float y, float z) {
+        return dataPacket(
+                entityId, SynchedEntityData.DataValue.create(displayTranslationAccessor, new Vector3f(x, y, z)));
     }
 
     @Override

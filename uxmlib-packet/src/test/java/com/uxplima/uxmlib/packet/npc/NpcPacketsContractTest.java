@@ -522,6 +522,30 @@ class NpcPacketsContractTest {
     }
 
     @Test
+    void displayScaleXyzCarriesTheEntityAndAxes() {
+        FakeNpcPackets packets = new FakeNpcPackets();
+
+        FakeNpcPackets.DisplayScaleXyz scale = (FakeNpcPackets.DisplayScaleXyz) packets.displayScale(30, 1f, 2f, 3f);
+
+        assertThat(scale.entityId()).isEqualTo(30);
+        assertThat(scale.x()).isEqualTo(1f);
+        assertThat(scale.y()).isEqualTo(2f);
+        assertThat(scale.z()).isEqualTo(3f);
+    }
+
+    @Test
+    void displayTranslationCarriesTheEntityAndOffset() {
+        FakeNpcPackets packets = new FakeNpcPackets();
+
+        FakeNpcPackets.DisplayTranslation t =
+                (FakeNpcPackets.DisplayTranslation) packets.displayTranslation(31, 0f, -0.5f, 1f);
+
+        assertThat(t.entityId()).isEqualTo(31);
+        assertThat(t.y()).isEqualTo(-0.5f);
+        assertThat(t.z()).isEqualTo(1f);
+    }
+
+    @Test
     void displayBillboardCarriesTheEntityAndConstraint() {
         FakeNpcPackets packets = new FakeNpcPackets();
 
@@ -771,6 +795,10 @@ class NpcPacketsContractTest {
         record TextDisplayText(int entityId, String plain) {}
 
         record DisplayScale(int entityId, float scale) {}
+
+        record DisplayScaleXyz(int entityId, float x, float y, float z) {}
+
+        record DisplayTranslation(int entityId, float x, float y, float z) {}
 
         record DisplayBillboard(int entityId, byte constraint) {}
 
@@ -1031,6 +1059,16 @@ class NpcPacketsContractTest {
         @Override
         public Object displayScale(int entityId, float scale) {
             return new DisplayScale(entityId, scale);
+        }
+
+        @Override
+        public Object displayScale(int entityId, float x, float y, float z) {
+            return new DisplayScaleXyz(entityId, x, y, z);
+        }
+
+        @Override
+        public Object displayTranslation(int entityId, float x, float y, float z) {
+            return new DisplayTranslation(entityId, x, y, z);
         }
 
         @Override
