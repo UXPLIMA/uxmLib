@@ -408,6 +408,26 @@ class NpcPacketsContractTest {
     }
 
     @Test
+    void beeNectarCarriesTheEntityAndFlag() {
+        FakeNpcPackets packets = new FakeNpcPackets();
+
+        FakeNpcPackets.BeeNectar nectar = (FakeNpcPackets.BeeNectar) packets.beeNectar(16, true);
+
+        assertThat(nectar.entityId()).isEqualTo(16);
+        assertThat(nectar.hasNectar()).isTrue();
+    }
+
+    @Test
+    void vexChargingCarriesTheEntityAndFlag() {
+        FakeNpcPackets packets = new FakeNpcPackets();
+
+        FakeNpcPackets.VexCharging charging = (FakeNpcPackets.VexCharging) packets.vexCharging(17, true);
+
+        assertThat(charging.entityId()).isEqualTo(17);
+        assertThat(charging.charging()).isTrue();
+    }
+
+    @Test
     void parrotVariantCarriesTheEntityAndVariant() {
         FakeNpcPackets packets = new FakeNpcPackets();
 
@@ -604,6 +624,10 @@ class NpcPacketsContractTest {
         record PiglinDancing(int entityId, boolean dancing) {}
 
         record CamelDash(int entityId, boolean dashing) {}
+
+        record BeeNectar(int entityId, boolean hasNectar) {}
+
+        record VexCharging(int entityId, boolean charging) {}
 
         record ParrotVariant(int entityId, int variant) {}
 
@@ -804,6 +828,16 @@ class NpcPacketsContractTest {
         @Override
         public Object camelDash(int entityId, boolean dashing) {
             return new CamelDash(entityId, dashing);
+        }
+
+        @Override
+        public Object beeNectar(int entityId, boolean hasNectar) {
+            return new BeeNectar(entityId, hasNectar);
+        }
+
+        @Override
+        public Object vexCharging(int entityId, boolean charging) {
+            return new VexCharging(entityId, charging);
         }
 
         @Override

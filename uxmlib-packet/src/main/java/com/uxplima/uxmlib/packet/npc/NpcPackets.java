@@ -297,6 +297,21 @@ public interface NpcPackets {
     Object camelDash(int entityId, boolean dashing);
 
     /**
+     * Build the metadata packet that toggles a bee's has-nectar state through its {@code DATA_FLAGS_ID} byte — a bee
+     * carrying nectar trails pollen particles. Only the {@code FLAG_HAS_NECTAR} bit is written (the roll/stung bits
+     * are left clear, which a fresh NPC carries anyway). Send this only to a bee; any other type has no flags byte
+     * at that index.
+     */
+    Object beeNectar(int entityId, boolean hasNectar);
+
+    /**
+     * Build the metadata packet that toggles a vex's charging state through its {@code DATA_FLAGS_ID} byte — a
+     * charging vex renders its red, aggressive form. Only the {@code FLAG_IS_CHARGING} bit is written. Send this
+     * only to a vex; any other type has no flags byte at that index.
+     */
+    Object vexCharging(int entityId, boolean charging);
+
+    /**
      * Build the metadata packet that sets a parrot's {@code variant} (0–4) through the parrot's {@code
      * DATA_VARIANT_ID} field — the integer that picks one of the five parrot colours. Send this only to a
      * parrot; any other type has no parrot-variant field at that index. The plugin clamps the value first.

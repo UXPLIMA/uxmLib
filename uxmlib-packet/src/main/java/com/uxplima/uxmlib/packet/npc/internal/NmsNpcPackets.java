@@ -61,6 +61,7 @@ import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.animal.allay.Allay;
 import net.minecraft.world.entity.animal.axolotl.Axolotl;
+import net.minecraft.world.entity.animal.bee.Bee;
 import net.minecraft.world.entity.animal.camel.Camel;
 import net.minecraft.world.entity.animal.equine.Horse;
 import net.minecraft.world.entity.animal.equine.Llama;
@@ -78,6 +79,7 @@ import net.minecraft.world.entity.animal.wolf.Wolf;
 import net.minecraft.world.entity.monster.Creeper;
 import net.minecraft.world.entity.monster.Shulker;
 import net.minecraft.world.entity.monster.Slime;
+import net.minecraft.world.entity.monster.Vex;
 import net.minecraft.world.entity.monster.Zoglin;
 import net.minecraft.world.entity.monster.piglin.Piglin;
 import net.minecraft.world.entity.monster.zombie.Zombie;
@@ -189,6 +191,14 @@ public final class NmsNpcPackets implements NpcPackets {
     private final EntityDataAccessor<Boolean> piglinDancingAccessor;
     /** The {@code Boolean} dash data item on {@code Camel}; read once. */
     private final EntityDataAccessor<Boolean> camelDashAccessor;
+    /** The {@code Byte} flags data item on {@code Bee} and its has-nectar bit mask; read once. */
+    private final EntityDataAccessor<Byte> beeFlagsAccessor;
+
+    private final byte beeNectarFlag;
+    /** The {@code Byte} flags data item on {@code Vex} and its charging bit mask; read once. */
+    private final EntityDataAccessor<Byte> vexFlagsAccessor;
+
+    private final byte vexChargingFlag;
     /** The {@code Integer} variant data item on {@code Parrot}; read once. */
     private final EntityDataAccessor<Integer> parrotVariantAccessor;
     /** The {@code Integer} variant data item on {@code Axolotl}; read once. */
@@ -245,6 +255,14 @@ public final class NmsNpcPackets implements NpcPackets {
         this.allayDancingAccessor = Reflect.accessor(Allay.class, "DATA_DANCING");
         this.piglinDancingAccessor = Reflect.accessor(Piglin.class, "DATA_IS_DANCING");
         this.camelDashAccessor = Reflect.accessor(Camel.class, "DASH");
+        // Bee/Vex pack their state into a flags byte. Unlike Entity's FLAG_GLOWING (a bit position the shared-flags
+        // path shifts), the bee/vex FLAG_* constants are bit MASKS the mob applies directly, so they need no shift.
+        this.beeFlagsAccessor = Reflect.accessor(Bee.class, "DATA_FLAGS_ID");
+        int beeNectarMask = Reflect.accessor(Bee.class, "FLAG_HAS_NECTAR");
+        this.beeNectarFlag = (byte) beeNectarMask;
+        this.vexFlagsAccessor = Reflect.accessor(Vex.class, "DATA_FLAGS_ID");
+        int vexChargingMask = Reflect.accessor(Vex.class, "FLAG_IS_CHARGING");
+        this.vexChargingFlag = (byte) vexChargingMask;
         this.parrotVariantAccessor = Reflect.accessor(Parrot.class, "DATA_VARIANT_ID");
         this.axolotlVariantAccessor = Reflect.accessor(Axolotl.class, "DATA_VARIANT");
         this.foxTypeAccessor = Reflect.accessor(Fox.class, "DATA_TYPE_ID");
@@ -531,6 +549,18 @@ public final class NmsNpcPackets implements NpcPackets {
     @Override
     public Object camelDash(int entityId, boolean dashing) {
         return dataPacket(entityId, SynchedEntityData.DataValue.create(camelDashAccessor, dashing));
+    }
+
+    @Override
+    public Object beeNectar(int entityId, boolean hasNectar) {
+        byte flags = hasNectar ? beeNectarFlag : 0;
+        return dataPacket(entityId, SynchedEntityData.DataValue.create(beeFlagsAccessor, flags));
+    }
+
+    @Override
+    public Object vexCharging(int entityId, boolean charging) {
+        byte flags = charging ? vexChargingFlag : 0;
+        return dataPacket(entityId, SynchedEntityData.DataValue.create(vexFlagsAccessor, flags));
     }
 
     @Override
