@@ -506,6 +506,19 @@ public interface NpcPackets {
     @Nullable Object pigVariant(int entityId, String name);
 
     /**
+     * Build the metadata packet that toggles an axolotl's play-dead state through {@code Axolotl.DATA_PLAYING_DEAD}
+     * — a playing-dead axolotl floats belly-up. Send this only to an axolotl; any other type has no such field.
+     */
+    Object axolotlPlayingDead(int entityId, boolean playingDead);
+
+    /**
+     * Build the metadata packet that toggles a raider's (pillager/vindicator/evoker/illusioner/ravager/witch)
+     * celebrating state through {@code Raider.IS_CELEBRATING} — a celebrating raider does the post-raid victory
+     * dance. Send this only to a raider type; any other has no such field at that index.
+     */
+    Object raiderCelebrating(int entityId, boolean celebrating);
+
+    /**
      * Build the scoreboard-team packet that tints the NPC's glow to {@code color}. The client colours a glowing
      * entity's outline with the colour of the team its name is a member of, so this packet creates (or modifies) a
      * team named {@code teamName}, sets its colour, and seats {@code memberName} as a member. For a fake player

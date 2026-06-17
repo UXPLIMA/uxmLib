@@ -644,6 +644,11 @@ class NpcPacketsContractTest {
         assertThat(cow.name()).isEqualTo("cold");
         FakeNpcPackets.PigVariant pig = (FakeNpcPackets.PigVariant) packets.pigVariant(11, "temperate");
         assertThat(pig.name()).isEqualTo("temperate");
+        FakeNpcPackets.AxolotlPlayingDead dead =
+                (FakeNpcPackets.AxolotlPlayingDead) packets.axolotlPlayingDead(12, true);
+        assertThat(dead.playingDead()).isTrue();
+        FakeNpcPackets.RaiderCelebrating celeb = (FakeNpcPackets.RaiderCelebrating) packets.raiderCelebrating(13, true);
+        assertThat(celeb.celebrating()).isTrue();
 
         FakeNpcPackets.FrogVariant frog = (FakeNpcPackets.FrogVariant) packets.frogVariant(7, "warm");
 
@@ -835,6 +840,10 @@ class NpcPacketsContractTest {
         record CowVariant(int entityId, String name) {}
 
         record PigVariant(int entityId, String name) {}
+
+        record AxolotlPlayingDead(int entityId, boolean playingDead) {}
+
+        record RaiderCelebrating(int entityId, boolean celebrating) {}
 
         record GlowColor(String teamName, String memberName, @Nullable NamedColor color) {}
 
@@ -1152,6 +1161,16 @@ class NpcPacketsContractTest {
         @Override
         public Object pigVariant(int entityId, String name) {
             return new PigVariant(entityId, name);
+        }
+
+        @Override
+        public Object axolotlPlayingDead(int entityId, boolean playingDead) {
+            return new AxolotlPlayingDead(entityId, playingDead);
+        }
+
+        @Override
+        public Object raiderCelebrating(int entityId, boolean celebrating) {
+            return new RaiderCelebrating(entityId, celebrating);
         }
 
         @Override

@@ -100,6 +100,7 @@ import net.minecraft.world.entity.monster.Zoglin;
 import net.minecraft.world.entity.monster.piglin.Piglin;
 import net.minecraft.world.entity.monster.zombie.Zombie;
 import net.minecraft.world.entity.npc.villager.Villager;
+import net.minecraft.world.entity.raid.Raider;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.scores.PlayerTeam;
@@ -273,6 +274,10 @@ public final class NmsNpcPackets implements NpcPackets {
     private final EntityDataAccessor<Holder<ChickenVariant>> chickenVariantAccessor;
     private final EntityDataAccessor<Holder<CowVariant>> cowVariantAccessor;
     private final EntityDataAccessor<Holder<PigVariant>> pigVariantAccessor;
+    /** The {@code Boolean} play-dead data item on {@code Axolotl} and celebrating on {@code Raider}; read once. */
+    private final EntityDataAccessor<Boolean> axolotlPlayingDeadAccessor;
+
+    private final EntityDataAccessor<Boolean> raiderCelebratingAccessor;
 
     public NmsNpcPackets(PacketSender sender) {
         this.sender = Objects.requireNonNull(sender, "sender");
@@ -367,6 +372,8 @@ public final class NmsNpcPackets implements NpcPackets {
         this.chickenVariantAccessor = Reflect.accessor(Chicken.class, "DATA_VARIANT_ID");
         this.cowVariantAccessor = Reflect.accessor(Cow.class, "DATA_VARIANT_ID");
         this.pigVariantAccessor = Reflect.accessor(Pig.class, "DATA_VARIANT_ID");
+        this.axolotlPlayingDeadAccessor = Reflect.accessor(Axolotl.class, "DATA_PLAYING_DEAD");
+        this.raiderCelebratingAccessor = Reflect.accessor(Raider.class, "IS_CELEBRATING");
     }
 
     @Override
@@ -800,6 +807,16 @@ public final class NmsNpcPackets implements NpcPackets {
         return variant == null
                 ? null
                 : dataPacket(entityId, SynchedEntityData.DataValue.create(frogVariantAccessor, variant));
+    }
+
+    @Override
+    public Object axolotlPlayingDead(int entityId, boolean playingDead) {
+        return dataPacket(entityId, SynchedEntityData.DataValue.create(axolotlPlayingDeadAccessor, playingDead));
+    }
+
+    @Override
+    public Object raiderCelebrating(int entityId, boolean celebrating) {
+        return dataPacket(entityId, SynchedEntityData.DataValue.create(raiderCelebratingAccessor, celebrating));
     }
 
     @Override
