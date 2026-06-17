@@ -428,6 +428,17 @@ class NpcPacketsContractTest {
     }
 
     @Test
+    void tropicalFishVariantCarriesTheEntityAndIndex() {
+        FakeNpcPackets packets = new FakeNpcPackets();
+
+        FakeNpcPackets.TropicalFishVariant variant =
+                (FakeNpcPackets.TropicalFishVariant) packets.tropicalFishVariant(18, 7);
+
+        assertThat(variant.entityId()).isEqualTo(18);
+        assertThat(variant.variantIndex()).isEqualTo(7);
+    }
+
+    @Test
     void parrotVariantCarriesTheEntityAndVariant() {
         FakeNpcPackets packets = new FakeNpcPackets();
 
@@ -628,6 +639,8 @@ class NpcPacketsContractTest {
         record BeeNectar(int entityId, boolean hasNectar) {}
 
         record VexCharging(int entityId, boolean charging) {}
+
+        record TropicalFishVariant(int entityId, int variantIndex) {}
 
         record ParrotVariant(int entityId, int variant) {}
 
@@ -838,6 +851,11 @@ class NpcPacketsContractTest {
         @Override
         public Object vexCharging(int entityId, boolean charging) {
             return new VexCharging(entityId, charging);
+        }
+
+        @Override
+        public Object tropicalFishVariant(int entityId, int variantIndex) {
+            return new TropicalFishVariant(entityId, variantIndex);
         }
 
         @Override

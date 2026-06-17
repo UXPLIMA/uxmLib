@@ -67,6 +67,7 @@ import net.minecraft.world.entity.animal.equine.Horse;
 import net.minecraft.world.entity.animal.equine.Llama;
 import net.minecraft.world.entity.animal.feline.Cat;
 import net.minecraft.world.entity.animal.feline.CatVariant;
+import net.minecraft.world.entity.animal.fish.TropicalFish;
 import net.minecraft.world.entity.animal.fox.Fox;
 import net.minecraft.world.entity.animal.frog.Frog;
 import net.minecraft.world.entity.animal.frog.FrogVariant;
@@ -199,6 +200,8 @@ public final class NmsNpcPackets implements NpcPackets {
     private final EntityDataAccessor<Byte> vexFlagsAccessor;
 
     private final byte vexChargingFlag;
+    /** The {@code Integer} packed type-variant data item on {@code TropicalFish}; read once. */
+    private final EntityDataAccessor<Integer> tropicalFishVariantAccessor;
     /** The {@code Integer} variant data item on {@code Parrot}; read once. */
     private final EntityDataAccessor<Integer> parrotVariantAccessor;
     /** The {@code Integer} variant data item on {@code Axolotl}; read once. */
@@ -263,6 +266,7 @@ public final class NmsNpcPackets implements NpcPackets {
         this.vexFlagsAccessor = Reflect.accessor(Vex.class, "DATA_FLAGS_ID");
         int vexChargingMask = Reflect.accessor(Vex.class, "FLAG_IS_CHARGING");
         this.vexChargingFlag = (byte) vexChargingMask;
+        this.tropicalFishVariantAccessor = Reflect.accessor(TropicalFish.class, "DATA_ID_TYPE_VARIANT");
         this.parrotVariantAccessor = Reflect.accessor(Parrot.class, "DATA_VARIANT_ID");
         this.axolotlVariantAccessor = Reflect.accessor(Axolotl.class, "DATA_VARIANT");
         this.foxTypeAccessor = Reflect.accessor(Fox.class, "DATA_TYPE_ID");
@@ -561,6 +565,16 @@ public final class NmsNpcPackets implements NpcPackets {
     public Object vexCharging(int entityId, boolean charging) {
         byte flags = charging ? vexChargingFlag : 0;
         return dataPacket(entityId, SynchedEntityData.DataValue.create(vexFlagsAccessor, flags));
+    }
+
+    @Override
+    public Object tropicalFishVariant(int entityId, int variantIndex) {
+        // Pick the predefined variant from the server's own COMMON_VARIANTS and use its packed id, so the bit
+        // layout is the server's, not a copied formula. Clamp defensively; the plugin validates the index first.
+        java.util.List<TropicalFish.Variant> variants = TropicalFish.COMMON_VARIANTS;
+        int index = Math.clamp(variantIndex, 0, variants.size() - 1);
+        int packed = variants.get(index).getPackedId();
+        return dataPacket(entityId, SynchedEntityData.DataValue.create(tropicalFishVariantAccessor, packed));
     }
 
     @Override

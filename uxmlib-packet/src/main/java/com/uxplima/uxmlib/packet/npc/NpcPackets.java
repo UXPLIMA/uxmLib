@@ -312,6 +312,16 @@ public interface NpcPackets {
     Object vexCharging(int entityId, boolean charging);
 
     /**
+     * Build the metadata packet that sets a tropical fish's appearance to the predefined common variant at
+     * {@code variantIndex} (0-based into the server's own 22 bucketable varieties) through the fish's {@code
+     * DATA_ID_TYPE_VARIANT} packed integer. The packed id is taken from the server's {@code COMMON_VARIANTS}
+     * list — its own bit layout, not a copied formula — so the index simply picks a named tropical-fish pattern
+     * and colour pair. The index is clamped to the list's range. Send this only to a tropical fish; any other type
+     * has no such field at that index.
+     */
+    Object tropicalFishVariant(int entityId, int variantIndex);
+
+    /**
      * Build the metadata packet that sets a parrot's {@code variant} (0–4) through the parrot's {@code
      * DATA_VARIANT_ID} field — the integer that picks one of the five parrot colours. Send this only to a
      * parrot; any other type has no parrot-variant field at that index. The plugin clamps the value first.
