@@ -328,6 +328,16 @@ class NpcPacketsContractTest {
     }
 
     @Test
+    void wolfCollarCarriesTheEntityAndColour() {
+        FakeNpcPackets packets = new FakeNpcPackets();
+
+        FakeNpcPackets.WolfCollar collar = (FakeNpcPackets.WolfCollar) packets.wolfCollar(8, 11);
+
+        assertThat(collar.entityId()).isEqualTo(8);
+        assertThat(collar.color()).isEqualTo(11);
+    }
+
+    @Test
     void parrotVariantCarriesTheEntityAndVariant() {
         FakeNpcPackets packets = new FakeNpcPackets();
 
@@ -509,6 +519,8 @@ class NpcPacketsContractTest {
 
         record SheepColor(int entityId, int color) {}
 
+        record WolfCollar(int entityId, int color) {}
+
         record ParrotVariant(int entityId, int variant) {}
 
         record AxolotlVariant(int entityId, int variant) {}
@@ -668,6 +680,11 @@ class NpcPacketsContractTest {
         @Override
         public Object sheepColor(int entityId, int color) {
             return new SheepColor(entityId, color);
+        }
+
+        @Override
+        public Object wolfCollar(int entityId, int color) {
+            return new WolfCollar(entityId, color);
         }
 
         @Override

@@ -70,6 +70,7 @@ import net.minecraft.world.entity.animal.frog.FrogVariant;
 import net.minecraft.world.entity.animal.parrot.Parrot;
 import net.minecraft.world.entity.animal.rabbit.Rabbit;
 import net.minecraft.world.entity.animal.sheep.Sheep;
+import net.minecraft.world.entity.animal.wolf.Wolf;
 import net.minecraft.world.entity.monster.Creeper;
 import net.minecraft.world.entity.monster.Slime;
 import net.minecraft.world.entity.monster.Zoglin;
@@ -165,6 +166,8 @@ public final class NmsNpcPackets implements NpcPackets {
     private final EntityDataAccessor<Integer> llamaVariantAccessor;
     /** The {@code Byte} wool data item on {@code Sheep} (low 4 bits colour, bit 0x10 sheared); read once. */
     private final EntityDataAccessor<Byte> sheepWoolAccessor;
+    /** The {@code Integer} collar-colour data item on {@code Wolf} (a DyeColor id, 0–15); read once. */
+    private final EntityDataAccessor<Integer> wolfCollarAccessor;
     /** The {@code Integer} variant data item on {@code Parrot}; read once. */
     private final EntityDataAccessor<Integer> parrotVariantAccessor;
     /** The {@code Integer} variant data item on {@code Axolotl}; read once. */
@@ -212,6 +215,7 @@ public final class NmsNpcPackets implements NpcPackets {
         this.horseVariantAccessor = Reflect.accessor(Horse.class, "DATA_ID_TYPE_VARIANT");
         this.llamaVariantAccessor = Reflect.accessor(Llama.class, "DATA_VARIANT_ID");
         this.sheepWoolAccessor = Reflect.accessor(Sheep.class, "DATA_WOOL_ID");
+        this.wolfCollarAccessor = Reflect.accessor(Wolf.class, "DATA_COLLAR_COLOR");
         this.parrotVariantAccessor = Reflect.accessor(Parrot.class, "DATA_VARIANT_ID");
         this.axolotlVariantAccessor = Reflect.accessor(Axolotl.class, "DATA_VARIANT");
         this.foxTypeAccessor = Reflect.accessor(Fox.class, "DATA_TYPE_ID");
@@ -451,6 +455,11 @@ public final class NmsNpcPackets implements NpcPackets {
         // alone (the masked nibble) leaves the sheared bit clear, so the sheep renders unsheared in that colour.
         byte wool = (byte) (color & 0x0F);
         return dataPacket(entityId, SynchedEntityData.DataValue.create(sheepWoolAccessor, wool));
+    }
+
+    @Override
+    public Object wolfCollar(int entityId, int color) {
+        return dataPacket(entityId, SynchedEntityData.DataValue.create(wolfCollarAccessor, color));
     }
 
     @Override

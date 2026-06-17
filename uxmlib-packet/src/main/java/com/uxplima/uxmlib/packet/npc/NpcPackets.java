@@ -240,6 +240,13 @@ public interface NpcPackets {
     Object sheepColor(int entityId, int color);
 
     /**
+     * Build the metadata packet that sets a wolf's collar {@code color} (a {@code DyeColor} id, 0–15) through the
+     * wolf's {@code DATA_COLLAR_COLOR} field. Send this only to a wolf; any other type has no collar field at that
+     * index.
+     */
+    Object wolfCollar(int entityId, int color);
+
+    /**
      * Build the metadata packet that sets a parrot's {@code variant} (0–4) through the parrot's {@code
      * DATA_VARIANT_ID} field — the integer that picks one of the five parrot colours. Send this only to a
      * parrot; any other type has no parrot-variant field at that index. The plugin clamps the value first.
