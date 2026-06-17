@@ -553,6 +553,20 @@ public interface NpcPackets {
     @Nullable Object armadilloState(int entityId, String state);
 
     /**
+     * Build the metadata packet that puts a living entity into the item-use pose through its {@code
+     * DATA_LIVING_ENTITY_FLAGS} byte — {@code using} raises the held item (a shield blocks, food/potion lifts), and
+     * {@code offHand} marks it the off-hand item. Both bits are composed into the one byte the server applies
+     * directly. Send this only to a living entity (any mob/player); display/interaction entities have no such byte.
+     */
+    Object usingItem(int entityId, boolean using, boolean offHand);
+
+    /**
+     * Build the metadata packet that sets an entity's powder-snow freeze ticks ({@code DATA_TICKS_FROZEN}); a value
+     * at or past the freeze threshold renders the blue shivering overlay, zero clears it. Applies to any entity.
+     */
+    Object frozenTicks(int entityId, int ticks);
+
+    /**
      * Build the scoreboard-team packet that tints the NPC's glow to {@code color}. The client colours a glowing
      * entity's outline with the colour of the team its name is a member of, so this packet creates (or modifies) a
      * team named {@code teamName}, sets its colour, and seats {@code memberName} as a member. For a fake player

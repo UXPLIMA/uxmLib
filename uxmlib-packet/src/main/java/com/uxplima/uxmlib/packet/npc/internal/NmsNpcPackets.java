@@ -61,6 +61,7 @@ import net.minecraft.world.entity.Display;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Interaction;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Pose;
 import net.minecraft.world.entity.PositionMoveRotation;
 import net.minecraft.world.entity.Relative;
@@ -298,6 +299,13 @@ public final class NmsNpcPackets implements NpcPackets {
     private final EntityDataAccessor<Sniffer.State> snifferStateAccessor;
 
     private final EntityDataAccessor<Armadillo.ArmadilloState> armadilloStateAccessor;
+    /** {@code LivingEntity.DATA_LIVING_ENTITY_FLAGS} and the item-use/off-hand bit masks composed into it. */
+    private final EntityDataAccessor<Byte> livingEntityFlagsAccessor;
+
+    private final byte usingItemFlag;
+    private final byte offHandFlag;
+    /** {@code Entity.DATA_TICKS_FROZEN}; a value past the freeze threshold renders the shivering overlay. */
+    private final EntityDataAccessor<Integer> frozenTicksAccessor;
 
     public NmsNpcPackets(PacketSender sender) {
         this.sender = Objects.requireNonNull(sender, "sender");
@@ -407,6 +415,13 @@ public final class NmsNpcPackets implements NpcPackets {
         this.pandaEatCounterAccessor = Reflect.accessor(Panda.class, "EAT_COUNTER");
         this.snifferStateAccessor = Reflect.accessor(Sniffer.class, "DATA_STATE");
         this.armadilloStateAccessor = Reflect.accessor(Armadillo.class, "ARMADILLO_STATE");
+        // LivingEntity's item-use flags are bit masks the mob applies directly (setLivingEntityFlag does b|mask).
+        this.livingEntityFlagsAccessor = Reflect.accessor(LivingEntity.class, "DATA_LIVING_ENTITY_FLAGS");
+        int usingItem = Reflect.accessor(LivingEntity.class, "LIVING_ENTITY_FLAG_IS_USING");
+        this.usingItemFlag = (byte) usingItem;
+        int offHand = Reflect.accessor(LivingEntity.class, "LIVING_ENTITY_FLAG_OFF_HAND");
+        this.offHandFlag = (byte) offHand;
+        this.frozenTicksAccessor = Reflect.accessor(Entity.class, "DATA_TICKS_FROZEN");
     }
 
     @Override
@@ -896,6 +911,23 @@ public final class NmsNpcPackets implements NpcPackets {
             return null;
         }
         return dataPacket(entityId, SynchedEntityData.DataValue.create(armadilloStateAccessor, resolved));
+    }
+
+    @Override
+    public Object usingItem(int entityId, boolean using, boolean offHand) {
+        byte flags = 0;
+        if (using) {
+            flags |= usingItemFlag;
+        }
+        if (offHand) {
+            flags |= offHandFlag;
+        }
+        return dataPacket(entityId, SynchedEntityData.DataValue.create(livingEntityFlagsAccessor, flags));
+    }
+
+    @Override
+    public Object frozenTicks(int entityId, int ticks) {
+        return dataPacket(entityId, SynchedEntityData.DataValue.create(frozenTicksAccessor, ticks));
     }
 
     /** Resolve {@code name} (case-insensitive) against an enum's constants, or {@code null} if none match. */

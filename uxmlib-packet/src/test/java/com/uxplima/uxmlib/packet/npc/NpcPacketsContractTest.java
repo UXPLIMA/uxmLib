@@ -662,6 +662,11 @@ class NpcPacketsContractTest {
         assertThat(sniffer.state()).isEqualTo("digging");
         FakeNpcPackets.ArmadilloState armadillo = (FakeNpcPackets.ArmadilloState) packets.armadilloState(19, "rolling");
         assertThat(armadillo.state()).isEqualTo("rolling");
+        FakeNpcPackets.UsingItem use = (FakeNpcPackets.UsingItem) packets.usingItem(20, true, true);
+        assertThat(use.using()).isTrue();
+        assertThat(use.offHand()).isTrue();
+        FakeNpcPackets.FrozenTicks frozen = (FakeNpcPackets.FrozenTicks) packets.frozenTicks(21, 200);
+        assertThat(frozen.ticks()).isEqualTo(200);
 
         FakeNpcPackets.FrogVariant frog = (FakeNpcPackets.FrogVariant) packets.frogVariant(7, "warm");
 
@@ -867,6 +872,10 @@ class NpcPacketsContractTest {
         record SnifferState(int entityId, String state) {}
 
         record ArmadilloState(int entityId, String state) {}
+
+        record UsingItem(int entityId, boolean using, boolean offHand) {}
+
+        record FrozenTicks(int entityId, int ticks) {}
 
         record GlowColor(String teamName, String memberName, @Nullable NamedColor color) {}
 
@@ -1219,6 +1228,16 @@ class NpcPacketsContractTest {
         @Override
         public Object armadilloState(int entityId, String state) {
             return new ArmadilloState(entityId, state);
+        }
+
+        @Override
+        public Object usingItem(int entityId, boolean using, boolean offHand) {
+            return new UsingItem(entityId, using, offHand);
+        }
+
+        @Override
+        public Object frozenTicks(int entityId, int ticks) {
+            return new FrozenTicks(entityId, ticks);
         }
 
         @Override
