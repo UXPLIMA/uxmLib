@@ -32,6 +32,7 @@ import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.potion.PotionEffect;
 
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.TextDecoration;
 
 /**
  * Fluent builder for an {@link ItemStack}. Construction is mutable for ergonomics; {@link #build()}
@@ -78,7 +79,16 @@ public final class ItemBuilder {
     /** Set the display name. */
     public ItemBuilder name(Component name) {
         Objects.requireNonNull(name, "name");
-        return editMeta(meta -> meta.displayName(name));
+        return editMeta(meta -> meta.displayName(nonItalic(name)));
+    }
+
+    /**
+     * Item display names and lore inherit the vanilla client's default italic styling unless the component
+     * explicitly sets ITALIC. We default it to off (only when the caller left it unset) so names/lore render
+     * upright; a caller that wants italic still gets it by setting ITALIC=true on their component.
+     */
+    private static Component nonItalic(Component text) {
+        return text.decorationIfAbsent(TextDecoration.ITALIC, TextDecoration.State.FALSE);
     }
 
     /** Remove the display name, restoring the item's default (vanilla) name. */
@@ -95,7 +105,7 @@ public final class ItemBuilder {
     /** Replace the lore with these lines. */
     public ItemBuilder lore(List<Component> lines) {
         Objects.requireNonNull(lines, "lines");
-        return editMeta(meta -> meta.lore(List.copyOf(lines)));
+        return editMeta(meta -> meta.lore(lines.stream().map(ItemBuilder::nonItalic).toList()));
     }
 
     /** Remove all lore lines. */
@@ -106,7 +116,7 @@ public final class ItemBuilder {
     /** Append one line to the existing lore. */
     public ItemBuilder addLore(Component line) {
         Objects.requireNonNull(line, "line");
-        return editMeta(meta -> ItemMetaSupport.addLore(meta, line));
+        return editMeta(meta -> ItemMetaSupport.addLore(meta, nonItalic(line)));
     }
 
     /** Add an enchantment at {@code level} (level restrictions are ignored, so high levels are allowed). */
