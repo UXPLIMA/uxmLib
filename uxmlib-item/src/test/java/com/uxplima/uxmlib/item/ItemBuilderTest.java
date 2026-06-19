@@ -14,6 +14,7 @@ import org.bukkit.inventory.meta.Damageable;
 import org.bukkit.persistence.PersistentDataType;
 
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.TextDecoration;
 
 import com.uxplima.uxmlib.text.Text;
 import org.junit.jupiter.api.AfterEach;
@@ -54,6 +55,40 @@ class ItemBuilderTest {
 
         assertThat(item.getItemMeta().lore()).hasSize(2);
         assertThat(Text.plain(item.getItemMeta().lore().get(1))).isEqualTo("second");
+    }
+
+    @Test
+    void splitsLoreOnEmbeddedNewlines() {
+        ItemStack item = ItemBuilder.of(Material.MAP)
+                .lore(Text.mini("<gray>Environment: <white>NETHER</white><newline><gray>Loaded: <white>true</white>"))
+                .build();
+
+        assertThat(item.getItemMeta().lore()).hasSize(2);
+        assertThat(Text.plain(item.getItemMeta().lore().get(0))).isEqualTo("Environment: NETHER");
+        assertThat(Text.plain(item.getItemMeta().lore().get(1))).isEqualTo("Loaded: true");
+    }
+
+    @Test
+    void defaultsNameAndLoreToUpright() {
+        ItemStack item = ItemBuilder.of(Material.MAP)
+                .name(Text.mini("<red>Title"))
+                .lore(Text.mini("<gray>plain line"), Text.mini("<gray>multi<newline>line"))
+                .build();
+
+        assertThat(item.getItemMeta().displayName().decoration(TextDecoration.ITALIC))
+                .isEqualTo(TextDecoration.State.FALSE);
+        for (Component line : item.getItemMeta().lore()) {
+            assertThat(line.decoration(TextDecoration.ITALIC)).isEqualTo(TextDecoration.State.FALSE);
+        }
+    }
+
+    @Test
+    void preservesExplicitItalicOnLore() {
+        ItemStack item =
+                ItemBuilder.of(Material.MAP).lore(Text.mini("<i><gray>deliberately italic")).build();
+
+        assertThat(item.getItemMeta().lore().get(0).decoration(TextDecoration.ITALIC))
+                .isEqualTo(TextDecoration.State.TRUE);
     }
 
     @Test

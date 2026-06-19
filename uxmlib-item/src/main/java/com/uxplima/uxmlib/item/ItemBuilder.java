@@ -1,5 +1,6 @@
 package com.uxplima.uxmlib.item;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
@@ -32,6 +33,9 @@ import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.potion.PotionEffect;
 
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.JoinConfiguration;
+import net.kyori.adventure.text.TextComponent;
+import net.kyori.adventure.text.format.Style;
 import net.kyori.adventure.text.format.TextDecoration;
 
 /**
@@ -91,6 +95,67 @@ public final class ItemBuilder {
         return text.decorationIfAbsent(TextDecoration.ITALIC, TextDecoration.State.FALSE);
     }
 
+    /**
+     * Split a lore component into one component per visual line. Minecraft renders item lore as a list of
+     * components — one entry per line — and does <em>not</em> break a single entry on an embedded newline; a
+     * lore entry that contains {@code \n} (e.g. a MiniMessage string with {@code <newline>}) shows the newline
+     * as a stray control glyph instead of wrapping. So we expand a newline-bearing component into separate
+     * lines here, preserving each run's colour and decorations, and default each line to non-italic. A component
+     * with no embedded newline is returned untouched (only the italic default applied), so existing single-line
+     * lore is unaffected.
+     */
+    private static List<Component> loreLines(Component line) {
+        if (!containsNewline(line)) {
+            return List.of(nonItalic(line));
+        }
+        List<List<Component>> lines = new ArrayList<>();
+        lines.add(new ArrayList<>());
+        flattenInto(line, Style.empty(), lines);
+        List<Component> out = new ArrayList<>(lines.size());
+        for (List<Component> segments : lines) {
+            out.add(nonItalic(Component.join(JoinConfiguration.noSeparators(), segments)));
+        }
+        return out;
+    }
+
+    private static boolean containsNewline(Component component) {
+        if (component instanceof TextComponent text && text.content().indexOf('\n') >= 0) {
+            return true;
+        }
+        for (Component child : component.children()) {
+            if (containsNewline(child)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Depth-first walk that accumulates flat, fully-styled text runs into {@code lines}, starting a new line on
+     * each {@code \n}. Each node's style is resolved against its inherited style so a run keeps the colour and
+     * decorations it rendered with before the split; children inherit the resolved style, mirroring how the
+     * client paints a component tree.
+     */
+    private static void flattenInto(Component component, Style inherited, List<List<Component>> lines) {
+        Style resolved = component.style().merge(inherited, Style.Merge.Strategy.IF_ABSENT_ON_TARGET);
+        if (component instanceof TextComponent text) {
+            String[] parts = text.content().split("\n", -1);
+            for (int i = 0; i < parts.length; i++) {
+                if (i > 0) {
+                    lines.add(new ArrayList<>());
+                }
+                if (!parts[i].isEmpty()) {
+                    lines.get(lines.size() - 1).add(Component.text(parts[i]).style(resolved));
+                }
+            }
+        } else {
+            lines.get(lines.size() - 1).add(component.children(List.of()).style(resolved));
+        }
+        for (Component child : component.children()) {
+            flattenInto(child, resolved, lines);
+        }
+    }
+
     /** Remove the display name, restoring the item's default (vanilla) name. */
     public ItemBuilder clearName() {
         return editMeta(meta -> meta.displayName(null));
@@ -105,7 +170,11 @@ public final class ItemBuilder {
     /** Replace the lore with these lines. */
     public ItemBuilder lore(List<Component> lines) {
         Objects.requireNonNull(lines, "lines");
-        return editMeta(meta -> meta.lore(lines.stream().map(ItemBuilder::nonItalic).toList()));
+        List<Component> expanded = new ArrayList<>(lines.size());
+        for (Component line : lines) {
+            expanded.addAll(loreLines(line));
+        }
+        return editMeta(meta -> meta.lore(expanded));
     }
 
     /** Remove all lore lines. */
@@ -116,7 +185,11 @@ public final class ItemBuilder {
     /** Append one line to the existing lore. */
     public ItemBuilder addLore(Component line) {
         Objects.requireNonNull(line, "line");
-        return editMeta(meta -> ItemMetaSupport.addLore(meta, nonItalic(line)));
+        return editMeta(meta -> {
+            for (Component piece : loreLines(line)) {
+                ItemMetaSupport.addLore(meta, piece);
+            }
+        });
     }
 
     /** Add an enchantment at {@code level} (level restrictions are ignored, so high levels are allowed). */
