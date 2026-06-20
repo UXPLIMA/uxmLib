@@ -80,10 +80,19 @@ public final class ItemBuilder {
         return this;
     }
 
-    /** Set the display name. */
+    /**
+     * Set the display name. Also pins the item's rarity to {@link ItemRarity#COMMON} so the name renders in
+     * the colour the component carries rather than the material's rarity tint: the client only paints a
+     * display name in the rarity colour when the name component has no colour of its own, and a custom name
+     * whose root run is uncoloured (e.g. a plain-text segment before a coloured one) would otherwise pick up
+     * the light-purple epic/rare tint of materials like a nether star or totem.
+     */
     public ItemBuilder name(Component name) {
         Objects.requireNonNull(name, "name");
-        return editMeta(meta -> meta.displayName(nonItalic(name)));
+        return editMeta(meta -> {
+            meta.displayName(nonItalic(name));
+            meta.setRarity(ItemRarity.COMMON);
+        });
     }
 
     /**

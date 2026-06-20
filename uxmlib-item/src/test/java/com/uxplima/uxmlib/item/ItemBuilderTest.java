@@ -14,6 +14,7 @@ import org.bukkit.inventory.meta.Damageable;
 import org.bukkit.persistence.PersistentDataType;
 
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.TextColor;
 import net.kyori.adventure.text.format.TextDecoration;
 
 import com.uxplima.uxmlib.text.Text;
@@ -209,6 +210,18 @@ class ItemBuilderTest {
         ItemStack item = ItemBuilder.of(Material.STONE).rarity(ItemRarity.EPIC).build();
 
         assertThat(item.getItemMeta().getRarity()).isEqualTo(ItemRarity.EPIC);
+    }
+
+    @Test
+    void nameOnAnEpicMaterialIsNotTintedByRarity() {
+        // A nether star is epic-rarity by default; its name would otherwise render light-purple. Setting a
+        // custom name must pin the rarity to COMMON so the name keeps the colour the component carries.
+        ItemStack item = ItemBuilder.of(Material.NETHER_STAR)
+                .name(Text.mini("<color:#45cdf9>Your Homes</color>"))
+                .build();
+
+        assertThat(item.getItemMeta().getRarity()).isEqualTo(ItemRarity.COMMON);
+        assertThat(item.getItemMeta().displayName().color()).isEqualTo(TextColor.color(0x45cdf9));
     }
 
     @Test
