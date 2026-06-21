@@ -15,6 +15,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.PrepareAnvilEvent;
+import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryView;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.view.AnvilView;
@@ -99,6 +100,9 @@ public final class AnvilInput implements Listener {
         Session session = sessions.get(event.getPlayer().getUniqueId());
         if (session != null && session.done.compareAndSet(false, true)) {
             sessions.remove(event.getPlayer().getUniqueId());
+            // Drop the prompt/result items before the close returns them, so a manual close (Esc) does not
+            // hand the player the rename prompt item.
+            event.getInventory().clear();
             session.callback.accept(AnvilResult.Cancelled.INSTANCE);
         }
     }
@@ -112,6 +116,10 @@ public final class AnvilInput implements Listener {
     private void complete(HumanEntity viewer, Session session, AnvilResult result) {
         if (session.done.compareAndSet(false, true)) {
             sessions.remove(viewer.getUniqueId());
+            // Clear the anvil before closing so the close does not return the prompt/result items to the
+            // player — otherwise submitting hands them the rename prompt item.
+            Inventory top = viewer.getOpenInventory().getTopInventory();
+            top.clear();
             viewer.closeInventory();
             session.callback.accept(result);
         }
