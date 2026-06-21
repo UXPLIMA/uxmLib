@@ -137,10 +137,18 @@ public final class ChannelResolver {
             return opt.orElse(null);
         }
         if (value instanceof Collection<?> collection) {
-            for (Object element : collection) {
-                if (element instanceof Channel) {
-                    return element;
+            try {
+                for (Object element : collection) {
+                    if (element instanceof Channel) {
+                        return element;
+                    }
                 }
+            } catch (RuntimeException uniterable) {
+                // Some game-state collections reachable in the object graph (e.g. a specialised redstone queue
+                // whose iterator() throws UnsupportedOperationException) cannot be walked. The resolver's
+                // contract is to fail closed, so treat such a field as carrying no channel and keep walking the
+                // rest of the graph rather than letting the exception escape and abort every packet send.
+                return null;
             }
         }
         return value;

@@ -59,6 +59,16 @@ class ChannelResolverGraphTest {
         assertThat(resolver.findChannel(handle)).isSameAs(channel);
     }
 
+    @Test
+    void skipsACollectionWhoseIteratorThrowsAndStillFindsTheChannel() {
+        // A 26.1.2 ServerPlayer graph reaches a specialised redstone queue whose iterator() throws
+        // UnsupportedOperationException; the walk must fail closed on that field and keep going, not abort.
+        EmbeddedChannel channel = withAnchor();
+        Object handle = new UniterableHandle(new ThrowingCollection(), channel);
+
+        assertThat(resolver.findChannel(handle)).isSameAs(channel);
+    }
+
     private static final class TwoChannelHandle {
         @SuppressWarnings("unused")
         private final Channel first;
@@ -96,6 +106,33 @@ class ChannelResolverGraphTest {
 
         CollectionHandle(List<Channel> channels) {
             this.channels = channels;
+        }
+    }
+
+    /** Declares the throwing collection first so the walk must survive it before reaching the connection. */
+    private static final class UniterableHandle {
+        @SuppressWarnings("unused")
+        private final java.util.Collection<Object> queue;
+
+        @SuppressWarnings("unused")
+        private final Connection connection;
+
+        UniterableHandle(java.util.Collection<Object> queue, Channel channel) {
+            this.queue = queue;
+            this.connection = new Connection(channel);
+        }
+    }
+
+    /** A collection that refuses iteration, mirroring the redstone queue that surfaced the resolver bug. */
+    private static final class ThrowingCollection extends java.util.AbstractCollection<Object> {
+        @Override
+        public java.util.Iterator<Object> iterator() {
+            throw new UnsupportedOperationException("not iterable");
+        }
+
+        @Override
+        public int size() {
+            return 0;
         }
     }
 }
