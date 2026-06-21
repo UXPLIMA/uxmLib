@@ -154,12 +154,22 @@ public final class ChannelResolver {
         return value;
     }
 
+    /**
+     * Every field declared on {@code type} <em>and its superclasses</em>. Walking the hierarchy is essential:
+     * since 1.20.2 the {@code Connection} that holds the channel is reached through the {@code connection} field
+     * declared on {@code ServerCommonPacketListenerImpl}, a superclass of the game packet listener, so a
+     * declared-fields-only walk stops at the listener and never reaches the channel.
+     */
     private static Field[] declaredFields(Class<?> type) {
-        try {
-            return type.getDeclaredFields();
-        } catch (SecurityException ignored) {
-            return new Field[0];
+        java.util.List<Field> fields = new java.util.ArrayList<>();
+        for (Class<?> c = type; c != null && c != Object.class; c = c.getSuperclass()) {
+            try {
+                Collections.addAll(fields, c.getDeclaredFields());
+            } catch (SecurityException ignored) {
+                // Skip an unreadable level and keep walking up; a missing level just narrows the search.
+            }
         }
+        return fields.toArray(new Field[0]);
     }
 
     private static @Nullable Object read(Field field, Object owner) {

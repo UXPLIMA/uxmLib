@@ -60,6 +60,16 @@ class ChannelResolverGraphTest {
     }
 
     @Test
+    void reachesAChannelHeldInAnInheritedSuperclassField() {
+        // Since 1.20.2 the channel-bearing connection field sits on a superclass of the game packet listener,
+        // so the walk must read inherited fields, not just the leaf class's own.
+        EmbeddedChannel channel = withAnchor();
+        Object handle = new SubListener(channel);
+
+        assertThat(resolver.findChannel(handle)).isSameAs(channel);
+    }
+
+    @Test
     void skipsACollectionWhoseIteratorThrowsAndStillFindsTheChannel() {
         // A 26.1.2 ServerPlayer graph reaches a specialised redstone queue whose iterator() throws
         // UnsupportedOperationException; the walk must fail closed on that field and keep going, not abort.
@@ -106,6 +116,22 @@ class ChannelResolverGraphTest {
 
         CollectionHandle(List<Channel> channels) {
             this.channels = channels;
+        }
+    }
+
+    private static class BaseListener {
+        @SuppressWarnings("unused")
+        private final Connection connection;
+
+        BaseListener(Channel channel) {
+            this.connection = new Connection(channel);
+        }
+    }
+
+    /** The connection field lives on {@link BaseListener}, so only an inherited-field walk reaches the channel. */
+    private static final class SubListener extends BaseListener {
+        SubListener(Channel channel) {
+            super(channel);
         }
     }
 
