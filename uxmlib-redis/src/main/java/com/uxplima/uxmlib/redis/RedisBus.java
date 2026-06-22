@@ -23,6 +23,20 @@ public interface RedisBus extends AutoCloseable {
     /** Subscribe to {@code channel}; {@code onFrame} receives each raw payload published there. */
     void subscribe(String channel, Consumer<byte[]> onFrame);
 
+    /**
+     * Whether the bus currently has a live wire — a probe a host can surface on a health/doctor line. A
+     * {@code true} return means the underlying connection is open and a publish has a path to Redis; a
+     * {@code false} return means the wire is down (closed or never opened) and publishes will fail-degrade.
+     *
+     * <p>This is a live signal, not a constant: an implementation reads its actual connection state. The
+     * default returns {@code true} so a fake or a transport that has no meaningful health to report (e.g. an
+     * in-memory test double) stays usable without overriding it; a real wire-backed implementation overrides
+     * it to reflect the connection.
+     */
+    default boolean healthy() {
+        return true;
+    }
+
     /** Release the underlying connection(s). Idempotent. */
     @Override
     void close();

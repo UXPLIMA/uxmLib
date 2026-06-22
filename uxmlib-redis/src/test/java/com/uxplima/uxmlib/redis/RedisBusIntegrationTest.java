@@ -59,6 +59,18 @@ class RedisBusIntegrationTest {
         }
     }
 
+    @Test
+    void healthy_reflects_the_live_publish_connection() {
+        RedisURI uri = RedisURI.create(redisUri);
+        LettuceRedisBus bus = new LettuceRedisBus(RedisClient.create(uri), message -> {});
+
+        // An open, just-connected bus reports healthy; closing it tears down the publish connection, so the
+        // signal flips to unhealthy — a real connection state, not a constant.
+        assertThat(bus.healthy()).isTrue();
+        bus.close();
+        assertThat(bus.healthy()).isFalse();
+    }
+
     private static boolean reachable(String uri) {
         try {
             RedisURI parsed = RedisURI.create(uri);

@@ -4,6 +4,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
+import java.util.function.LongSupplier;
 
 import io.lettuce.core.RedisClient;
 import io.lettuce.core.codec.ByteArrayCodec;
@@ -21,12 +22,17 @@ import io.lettuce.core.pubsub.StatefulRedisPubSubConnection;
  *
  * <p>Threading: Lettuce runs all I/O on its own event loop — no {@code new Thread}, no platform scheduler.
  * Inbound messages are handed to the registered {@link Consumer} on that event-loop thread.
+ *
+ * <p>A flapping Redis would otherwise fire {@code warn} on every failed publish future; the warn path is
+ * rate-limited to at most one message per {@value #WARN_INTERVAL_MS}ms so an outage cannot flood the log.
  */
 public final class LettuceRedisBus implements RedisBus {
 
+    private static final long WARN_INTERVAL_MS = 60_000L;
+
     private final RedisClient client;
     private final StatefulRedisPubSubConnection<byte[], byte[]> publishConnection;
-    private final Consumer<String> warn;
+    private final RateLimitedWarner warner;
     private final CopyOnWriteArrayList<StatefulRedisPubSubConnection<byte[], byte[]>> subscriptions =
             new CopyOnWriteArrayList<>();
 
@@ -35,8 +41,17 @@ public final class LettuceRedisBus implements RedisBus {
      * @param warn the sink for a fail-degraded publish error message (e.g. {@code logger::warn})
      */
     public LettuceRedisBus(RedisClient client, Consumer<String> warn) {
+        this(client, warn, System::currentTimeMillis);
+    }
+
+    /**
+     * Test seam: a caller-supplied {@code clock} (epoch millis) drives the publish-warn throttle so the
+     * one-per-window behaviour is exercised deterministically without sleeping. Production wiring uses the
+     * public two-arg constructor, which pins {@code clock} to {@link System#currentTimeMillis()}.
+     */
+    LettuceRedisBus(RedisClient client, Consumer<String> warn, LongSupplier clock) {
         this.client = Objects.requireNonNull(client, "client");
-        this.warn = Objects.requireNonNull(warn, "warn");
+        this.warner = new RateLimitedWarner(Objects.requireNonNull(warn, "warn"), WARN_INTERVAL_MS, clock);
         this.publishConnection = client.connectPubSub(ByteArrayCodec.INSTANCE);
     }
 
@@ -46,11 +61,19 @@ public final class LettuceRedisBus implements RedisBus {
         Objects.requireNonNull(frame, "frame");
         byte[] topic = channel.getBytes(StandardCharsets.UTF_8);
         // Fire-and-forget on the event loop; never blocks the caller. A failed publish (Redis down) is
-        // fail-degraded — reported, never thrown.
+        // fail-degraded — reported (rate-limited), never thrown.
         publishConnection.async().publish(topic, frame).exceptionally(failure -> {
-            warn.accept("redis publish to " + channel + " failed: " + failure.getMessage());
+            warner.warn("redis publish to " + channel + " failed: " + failure.getMessage());
             return null;
         });
+    }
+
+    @Override
+    public boolean healthy() {
+        // The outbound publish connection is the one a publish actually rides; an open one means a frame has a
+        // live path to Redis, while a closed one (never opened, or torn down by close) means publishes
+        // fail-degrade. Lettuce auto-reconnects, so this flips back to true once the wire recovers.
+        return publishConnection.isOpen();
     }
 
     @Override
