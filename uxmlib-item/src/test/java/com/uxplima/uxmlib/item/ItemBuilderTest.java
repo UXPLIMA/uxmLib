@@ -85,8 +85,9 @@ class ItemBuilderTest {
 
     @Test
     void preservesExplicitItalicOnLore() {
-        ItemStack item =
-                ItemBuilder.of(Material.MAP).lore(Text.mini("<i><gray>deliberately italic")).build();
+        ItemStack item = ItemBuilder.of(Material.MAP)
+                .lore(Text.mini("<i><gray>deliberately italic"))
+                .build();
 
         assertThat(item.getItemMeta().lore().get(0).decoration(TextDecoration.ITALIC))
                 .isEqualTo(TextDecoration.State.TRUE);
