@@ -1,6 +1,6 @@
 # uxmLib
 
-[![JitPack](https://jitpack.io/v/siracozmen01/uxmLib.svg)](https://jitpack.io/#siracozmen01/uxmLib)
+[![JitPack](https://jitpack.io/v/UXPLIMA/uxmLib.svg)](https://jitpack.io/#UXPLIMA/uxmLib)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Java 21](https://img.shields.io/badge/Java-21-orange.svg)](https://adoptium.net/)
 [![Paper 1.21+](https://img.shields.io/badge/Paper-1.21%2B-brightgreen.svg)](https://papermc.io/)
@@ -91,7 +91,7 @@ compile time only and never ships them.
 
 ## Modules
 
-Every module is published separately under the JitPack group `com.github.siracozmen01.uxmLib`; pull only
+Every module is published separately under the JitPack group `com.github.UXPLIMA.uxmLib`; pull only
 what you use. Modules marked **experimental** are previews with unstable APIs (see
 [Versioning & stability](#versioning--stability)).
 
@@ -135,9 +135,9 @@ graph TD
 
 ## Installation
 
-uxmLib is published through [JitPack](https://jitpack.io/#siracozmen01/uxmLib). Add the JitPack repository
+uxmLib is published through [JitPack](https://jitpack.io/#UXPLIMA/uxmLib). Add the JitPack repository
 (plus Paper's, since the modules compile against the Paper API), then the modules you need. JitPack serves
-each module under the group `com.github.siracozmen01.uxmLib` with the git tag as the version.
+each module under the group `com.github.UXPLIMA.uxmLib` with the git tag as the version.
 
 > Replace `VERSION` with the latest released tag — the version shown on the JitPack badge above.
 
@@ -151,9 +151,9 @@ repositories {
 }
 
 dependencies {
-    implementation("com.github.siracozmen01.uxmLib:uxmlib-gui:VERSION")
-    implementation("com.github.siracozmen01.uxmLib:uxmlib-item:VERSION")
-    implementation("com.github.siracozmen01.uxmLib:uxmlib-command:VERSION")
+    implementation("com.github.UXPLIMA.uxmLib:uxmlib-gui:VERSION")
+    implementation("com.github.UXPLIMA.uxmLib:uxmlib-item:VERSION")
+    implementation("com.github.UXPLIMA.uxmLib:uxmlib-command:VERSION")
     // ...and uxmlib-common / uxmlib-storage / uxmlib-integration / uxmlib-hud /
     // uxmlib-update / uxmlib-condition as needed
 }
@@ -169,8 +169,8 @@ repositories {
 }
 
 dependencies {
-    implementation 'com.github.siracozmen01.uxmLib:uxmlib-gui:VERSION'
-    implementation 'com.github.siracozmen01.uxmLib:uxmlib-item:VERSION'
+    implementation 'com.github.UXPLIMA.uxmLib:uxmlib-gui:VERSION'
+    implementation 'com.github.UXPLIMA.uxmLib:uxmlib-item:VERSION'
 }
 ```
 
@@ -189,7 +189,7 @@ dependencies {
 </repositories>
 
 <dependency>
-  <groupId>com.github.siracozmen01.uxmLib</groupId>
+  <groupId>com.github.UXPLIMA.uxmLib</groupId>
   <artifactId>uxmlib-gui</artifactId>
   <version>VERSION</version>
 </dependency>
@@ -201,11 +201,11 @@ Importing the BOM lets you list modules without repeating the version on each on
 
 ```kotlin
 dependencies {
-    implementation(platform("com.github.siracozmen01.uxmLib:uxmlib-bom:VERSION"))
+    implementation(platform("com.github.UXPLIMA.uxmLib:uxmlib-bom:VERSION"))
 
-    implementation("com.github.siracozmen01.uxmLib:uxmlib-gui")
-    implementation("com.github.siracozmen01.uxmLib:uxmlib-item")
-    implementation("com.github.siracozmen01.uxmLib:uxmlib-storage")
+    implementation("com.github.UXPLIMA.uxmLib:uxmlib-gui")
+    implementation("com.github.UXPLIMA.uxmLib:uxmlib-item")
+    implementation("com.github.UXPLIMA.uxmLib:uxmlib-storage")
 }
 ```
 
