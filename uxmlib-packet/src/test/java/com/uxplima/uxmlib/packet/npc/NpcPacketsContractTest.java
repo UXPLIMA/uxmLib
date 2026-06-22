@@ -104,6 +104,24 @@ class NpcPacketsContractTest {
         assertThat(add.profileId()).isEqualTo(profileId);
         assertThat(add.name()).isEqualTo("Guide");
         assertThat(add.skin()).isEqualTo(skin);
+        // The no-flag shorthand seats a listed entry — the NPC shows in the tab list.
+        assertThat(add.listed()).isTrue();
+    }
+
+    @Test
+    void tabAddCarriesTheListedFlagExplicitly() {
+        FakeNpcPackets packets = new FakeNpcPackets();
+        UUID profileId = UUID.randomUUID();
+        TabSkin skin = TabSkin.unsigned("tex");
+
+        FakeNpcPackets.TabAdd unlisted = (FakeNpcPackets.TabAdd) packets.tabAdd(profileId, "Guide", skin, false);
+        FakeNpcPackets.TabAdd listed = (FakeNpcPackets.TabAdd) packets.tabAdd(profileId, "Guide", skin, true);
+
+        // listed=false renders the body without a tab-list row — the normal fake-player NPC case; listed=true also
+        // shows the row. Either way the entry is added and kept (no remove is part of the add).
+        assertThat(unlisted.listed()).isFalse();
+        assertThat(unlisted.skin()).isEqualTo(skin);
+        assertThat(listed.listed()).isTrue();
     }
 
     @Test
@@ -738,7 +756,7 @@ class NpcPacketsContractTest {
     /** A recording fake whose packets are sentinel records so the contract can be asserted without NMS. */
     private static final class FakeNpcPackets implements NpcPackets {
 
-        record TabAdd(UUID profileId, String name, @Nullable TabSkin skin) {}
+        record TabAdd(UUID profileId, String name, @Nullable TabSkin skin, boolean listed) {}
 
         record TabRemove(UUID profileId) {}
 
@@ -898,7 +916,12 @@ class NpcPacketsContractTest {
 
         @Override
         public Object tabAdd(UUID profileId, String name, @Nullable TabSkin skin) {
-            return new TabAdd(profileId, name, skin);
+            return tabAdd(profileId, name, skin, true);
+        }
+
+        @Override
+        public Object tabAdd(UUID profileId, String name, @Nullable TabSkin skin, boolean listed) {
+            return new TabAdd(profileId, name, skin, listed);
         }
 
         @Override

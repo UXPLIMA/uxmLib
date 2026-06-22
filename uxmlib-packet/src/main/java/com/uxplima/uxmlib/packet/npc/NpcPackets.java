@@ -23,10 +23,12 @@ import org.jspecify.annotations.Nullable;
  * and skin so the client knows how to render the body, then the entity spawn at a position and rotation, then
  * the look packets that aim its head and body. The client links the skin to the spawned entity because the
  * spawn UUID equals the player-info entry's profile id — so the spawn must reuse the same {@code profileId}.
- * The caller typically removes the player-info entry from the visible tab a moment after spawning (a short
- * delay so the client has parsed the entry); {@link #tabRemove(UUID)} builds that removal. Each method returns
- * one built packet; {@link #send(Player, Object)} writes it to a viewer's connection, so the same packet can be
- * sent to many viewers without rebuilding it.
+ * The entry is added <em>unlisted</em> ({@code listed=false}) so the body renders but the NPC never shows as a
+ * tab-list row, and the entry is kept for the entity's whole lifetime — removing the player-info entry
+ * de-renders the entity on modern clients, so it stays until the NPC despawns, when {@link #tabRemove(UUID)}
+ * drops it. An NPC the operator does want in the tab list is added with {@code listed=true} instead; either way
+ * the entry is kept. Each method returns one built packet; {@link #send(Player, Object)} writes it to a viewer's
+ * connection, so the same packet can be sent to many viewers without rebuilding it.
  */
 public interface NpcPackets {
 
@@ -35,10 +37,22 @@ public interface NpcPackets {
 
     /**
      * Build a player-info ADD packet that seats a fully-controlled profile (name, and the skin as a
-     * {@code textures} property when present) so the client can render the NPC's body. The entry is marked
-     * listed; the caller removes it from the visible tab shortly after the spawn with {@link #tabRemove(UUID)}.
+     * {@code textures} property when present) so the client can render the NPC's body, marked {@code listed} so
+     * the NPC also shows as a row in the tab list. Most NPCs want {@link #tabAdd(UUID, String, TabSkin, boolean)
+     * the listed overload} with {@code listed=false} instead, which renders the body without the tab-list row;
+     * this listed shorthand stays for an NPC the operator does want listed.
      */
     Object tabAdd(UUID profileId, String name, @Nullable TabSkin skin);
+
+    /**
+     * Build a player-info ADD packet exactly like {@link #tabAdd(UUID, String, TabSkin)} but with the entry's
+     * {@code listed} flag set explicitly. With {@code listed=false} the entry is a known client entity — the NPC
+     * body and skin render — but it is not drawn as a row in the tab list, which is how a fake-player NPC is
+     * normally shown. With {@code listed=true} the NPC also appears in the tab list. Either way the entry is kept
+     * for the entity's lifetime (removing it would de-render the body on modern clients); {@link #tabRemove(UUID)}
+     * drops it on despawn.
+     */
+    Object tabAdd(UUID profileId, String name, @Nullable TabSkin skin, boolean listed);
 
     /** Build a player-info REMOVE packet that drops {@code profileId} from the tab list. */
     Object tabRemove(UUID profileId);

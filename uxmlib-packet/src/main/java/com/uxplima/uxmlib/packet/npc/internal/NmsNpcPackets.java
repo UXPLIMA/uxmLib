@@ -439,11 +439,18 @@ public final class NmsNpcPackets implements NpcPackets {
 
     @Override
     public Object tabAdd(UUID profileId, String name, @Nullable TabSkin skin) {
+        return tabAdd(profileId, name, skin, true);
+    }
+
+    @Override
+    public Object tabAdd(UUID profileId, String name, @Nullable TabSkin skin, boolean listed) {
         Objects.requireNonNull(profileId, "profileId");
         Objects.requireNonNull(name, "name");
+        // The ADD seats the entry's initial listed state; UPDATE_LISTED is bundled so the flag is read either way.
+        // listed=false keeps the entry a known client entity (the body and skin render) but draws no tab-list row.
         EnumSet<Action> actions = EnumSet.of(Action.ADD_PLAYER, Action.UPDATE_LISTED);
         Entry entry = new Entry(
-                profileId, profileFor(profileId, name, skin), true, 0, GameType.DEFAULT_MODE, null, true, 0, null);
+                profileId, profileFor(profileId, name, skin), listed, 0, GameType.DEFAULT_MODE, null, true, 0, null);
         return new ClientboundPlayerInfoUpdatePacket(actions, List.of(entry));
     }
 
