@@ -16,13 +16,13 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
 import com.mojang.authlib.GameProfile;
-import com.mojang.authlib.properties.Property;
 import com.mojang.datafixers.util.Pair;
 import com.uxplima.uxmlib.npc.PacketSender;
 import com.uxplima.uxmlib.packet.Bundles;
 import com.uxplima.uxmlib.packet.Codecs;
 import com.uxplima.uxmlib.packet.Components;
 import com.uxplima.uxmlib.packet.EntityIds;
+import com.uxplima.uxmlib.packet.GameProfiles;
 import com.uxplima.uxmlib.packet.Reflect;
 import com.uxplima.uxmlib.packet.npc.ArmorStandPart;
 import com.uxplima.uxmlib.packet.npc.ByteAngle;
@@ -1129,9 +1129,7 @@ public final class NmsNpcPackets implements NpcPackets {
      * and clients drop a profile-less fake player — so a skinless NPC would otherwise never render.
      */
     private static GameProfile profileFor(UUID profileId, String name, @Nullable TabSkin skin) {
-        GameProfile profile = new GameProfile(profileId, name);
         TabSkin textures = TabSkin.orDefault(skin);
-        profile.properties().put("textures", new Property("textures", textures.textureValue(), textures.signature()));
-        return profile;
+        return GameProfiles.withTextures(profileId, name, textures.textureValue(), textures.signature());
     }
 }

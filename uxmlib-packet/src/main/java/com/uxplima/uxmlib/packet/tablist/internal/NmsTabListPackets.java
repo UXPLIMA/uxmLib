@@ -10,9 +10,9 @@ import org.bukkit.entity.Player;
 import net.kyori.adventure.text.Component;
 
 import com.mojang.authlib.GameProfile;
-import com.mojang.authlib.properties.Property;
 import com.uxplima.uxmlib.npc.PacketSender;
 import com.uxplima.uxmlib.packet.Components;
+import com.uxplima.uxmlib.packet.GameProfiles;
 import com.uxplima.uxmlib.packet.tablist.TabEntry;
 import com.uxplima.uxmlib.packet.tablist.TabListPackets;
 import com.uxplima.uxmlib.packet.tablist.TabSkin;
@@ -108,12 +108,11 @@ public final class NmsTabListPackets implements TabListPackets {
 
     /** The {@code GameProfile} for an add-entry, carrying the skin as a {@code textures} property when present. */
     private static GameProfile profileFor(TabEntry entry) {
-        GameProfile profile = new GameProfile(entry.id(), entry.profileName());
         TabSkin skin = entry.skin();
-        if (skin != null) {
-            profile.properties().put("textures", new Property("textures", skin.textureValue(), skin.signature()));
+        if (skin == null) {
+            return GameProfiles.plain(entry.id(), entry.profileName());
         }
-        return profile;
+        return GameProfiles.withTextures(entry.id(), entry.profileName(), skin.textureValue(), skin.signature());
     }
 
     /** Build a single-entry update packet through Paper's public {@code (actions, entry)} list constructor. */
