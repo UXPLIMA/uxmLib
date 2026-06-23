@@ -1122,12 +1122,16 @@ public final class NmsNpcPackets implements NpcPackets {
         };
     }
 
-    /** The {@code GameProfile} for the NPC, carrying the skin as a {@code textures} property when present. */
+    /**
+     * The {@code GameProfile} for the NPC, always carrying a {@code textures} property: the NPC's own skin when it
+     * has one, otherwise the default Steve texture ({@link TabSkin#DEFAULT}). The property is never omitted because
+     * a fake player spawned through {@code ClientboundAddEntityPacket} on 1.20.2+ links its body to this profile,
+     * and clients drop a profile-less fake player — so a skinless NPC would otherwise never render.
+     */
     private static GameProfile profileFor(UUID profileId, String name, @Nullable TabSkin skin) {
         GameProfile profile = new GameProfile(profileId, name);
-        if (skin != null) {
-            profile.properties().put("textures", new Property("textures", skin.textureValue(), skin.signature()));
-        }
+        TabSkin textures = TabSkin.orDefault(skin);
+        profile.properties().put("textures", new Property("textures", textures.textureValue(), textures.signature()));
         return profile;
     }
 }
